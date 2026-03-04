@@ -26,8 +26,8 @@ app.add_middleware(
 )
 
 # Routes
-from app.api.v1.users import router as users_router  # noqa: E402
-from app.api.v1.trips import router as trips_router  # noqa: E402
+from app.api.users import router as users_router  # noqa: E402
+from app.api.trips import router as trips_router  # noqa: E402
 
 app.include_router(users_router, prefix="/api/v1")
 app.include_router(trips_router, prefix="/api/v1")

@@ -1,4 +1,9 @@
-from typing import Annotated, AsyncGenerator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -47,4 +52,4 @@ async def get_current_user(
 
 # Type aliases for route signatures
 Db = Annotated[AsyncSession, Depends(get_db)]
-CurrentUser = Annotated["User", Depends(get_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
