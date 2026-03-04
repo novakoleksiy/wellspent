@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, JSON, String, Text, func
+from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -23,7 +25,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255))
     preferences: Mapped[dict | None] = mapped_column(JSON, default=None)
 
-    trips: Mapped[list["Trip"]] = relationship(
+    trips: Mapped[list[Trip]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -50,8 +52,8 @@ class Trip(Base):
     description: Mapped[str | None] = mapped_column(Text, default=None)
     itinerary: Mapped[dict | None] = mapped_column(JSON, default=None)
 
-    user: Mapped["User"] = relationship(back_populates="trips")
-    bookings: Mapped[list["Booking"]] = relationship(
+    user: Mapped[User] = relationship(back_populates="trips")
+    bookings: Mapped[list[Booking]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
 
@@ -86,4 +88,4 @@ class Booking(Base):
     currency: Mapped[str] = mapped_column(String(3), default="USD")
     details: Mapped[dict | None] = mapped_column(JSON, default=None)
 
-    trip: Mapped["Trip"] = relationship(back_populates="bookings")
+    trip: Mapped[Trip] = relationship(back_populates="bookings")
