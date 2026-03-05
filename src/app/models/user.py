@@ -33,7 +33,7 @@ class User(Base):
 # ── Trip ─────────────────────────────────────────────
 
 
-class TripStatus(str, enum.Enum):
+class TripStatus(enum.StrEnum):
     DRAFT = "draft"
     RECOMMENDED = "recommended"
     BOOKED = "booked"
@@ -61,14 +61,14 @@ class Trip(Base):
 # ── Booking ──────────────────────────────────────────
 
 
-class BookingStatus(str, enum.Enum):
+class BookingStatus(enum.StrEnum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
 
-class BookingType(str, enum.Enum):
+class BookingType(enum.StrEnum):
     FLIGHT = "flight"
     HOTEL = "hotel"
     ACTIVITY = "activity"
