@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator
+from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.adapters.sqlalchemy_trip_repo import SqlAlchemyTripRepo
+from app.adapters.sqlalchemy_user_repo import SqlAlchemyUserRepo
 from app.core.config import settings
 from app.core.security import decode_token
-from app.models.user import User
+from app.ports.repositories import UserRecord
 
 engine = create_async_engine(settings.database_url, echo=False)
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -27,11 +28,18 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
+def get_user_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> SqlAlchemyUserRepo:
+    return SqlAlchemyUserRepo(db)
+
+
+def get_trip_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> SqlAlchemyTripRepo:
+    return SqlAlchemyTripRepo(db)
+
+
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    user_repo: Annotated[SqlAlchemyUserRepo, Depends(get_user_repo)],
 ):
-    from app.models.user import User  # avoid circular import
 
     user_id = decode_token(token)
     if user_id is None:
@@ -39,8 +47,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = await user_repo.get_by_id(user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
@@ -50,4 +57,6 @@ async def get_current_user(
 
 # Type aliases for route signatures
 Db = Annotated[AsyncSession, Depends(get_db)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
+UserRepo = Annotated[SqlAlchemyUserRepo, Depends(get_user_repo)]
+TripRepo = Annotated[SqlAlchemyTripRepo, Depends(get_trip_repo)]
+CurrentUser = Annotated[UserRecord, Depends(get_current_user)]

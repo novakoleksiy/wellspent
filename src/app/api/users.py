@@ -1,9 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException
 
-from app.core.db import CurrentUser, Db
-from app.core.security import create_token, hash_password, verify_password
-from app.models.user import User
+from app.core.db import CurrentUser, UserRepo
 from app.schemas.schemas import (
     LoginRequest,
     Preferences,
@@ -11,34 +8,36 @@ from app.schemas.schemas import (
     Token,
     UserOut,
 )
+from app.services.user_service import (
+    EmailAlreadyRegistered,
+    InvalidCredentials,
+    authenticate_user,
+    register_user,
+    update_preferences,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
-async def register(body: RegisterRequest, db: Db):
-    exists = await db.execute(select(User).where(User.email == body.email))
-    if exists.scalar_one_or_none():
+async def register(body: RegisterRequest, repo: UserRepo):
+    try:
+        return await register_user(
+            repo, email=body.email, password=body.password, full_name=body.full_name
+        )
+    except EmailAlreadyRegistered:
         raise HTTPException(400, "Email already registered")
-
-    user = User(
-        email=body.email,
-        hashed_password=hash_password(body.password),
-        full_name=body.full_name,
-    )
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
-    return user
 
 
 @router.post("/login", response_model=Token)
-async def login(body: LoginRequest, db: Db):
-    result = await db.execute(select(User).where(User.email == body.email))
-    user = result.scalar_one_or_none()
-    if not user or not verify_password(body.password, user.hashed_password):
+async def login(body: LoginRequest, repo: UserRepo):
+    try:
+        access_token = await authenticate_user(
+            repo, email=body.email, password=body.password
+        )
+    except InvalidCredentials:
         raise HTTPException(401, "Bad credentials")
-    return Token(access_token=create_token(user.id))
+    return Token(access_token=access_token)
 
 
 @router.get("/me", response_model=UserOut)
@@ -47,9 +46,5 @@ async def me(user: CurrentUser):
 
 
 @router.put("/me/preferences", response_model=UserOut)
-async def update_preferences(prefs: Preferences, user: CurrentUser, db: Db):
-    user.preferences = prefs.model_dump()
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
-    return user
+async def update_prefs(prefs: Preferences, user: CurrentUser, repo: UserRepo):
+    return await update_preferences(repo, user.id, prefs.model_dump())

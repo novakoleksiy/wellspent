@@ -1,111 +1,53 @@
-from datetime import timedelta
-
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
 
-from app.core.db import CurrentUser, Db
-from app.models.user import Trip, TripStatus
+from app.core.db import CurrentUser, TripRepo
 from app.schemas.schemas import Recommendation, RecommendRequest, TripCreate, TripOut
+from app.services.trip_service import (
+    TripNotFound,
+    build_recommendations,
+    create_trip,
+    delete_trip,
+    get_trip,
+    list_trips,
+)
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
 
 @router.post("/recommend", response_model=list[Recommendation])
 async def recommend(body: RecommendRequest, user: CurrentUser):
-    """
-    Returns mock recommendations for now.
-    Will be replaced by LLM agent + real provider searches.
-    """
-    dest = body.destination or "Barcelona, Spain"
-    num_days = (body.end_date - body.start_date).days or 1
-
-    days = []
-    for i in range(num_days):
-        d = body.start_date + timedelta(days=i)
-        days.append(
-            {
-                "day": i + 1,
-                "date": d.isoformat(),
-                "activities": [
-                    {
-                        "time": "09:00",
-                        "title": f"Morning in {dest}",
-                        "category": "activity",
-                        "cost": 30,
-                    },
-                    {
-                        "time": "12:30",
-                        "title": "Local lunch",
-                        "category": "meal",
-                        "cost": 20,
-                    },
-                    {
-                        "time": "15:00",
-                        "title": f"Explore {dest}",
-                        "category": "activity",
-                        "cost": 40,
-                    },
-                ],
-            }
-        )
-
-    return [
-        Recommendation(
-            title=f"Discover {dest}",
-            destination=dest,
-            description=f"{num_days}-day trip to {dest}, tailored to your style.",
-            itinerary={
-                "days": days,
-                "estimated_total": num_days * 90 + 400,
-                "currency": "USD",
-            },
-            match_score=0.85,
-            highlights=["Great food scene", "Walkable city", "Rich culture"],
-        )
-    ]
+    recs = build_recommendations(body.destination, body.start_date, body.end_date)
+    return [Recommendation(**r) for r in recs]
 
 
 @router.post("/", response_model=TripOut, status_code=201)
-async def create_trip(body: TripCreate, user: CurrentUser, db: Db):
-    trip = Trip(
-        user_id=user.id,
+async def create(body: TripCreate, user: CurrentUser, repo: TripRepo):
+    return await create_trip(
+        repo,
+        user.id,
         title=body.title,
         destination=body.destination,
         description=body.description,
         itinerary=body.itinerary,
-        status=TripStatus.DRAFT,
     )
-    db.add(trip)
-    await db.flush()
-    await db.refresh(trip)
-    return trip
 
 
 @router.get("/", response_model=list[TripOut])
-async def list_trips(user: CurrentUser, db: Db):
-    result = await db.execute(
-        select(Trip).where(Trip.user_id == user.id).order_by(Trip.created_at.desc())
-    )
-    return result.scalars().all()
+async def list_all(user: CurrentUser, repo: TripRepo):
+    return await list_trips(repo, user.id)
 
 
 @router.get("/{trip_id}", response_model=TripOut)
-async def get_trip(trip_id: int, user: CurrentUser, db: Db):
-    result = await db.execute(
-        select(Trip).where(Trip.id == trip_id, Trip.user_id == user.id)
-    )
-    trip = result.scalar_one_or_none()
-    if not trip:
+async def get_one(trip_id: int, user: CurrentUser, repo: TripRepo):
+    try:
+        return await get_trip(repo, user.id, trip_id)
+    except TripNotFound:
         raise HTTPException(404, "Trip not found")
-    return trip
 
 
 @router.delete("/{trip_id}", status_code=204)
-async def delete_trip(trip_id: int, user: CurrentUser, db: Db):
-    result = await db.execute(
-        select(Trip).where(Trip.id == trip_id, Trip.user_id == user.id)
-    )
-    trip = result.scalar_one_or_none()
-    if not trip:
+async def delete(trip_id: int, user: CurrentUser, repo: TripRepo):
+    try:
+        await delete_trip(repo, user.id, trip_id)
+    except TripNotFound:
         raise HTTPException(404, "Trip not found")
-    await db.delete(trip)
