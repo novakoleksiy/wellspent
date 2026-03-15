@@ -26,11 +26,13 @@ app.add_middleware(
 )
 
 # Routes
+from app.api.swiss_tourism import router as swiss_router  # noqa: E402
 from app.api.trips import router as trips_router  # noqa: E402
 from app.api.users import router as users_router  # noqa: E402
 
 app.include_router(users_router, prefix="/api")
 app.include_router(trips_router, prefix="/api")
+app.include_router(swiss_router, prefix="/api")
 
 
 @app.get("/health")

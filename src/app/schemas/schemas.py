@@ -3,7 +3,6 @@ from typing import Any
 
 from pydantic import BaseModel, EmailStr
 
-
 # ── Auth ─────────────────────────────────────────────
 
 
@@ -80,3 +79,68 @@ class Recommendation(BaseModel):
     itinerary: dict[str, Any]
     match_score: float
     highlights: list[str]
+
+
+# ── Swiss Tourism ───────────────────────────────────
+
+
+class GeoOut(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class ImageOut(BaseModel):
+    url: str
+    title: str = ""
+
+
+class PaginationOut(BaseModel):
+    page_number: int
+    page_size: int
+    total_elements: int
+    total_pages: int
+
+
+class DestinationOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    geo: GeoOut | None = None
+    images: list[ImageOut] = []
+    url: str = ""
+
+
+class DestinationListOut(BaseModel):
+    data: list[DestinationOut]
+    pagination: PaginationOut
+
+
+class AttractionOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: str = ""
+    geo: GeoOut | None = None
+    images: list[ImageOut] = []
+    url: str = ""
+
+
+class AttractionListOut(BaseModel):
+    data: list[AttractionOut]
+    pagination: PaginationOut
+
+
+class TourOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    distance_km: float | None = None
+    duration: str = ""
+    geo: GeoOut | None = None
+    images: list[ImageOut] = []
+    url: str = ""
+
+
+class TourListOut(BaseModel):
+    data: list[TourOut]
+    pagination: PaginationOut
