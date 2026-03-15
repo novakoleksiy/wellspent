@@ -18,9 +18,9 @@ class SwissImage:
 
 @dataclass
 class DestinationRecord:
-    identifier: str
+    id: str
     name: str
-    category: str
+    category: str | None = None
     description: str = ""
     geo: GeoCoordinates | None = None
     images: list[SwissImage] = field(default_factory=list)

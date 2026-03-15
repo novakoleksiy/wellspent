@@ -104,6 +104,7 @@ class PaginationOut(BaseModel):
 class DestinationOut(BaseModel):
     id: str
     name: str
+    category: str | None = None
     description: str
     geo: GeoOut | None = None
     images: list[ImageOut] = []

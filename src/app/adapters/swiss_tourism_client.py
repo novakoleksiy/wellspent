@@ -109,7 +109,7 @@ class HttpxSwissTourismClient:
 
     def _to_destination(self, item: dict) -> DestinationRecord:
         return DestinationRecord(
-            identifier=item.get("identifier", ""),
+            id=item.get("identifier", ""),
             name=item.get("name", ""),
             category=item.get("category"),
             description=item.get("description", ""),
