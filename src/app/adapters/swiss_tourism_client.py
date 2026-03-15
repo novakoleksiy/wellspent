@@ -26,7 +26,7 @@ class HttpxSwissTourismClient:
         return {"x-api-key": self._api_key}
 
     def _base_params(self) -> dict[str, str]:
-        return {"language": self._language, "striphtml": "true", "expand": "true"}
+        return {"lang": self._language, "striphtml": "true", "expand": "true"}
 
     # ── helpers ──────────────────────────────────────────
 
