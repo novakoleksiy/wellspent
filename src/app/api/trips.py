@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
-from app.core.db import CurrentUser, TripRepo
+from app.core.db import CurrentUser, SwissTourism, TripRepo
 from app.schemas.schemas import Recommendation, RecommendRequest, TripCreate, TripOut
+from app.services import recommendation_service
 from app.services.trip_service import (
     TripNotFound,
-    build_recommendations,
     create_trip,
     delete_trip,
     get_trip,
@@ -15,8 +15,15 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 
 
 @router.post("/recommend", response_model=list[Recommendation])
-async def recommend(body: RecommendRequest, user: CurrentUser):
-    recs = build_recommendations(body.destination, body.start_date, body.end_date)
+async def recommend(body: RecommendRequest, user: CurrentUser, client: SwissTourism):
+    recs = await recommendation_service.recommend(
+        client,
+        preferences=user.preferences,
+        destination=body.destination,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        travelers=body.travelers,
+    )
     return [Recommendation(**r) for r in recs]
 
 
