@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 # ── Auth ─────────────────────────────────────────────
 
@@ -27,8 +27,8 @@ class Token(BaseModel):
 
 class Preferences(BaseModel):
     budget_tier: str = "mid"  # budget | mid | luxury
-    travel_styles: list[str] = []  # adventure, cultural, relaxation, foodie
-    accommodation_types: list[str] = ["hotel"]  # hotel, airbnb, hostel
+    travel_styles: list[str] = Field(default_factory=list)
+    accommodation_types: list[str] = Field(default_factory=lambda: ["hotel"])
     pace: str = "moderate"  # relaxed | moderate | packed
     notes: str = ""  # free text for future LLM processing
 
@@ -119,7 +119,7 @@ class DestinationOut(BaseModel):
     category: str | None = None
     description: str
     geo: GeoOut | None = None
-    images: list[ImageOut] = []
+    images: list[ImageOut] = Field(default_factory=list)
     url: str = ""
 
 
@@ -134,7 +134,7 @@ class AttractionOut(BaseModel):
     description: str
     category: str = ""
     geo: GeoOut | None = None
-    images: list[ImageOut] = []
+    images: list[ImageOut] = Field(default_factory=list)
     url: str = ""
 
 
@@ -150,7 +150,7 @@ class TourOut(BaseModel):
     distance_km: float | None = None
     duration: str = ""
     geo: GeoOut | None = None
-    images: list[ImageOut] = []
+    images: list[ImageOut] = Field(default_factory=list)
     url: str = ""
 
 
