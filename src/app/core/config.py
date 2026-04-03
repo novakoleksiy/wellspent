@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     my_swiss_tourism_api: str
+    registration_open: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

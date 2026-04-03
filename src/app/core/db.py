@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.adapters.sqlalchemy_trip_repo import SqlAlchemyTripRepo
 from app.adapters.sqlalchemy_user_repo import SqlAlchemyUserRepo
+from app.adapters.sqlalchemy_waitlist_repo import SqlAlchemyWaitlistRepo
 from app.adapters.swiss_tourism_client import HttpxSwissTourismClient
 from app.core.config import settings
 from app.core.security import decode_token
@@ -56,6 +57,12 @@ async def get_current_user(
     return user
 
 
+def get_waitlist_repo(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SqlAlchemyWaitlistRepo:
+    return SqlAlchemyWaitlistRepo(db)
+
+
 def get_swiss_tourism_client() -> HttpxSwissTourismClient:
     return HttpxSwissTourismClient(api_key=settings.my_swiss_tourism_api)
 
@@ -65,4 +72,5 @@ Db = Annotated[AsyncSession, Depends(get_db)]
 UserRepo = Annotated[SqlAlchemyUserRepo, Depends(get_user_repo)]
 TripRepo = Annotated[SqlAlchemyTripRepo, Depends(get_trip_repo)]
 CurrentUser = Annotated[UserRecord, Depends(get_current_user)]
+WaitlistRepo = Annotated[SqlAlchemyWaitlistRepo, Depends(get_waitlist_repo)]
 SwissTourism = Annotated[HttpxSwissTourismClient, Depends(get_swiss_tourism_client)]

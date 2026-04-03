@@ -64,3 +64,21 @@ class TripRepository(Protocol):
     ) -> TripRecord | None: ...
 
     async def delete(self, trip_id: int, user_id: int) -> None: ...
+
+
+@dataclass
+class WaitlistEntryRecord:
+    """Domain representation of a waitlist entry — decoupled from ORM."""
+
+    id: int
+    email: str
+    name: str | None
+    created_at: object
+
+
+class WaitlistRepository(Protocol):
+    async def get_by_email(self, email: str) -> WaitlistEntryRecord | None: ...
+
+    async def create(
+        self, *, email: str, name: str | None = None
+    ) -> WaitlistEntryRecord: ...

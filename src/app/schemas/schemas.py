@@ -81,6 +81,18 @@ class Recommendation(BaseModel):
     highlights: list[str]
 
 
+# ── Waitlist ────────────────────────────────────────
+
+
+class JoinWaitlistRequest(BaseModel):
+    email: EmailStr
+    name: str | None = None
+
+
+class WaitlistResponse(BaseModel):
+    message: str
+
+
 # ── Swiss Tourism ───────────────────────────────────
 
 

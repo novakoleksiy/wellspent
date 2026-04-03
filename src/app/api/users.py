@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from app.core.config import settings
 from app.core.db import CurrentUser, UserRepo
 from app.schemas.schemas import (
     LoginRequest,
@@ -11,6 +12,7 @@ from app.schemas.schemas import (
 from app.services.user_service import (
     EmailAlreadyRegistered,
     InvalidCredentials,
+    RegistrationClosed,
     authenticate_user,
     register_user,
     update_preferences,
@@ -23,8 +25,14 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def register(body: RegisterRequest, repo: UserRepo):
     try:
         return await register_user(
-            repo, email=body.email, password=body.password, full_name=body.full_name
+            repo,
+            email=body.email,
+            password=body.password,
+            full_name=body.full_name,
+            registration_open=settings.registration_open,
         )
+    except RegistrationClosed:
+        raise HTTPException(403, "Registration is currently closed")
     except EmailAlreadyRegistered:
         raise HTTPException(400, "Email already registered")
 
