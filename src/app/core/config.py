@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-change-in-prod"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
-    my_swiss_tourism_api: str
+    my_swiss_tourism_api: str = ""
     registration_open: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
@@ -16,7 +16,8 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    init_kwargs: dict[str, object] = {}
+    return Settings(**init_kwargs)
 
 
 settings = get_settings()

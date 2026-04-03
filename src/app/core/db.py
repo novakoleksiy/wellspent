@@ -65,6 +65,11 @@ def get_waitlist_repo(
 
 
 def get_swiss_tourism_client() -> SwissTourismClient:
+    if not settings.my_swiss_tourism_api:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Swiss Tourism API is not configured",
+        )
     return HttpxSwissTourismClient(api_key=settings.my_swiss_tourism_api)
 
 
