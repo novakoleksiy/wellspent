@@ -15,12 +15,14 @@ from app.ports.swiss_tourism import (
 
 # ── fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def client() -> HttpxSwissTourismClient:
     return HttpxSwissTourismClient(api_key="test-key", language="en")
 
 
 # ── static helper tests ───────────────────────────────────────────────────────
+
 
 def test_extract_geo_returns_coordinates():
     item = {"geo": {"latitude": "47.3769", "longitude": "8.5417"}}
@@ -67,6 +69,7 @@ def test_parse_page_meta_defaults():
 
 # ── list_destinations ─────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_list_destinations(client: HttpxSwissTourismClient):
@@ -78,13 +81,19 @@ async def test_list_destinations(client: HttpxSwissTourismClient):
                 "category": "city",
                 "description": "The largest city.",
                 "geo": {"latitude": "47.3769", "longitude": "8.5417"},
-                "image": [{"url": "https://img.example.com/zurich.jpg", "name": "Zurich"}],
+                "image": [
+                    {"url": "https://img.example.com/zurich.jpg", "name": "Zurich"}
+                ],
                 "url": "https://myswitzerland.com/zurich",
             }
         ],
-        "meta": {"page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}},
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
     }
-    respx.get(f"{BASE_URL}/destinations/").mock(return_value=Response(200, json=payload))
+    respx.get(f"{BASE_URL}/destinations/").mock(
+        return_value=Response(200, json=payload)
+    )
 
     result = await client.list_destinations()
 
@@ -95,7 +104,9 @@ async def test_list_destinations(client: HttpxSwissTourismClient):
     assert dest.name == "Zurich"
     assert dest.category == "city"
     assert dest.geo == GeoCoordinates(latitude=47.3769, longitude=8.5417)
-    assert dest.images == [SwissImage(url="https://img.example.com/zurich.jpg", title="Zurich")]
+    assert dest.images == [
+        SwissImage(url="https://img.example.com/zurich.jpg", title="Zurich")
+    ]
     assert result.meta.total_elements == 1
 
 
@@ -110,12 +121,13 @@ async def test_list_destinations_passes_query(client: HttpxSwissTourismClient):
 
     request = respx.calls.last.request
     assert request.url.params["query"] == "alps"
-    assert request.url.params["page"] == "1"   # 0-indexed
+    assert request.url.params["page"] == "1"  # 0-indexed
     assert request.url.params["size"] == "5"
     assert request.url.params["lang"] == "en"
 
 
 # ── get_destination ───────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 @respx.mock
@@ -129,7 +141,9 @@ async def test_get_destination(client: HttpxSwissTourismClient):
             "url": "https://myswitzerland.com/geneva",
         }
     }
-    respx.get(f"{BASE_URL}/destinations/geneva").mock(return_value=Response(200, json=payload))
+    respx.get(f"{BASE_URL}/destinations/geneva").mock(
+        return_value=Response(200, json=payload)
+    )
 
     result = await client.get_destination("geneva")
 
@@ -150,6 +164,7 @@ async def test_get_destination_not_found(client: HttpxSwissTourismClient):
 
 # ── list_attractions ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_list_attractions(client: HttpxSwissTourismClient):
@@ -163,7 +178,9 @@ async def test_list_attractions(client: HttpxSwissTourismClient):
                 "url": "https://myswitzerland.com/chillon",
             }
         ],
-        "meta": {"page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}},
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
     }
     respx.get(f"{BASE_URL}/attractions/").mock(return_value=Response(200, json=payload))
 
@@ -190,6 +207,7 @@ async def test_list_attractions_passes_destination_id(client: HttpxSwissTourismC
 
 # ── get_attraction ────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_get_attraction_not_found(client: HttpxSwissTourismClient):
@@ -199,6 +217,7 @@ async def test_get_attraction_not_found(client: HttpxSwissTourismClient):
 
 
 # ── list_tours ────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 @respx.mock
@@ -214,7 +233,9 @@ async def test_list_tours(client: HttpxSwissTourismClient):
                 "url": "https://myswitzerland.com/tours/1",
             }
         ],
-        "meta": {"page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}},
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
     }
     respx.get(f"{BASE_URL}/tours/").mock(return_value=Response(200, json=payload))
 
@@ -229,6 +250,7 @@ async def test_list_tours(client: HttpxSwissTourismClient):
 
 
 # ── get_tour ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 @respx.mock
