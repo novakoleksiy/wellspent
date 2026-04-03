@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 uv sync --group dev                        # Install dependencies
 uv run uvicorn src.app.main:app --reload   # Run dev server
+uv run ruff check .                        # Lint + import sorting
+uv run ruff check --fix .                  # Apply safe lint fixes
+uv run ruff format .                       # Format Python files
+uv run ruff format --check .               # Check formatting in CI
 uv run pytest tests/                       # Run all tests
 uv run pytest tests/test_foo.py::test_bar  # Run single test
 ```

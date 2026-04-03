@@ -8,26 +8,74 @@ from app.ports.swiss_tourism import SwissTourismClient
 # Maps travel style → keywords to look for in names / descriptions
 _STYLE_KEYWORDS: dict[str, list[str]] = {
     "adventure": [
-        "hiking", "hike", "ski", "skiing", "climbing", "outdoor",
-        "sport", "bike", "mountain", "adventure", "trail", "trekking",
-        "rafting", "paragliding",
+        "hiking",
+        "hike",
+        "ski",
+        "skiing",
+        "climbing",
+        "outdoor",
+        "sport",
+        "bike",
+        "mountain",
+        "adventure",
+        "trail",
+        "trekking",
+        "rafting",
+        "paragliding",
     ],
     "cultural": [
-        "museum", "history", "historic", "heritage", "art", "castle",
-        "cathedral", "architecture", "culture", "gallery", "monument",
-        "old town", "roman", "medieval",
+        "museum",
+        "history",
+        "historic",
+        "heritage",
+        "art",
+        "castle",
+        "cathedral",
+        "architecture",
+        "culture",
+        "gallery",
+        "monument",
+        "old town",
+        "roman",
+        "medieval",
     ],
     "relaxation": [
-        "spa", "wellness", "lake", "nature", "thermal", "calm", "relax",
-        "garden", "scenic", "panorama", "viewpoint", "peaceful",
+        "spa",
+        "wellness",
+        "lake",
+        "nature",
+        "thermal",
+        "calm",
+        "relax",
+        "garden",
+        "scenic",
+        "panorama",
+        "viewpoint",
+        "peaceful",
     ],
     "foodie": [
-        "restaurant", "wine", "cheese", "food", "culinary", "gourmet",
-        "taste", "market", "chocolate", "fondue", "brewery",
+        "restaurant",
+        "wine",
+        "cheese",
+        "food",
+        "culinary",
+        "gourmet",
+        "taste",
+        "market",
+        "chocolate",
+        "fondue",
+        "brewery",
     ],
     "family": [
-        "family", "children", "kids", "zoo", "park", "playground",
-        "aquarium", "theme", "fun",
+        "family",
+        "children",
+        "kids",
+        "zoo",
+        "park",
+        "playground",
+        "aquarium",
+        "theme",
+        "fun",
     ],
 }
 
@@ -40,9 +88,9 @@ _SLOT_TIMES: dict[int, list[str]] = {
 }
 
 _COSTS: dict[str, dict[str, float]] = {
-    "budget":  {"activity": 15.0,  "meals_per_day": 35.0,  "hotel_per_night": 70.0},
-    "mid":     {"activity": 45.0,  "meals_per_day": 70.0,  "hotel_per_night": 170.0},
-    "luxury":  {"activity": 130.0, "meals_per_day": 180.0, "hotel_per_night": 450.0},
+    "budget": {"activity": 15.0, "meals_per_day": 35.0, "hotel_per_night": 70.0},
+    "mid": {"activity": 45.0, "meals_per_day": 70.0, "hotel_per_night": 170.0},
+    "luxury": {"activity": 130.0, "meals_per_day": 180.0, "hotel_per_night": 450.0},
 }
 
 # (name, category, url, score)
@@ -119,11 +167,13 @@ def _build_itinerary(
                 entry["url"] = url
             activities.append(entry)
 
-        days.append({
-            "day": day_num + 1,
-            "date": current.isoformat(),
-            "activities": activities,
-        })
+        days.append(
+            {
+                "day": day_num + 1,
+                "date": current.isoformat(),
+                "activities": activities,
+            }
+        )
 
     meals_total = costs["meals_per_day"] * num_days
     hotel_total = costs["hotel_per_night"] * num_days
@@ -162,7 +212,7 @@ async def recommend(
     def _dest_score(d) -> float:
         return _score_text(d.name, d.description, d.category or "", styles)
 
-    top_dests = sorted(destinations, key=_dest_score, reverse=True)[:2]
+    top_dests = sorted(destinations, key=_dest_score, reverse=True)[:4]
 
     # 3. For each destination fetch attractions + tours concurrently
     recommendations: list[dict] = []
@@ -194,21 +244,23 @@ async def recommend(
         top3 = sorted(items, key=lambda x: x[3], reverse=True)[:3]
         highlights = [name for name, *_ in top3]
 
-        recommendations.append({
-            "title": f"Discover {dest.name}",
-            "destination": dest.name,
-            "description": (
-                f"{max((end_date - start_date).days, 1)}-day trip to {dest.name}, "
-                "tailored to your travel style."
-            ),
-            "itinerary": {
-                "days": days,
-                "estimated_total": round(estimated_total * travelers, 2),
-                "currency": "CHF",
-            },
-            "match_score": _dest_score(dest),
-            "highlights": highlights,
-        })
+        recommendations.append(
+            {
+                "title": f"Discover {dest.name}",
+                "destination": dest.name,
+                "description": (
+                    f"{max((end_date - start_date).days, 1)}-day trip to {dest.name}, "
+                    "tailored to your travel style."
+                ),
+                "itinerary": {
+                    "days": days,
+                    "estimated_total": round(estimated_total * travelers, 2),
+                    "currency": "CHF",
+                },
+                "match_score": _dest_score(dest),
+                "highlights": highlights,
+            }
+        )
 
     recommendations.sort(key=lambda r: r["match_score"], reverse=True)
     return recommendations
