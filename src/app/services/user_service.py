@@ -10,9 +10,20 @@ class InvalidCredentials(Exception):
     pass
 
 
+class RegistrationClosed(Exception):
+    pass
+
+
 async def register_user(
-    repo: UserRepository, *, email: str, password: str, full_name: str
+    repo: UserRepository,
+    *,
+    email: str,
+    password: str,
+    full_name: str,
+    registration_open: bool = True,
 ) -> UserRecord:
+    if not registration_open:
+        raise RegistrationClosed
     if await repo.get_by_email(email):
         raise EmailAlreadyRegistered
     return await repo.create(

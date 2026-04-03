@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getPublicSettings } from "../api/waitlist";
 import { useAuth } from "../hooks/useAuth";
 
 export default function LoginPage() {
@@ -9,6 +10,13 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [registrationOpen, setRegistrationOpen] = useState(true);
+
+    useEffect(() => {
+        getPublicSettings()
+            .then(s => setRegistrationOpen(s.registration_open))
+            .catch(() => {});
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,12 +93,14 @@ export default function LoginPage() {
                             </button>
                         </form>
 
-                        <p className="mt-6 text-sm text-slate-500">
-                            No account yet? {" "}
-                            <Link to="/register" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:decoration-slate-900">
-                                Create one
-                            </Link>
-                        </p>
+                        {registrationOpen && (
+                            <p className="mt-6 text-sm text-slate-500">
+                                No account yet?{" "}
+                                <Link to="/register" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:decoration-slate-900">
+                                    Create one
+                                </Link>
+                            </p>
+                        )}
                     </div>
                 </section>
             </div>

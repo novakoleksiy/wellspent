@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.adapters.sqlalchemy_trip_repo import SqlAlchemyTripRepo
 from app.adapters.sqlalchemy_user_repo import SqlAlchemyUserRepo
+from app.adapters.sqlalchemy_waitlist_repo import SqlAlchemyWaitlistRepo
 from app.adapters.swiss_tourism_client import HttpxSwissTourismClient
 from app.core.config import settings
 from app.core.security import decode_token
-from app.ports.repositories import UserRecord
+from app.ports.repositories import TripRepository, UserRecord, UserRepository
+from app.ports.swiss_tourism import SwissTourismClient
 
 engine = create_async_engine(settings.database_url, echo=False)
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -29,18 +31,18 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-def get_user_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> SqlAlchemyUserRepo:
+def get_user_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> UserRepository:
     return SqlAlchemyUserRepo(db)
 
 
-def get_trip_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> SqlAlchemyTripRepo:
+def get_trip_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> TripRepository:
     return SqlAlchemyTripRepo(db)
 
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    user_repo: Annotated[SqlAlchemyUserRepo, Depends(get_user_repo)],
-):
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> UserRecord:
 
     user_id = decode_token(token)
     if user_id is None:
@@ -56,13 +58,25 @@ async def get_current_user(
     return user
 
 
-def get_swiss_tourism_client() -> HttpxSwissTourismClient:
+def get_waitlist_repo(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SqlAlchemyWaitlistRepo:
+    return SqlAlchemyWaitlistRepo(db)
+
+
+def get_swiss_tourism_client() -> SwissTourismClient:
+    if not settings.my_swiss_tourism_api:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Swiss Tourism API is not configured",
+        )
     return HttpxSwissTourismClient(api_key=settings.my_swiss_tourism_api)
 
 
 # Type aliases for route signatures
 Db = Annotated[AsyncSession, Depends(get_db)]
-UserRepo = Annotated[SqlAlchemyUserRepo, Depends(get_user_repo)]
-TripRepo = Annotated[SqlAlchemyTripRepo, Depends(get_trip_repo)]
+UserRepo = Annotated[UserRepository, Depends(get_user_repo)]
+TripRepo = Annotated[TripRepository, Depends(get_trip_repo)]
 CurrentUser = Annotated[UserRecord, Depends(get_current_user)]
-SwissTourism = Annotated[HttpxSwissTourismClient, Depends(get_swiss_tourism_client)]
+WaitlistRepo = Annotated[SqlAlchemyWaitlistRepo, Depends(get_waitlist_repo)]
+SwissTourism = Annotated[SwissTourismClient, Depends(get_swiss_tourism_client)]

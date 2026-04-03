@@ -16,6 +16,22 @@ from app.schemas.schemas import (
 router = APIRouter(prefix="/swiss", tags=["swiss-tourism"])
 
 
+def _pagination_out(pagination: object) -> PaginationOut:
+    return PaginationOut(**asdict(pagination))
+
+
+def _destination_out(destination: object) -> DestinationOut:
+    return DestinationOut(**asdict(destination))
+
+
+def _attraction_out(attraction: object) -> AttractionOut:
+    return AttractionOut(**asdict(attraction))
+
+
+def _tour_out(tour: object) -> TourOut:
+    return TourOut(**asdict(tour))
+
+
 # ── Destinations ─────────────────────────────────────
 
 
@@ -29,8 +45,8 @@ async def list_destinations(
 ):
     result = await client.list_destinations(query=query, page=page, page_size=page_size)
     return DestinationListOut(
-        data=[DestinationOut(**asdict(d)) for d in result.data],
-        pagination=PaginationOut(**asdict(result.meta)),
+        data=[_destination_out(d) for d in result.data],
+        pagination=_pagination_out(result.meta),
     )
 
 
@@ -43,7 +59,7 @@ async def get_destination(
     dest = await client.get_destination(destination_id)
     if not dest:
         raise HTTPException(404, "Destination not found")
-    return DestinationOut(**asdict(dest))
+    return _destination_out(dest)
 
 
 # ── Attractions ──────────────────────────────────────
@@ -62,8 +78,8 @@ async def list_attractions(
         query=query, destination_id=destination_id, page=page, page_size=page_size
     )
     return AttractionListOut(
-        data=[AttractionOut(**asdict(a)) for a in result.data],
-        pagination=PaginationOut(**asdict(result.meta)),
+        data=[_attraction_out(a) for a in result.data],
+        pagination=_pagination_out(result.meta),
     )
 
 
@@ -76,7 +92,7 @@ async def get_attraction(
     attr = await client.get_attraction(attraction_id)
     if not attr:
         raise HTTPException(404, "Attraction not found")
-    return AttractionOut(**asdict(attr))
+    return _attraction_out(attr)
 
 
 # ── Tours ────────────────────────────────────────────
@@ -92,8 +108,8 @@ async def list_tours(
 ):
     result = await client.list_tours(query=query, page=page, page_size=page_size)
     return TourListOut(
-        data=[TourOut(**asdict(t)) for t in result.data],
-        pagination=PaginationOut(**asdict(result.meta)),
+        data=[_tour_out(t) for t in result.data],
+        pagination=_pagination_out(result.meta),
     )
 
 
@@ -106,4 +122,4 @@ async def get_tour(
     tour = await client.get_tour(tour_id)
     if not tour:
         raise HTTPException(404, "Tour not found")
-    return TourOut(**asdict(tour))
+    return _tour_out(tour)

@@ -89,3 +89,13 @@ class Booking(Base):
     details: Mapped[dict | None] = mapped_column(JSON, default=None)
 
     trip: Mapped[Trip] = relationship(back_populates="bookings")
+
+
+# ── Waitlist ────────────────────────────────────────
+
+
+class WaitlistEntry(Base):
+    __tablename__ = "waitlist_entries"
+
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str | None] = mapped_column(String(255), default=None)
