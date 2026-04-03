@@ -64,12 +64,6 @@ def get_waitlist_repo(
     return SqlAlchemyWaitlistRepo(db)
 
 
-def get_waitlist_repo(
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> SqlAlchemyWaitlistRepo:
-    return SqlAlchemyWaitlistRepo(db)
-
-
 def get_swiss_tourism_client() -> SwissTourismClient:
     return HttpxSwissTourismClient(api_key=settings.my_swiss_tourism_api)
 
