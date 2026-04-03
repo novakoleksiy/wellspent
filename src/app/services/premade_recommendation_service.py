@@ -21,7 +21,9 @@ async def recommend(
     pace: str = prefs.get("pace", "moderate")
 
     templates = await template_repo.list_matching(
-        travel_styles=styles, budget_tier=budget_tier, pace=pace,
+        travel_styles=styles,
+        budget_tier=budget_tier,
+        pace=pace,
     )
 
     if destination:
@@ -55,28 +57,31 @@ async def recommend(
             if a.get("title")
         ][:3]
 
-        recommendations.append({
-            "title": tpl.title,
-            "destination": tpl.destination,
-            "description": tpl.description or (
-                f"{num_days}-day curated trip to {tpl.destination}."
-            ),
-            "itinerary": {
-                "days": days,
-                "estimated_total": estimated_total,
-                "currency": "CHF",
-            },
-            "match_score": match_score,
-            "highlights": highlights,
-            "strategy": "premade",
-        })
+        recommendations.append(
+            {
+                "title": tpl.title,
+                "destination": tpl.destination,
+                "description": tpl.description
+                or (f"{num_days}-day curated trip to {tpl.destination}."),
+                "itinerary": {
+                    "days": days,
+                    "estimated_total": estimated_total,
+                    "currency": "CHF",
+                },
+                "match_score": match_score,
+                "highlights": highlights,
+                "strategy": "premade",
+            }
+        )
 
     recommendations.sort(key=lambda r: r["match_score"], reverse=True)
     return recommendations
 
 
 def _adapt_itinerary_dates(
-    itinerary: dict, start_date: date, end_date: date,
+    itinerary: dict,
+    start_date: date,
+    end_date: date,
 ) -> list[dict]:
     """Shift template itinerary days to the requested date range."""
     template_days: list[dict] = itinerary.get("days", [])
@@ -89,12 +94,16 @@ def _adapt_itinerary_dates(
             source = template_days[day_num]
         else:
             # Cycle through template days if trip is longer than template
-            source = template_days[day_num % len(template_days)] if template_days else {}
+            source = (
+                template_days[day_num % len(template_days)] if template_days else {}
+            )
 
-        adapted.append({
-            "day": day_num + 1,
-            "date": current.isoformat(),
-            "activities": source.get("activities", []),
-        })
+        adapted.append(
+            {
+                "day": day_num + 1,
+                "date": current.isoformat(),
+                "activities": source.get("activities", []),
+            }
+        )
 
     return adapted

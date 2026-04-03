@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.ports.repositories import TripRecord, TripRepository
 from app.services.recommendation_service import _score_text
-from app.services.trip_service import TripNotFound
 
 
 async def recommend(
@@ -16,7 +15,8 @@ async def recommend(
     styles: list[str] = prefs.get("travel_styles", [])
 
     trips = await trip_repo.list_community(
-        travel_styles=styles, limit=limit,
+        travel_styles=styles,
+        limit=limit,
     )
 
     if destination:
@@ -41,28 +41,36 @@ async def recommend(
                     if title := act.get("title"):
                         highlights.append(title)
 
-        recommendations.append({
-            "title": trip.title,
-            "destination": trip.destination,
-            "description": trip.description or f"Community trip to {trip.destination}.",
-            "itinerary": trip.itinerary or {"days": [], "estimated_total": 0, "currency": "CHF"},
-            "match_score": score,
-            "highlights": highlights,
-            "strategy": "community",
-            "author": None,  # user info not available from TripRecord
-        })
+        recommendations.append(
+            {
+                "title": trip.title,
+                "destination": trip.destination,
+                "description": trip.description
+                or f"Community trip to {trip.destination}.",
+                "itinerary": trip.itinerary
+                or {"days": [], "estimated_total": 0, "currency": "CHF"},
+                "match_score": score,
+                "highlights": highlights,
+                "strategy": "community",
+                "author": None,  # user info not available from TripRecord
+            }
+        )
 
     recommendations.sort(key=lambda r: r["match_score"], reverse=True)
     return recommendations
 
 
 async def share_trip(
-    trip_repo: TripRepository, trip_id: int, user_id: int,
+    trip_repo: TripRepository,
+    trip_id: int,
+    user_id: int,
 ) -> TripRecord:
     return await trip_repo.set_shared(trip_id, user_id, shared=True)
 
 
 async def unshare_trip(
-    trip_repo: TripRepository, trip_id: int, user_id: int,
+    trip_repo: TripRepository,
+    trip_id: int,
+    user_id: int,
 ) -> TripRecord:
     return await trip_repo.set_shared(trip_id, user_id, shared=False)

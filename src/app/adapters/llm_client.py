@@ -109,8 +109,7 @@ class AnthropicLlmClient:
             for t in tours
         ]
         past_info = [
-            {"destination": t.destination, "title": t.title}
-            for t in past_trips[:10]
+            {"destination": t.destination, "title": t.title} for t in past_trips[:10]
         ]
 
         data = {

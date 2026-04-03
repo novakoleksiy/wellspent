@@ -89,7 +89,9 @@ async def recommend(
             items: list[_Item] = []
             for attr in all_attractions:
                 score = _score_text(attr.name, attr.description, attr.category, styles)
-                items.append((attr.name, attr.category or "attraction", attr.url, score))
+                items.append(
+                    (attr.name, attr.category or "attraction", attr.url, score)
+                )
             for tour in all_tours:
                 score = _score_text(tour.name, tour.description, "tour", styles)
                 label = tour.name + (f" ({tour.duration})" if tour.duration else "")
@@ -99,7 +101,11 @@ async def recommend(
                 items = [(f"Explore {dest.name}", "sightseeing", dest.url, 0.7)]
 
             days, estimated_total = _build_itinerary(
-                items, start_date, end_date, pace, budget_tier,
+                items,
+                start_date,
+                end_date,
+                pace,
+                budget_tier,
             )
             itinerary = {
                 "days": days,
@@ -114,18 +120,20 @@ async def recommend(
                 if title := act.get("title"):
                     highlights.append(title)
 
-        recommendations.append({
-            "title": f"AI-Curated: {dest.name}",
-            "destination": dest.name,
-            "description": (
-                f"{max((end_date - start_date).days, 1)}-day AI-curated trip "
-                f"to {dest.name}, with intelligently paired activities."
-            ),
-            "itinerary": itinerary,
-            "match_score": _dest_score(dest),
-            "highlights": highlights,
-            "strategy": "ai",
-        })
+        recommendations.append(
+            {
+                "title": f"AI-Curated: {dest.name}",
+                "destination": dest.name,
+                "description": (
+                    f"{max((end_date - start_date).days, 1)}-day AI-curated trip "
+                    f"to {dest.name}, with intelligently paired activities."
+                ),
+                "itinerary": itinerary,
+                "match_score": _dest_score(dest),
+                "highlights": highlights,
+                "strategy": "ai",
+            }
+        )
 
     recommendations.sort(key=lambda r: r["match_score"], reverse=True)
     return recommendations

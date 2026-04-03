@@ -38,7 +38,6 @@ Follow the checked-in project configuration first, then use this file as the rep
 
 - Install backend dependencies: `uv sync --group dev`
 - Run backend dev server: `uv run uvicorn src.app.main:app --reload`
-- Alternative README command seen in repo: `uvicorn src.app.main:app --reload`
 - Prefer the `uv run ...` form so the managed environment is used consistently.
 
 ## Backend Tests
@@ -50,8 +49,11 @@ Follow the checked-in project configuration first, then use this file as the rep
 
 ## Backend Lint
 
-- Run backend lint/import ordering: `uv run ruff check .`
-- The only checked-in Ruff rule set currently enables import sorting (`I`).
+- Run backend lint: `uv run ruff check .`
+- Apply safe lint fixes and import sorting: `uv run ruff check --fix .`
+- Run backend formatting: `uv run ruff format .`
+- Check backend formatting without changing files: `uv run ruff format --check .`
+- Ruff is the checked-in tool for backend linting, formatting, and import sorting.
 - Do not assume Black, isort, mypy, or pyright are part of the current workflow unless added later.
 
 ## Frontend Setup And Run
@@ -101,7 +103,7 @@ Follow the checked-in project configuration first, then use this file as the rep
 
 - Keep imports grouped in standard library, third-party, then local application imports.
 - Let Ruff import-order rules drive final ordering.
-- Preserve the current quote and formatting style already used in each area of the repo.
+- Use Ruff formatter output as the canonical style for backend Python files.
 - Do not reformat unrelated files just to normalize style.
 
 ## Types And Data Modeling
@@ -177,7 +179,7 @@ Follow the checked-in project configuration first, then use this file as the rep
 
 ## Verification Expectations
 
-- For backend-only changes, run `uv run ruff check .` and the smallest relevant `uv run pytest ...` command.
+- For backend-only changes, run `uv run ruff check .`, `uv run ruff format --check .`, and the smallest relevant `uv run pytest ...` command.
 - For frontend-only changes, run `npm run lint` and `npm run build` in `frontend/`.
 - For cross-stack changes, run both backend and frontend verification relevant to the touched code.
 - If you cannot run a command, state that explicitly in your handoff.
