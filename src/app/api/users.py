@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.db import CurrentUser, UserRepo
@@ -35,6 +36,8 @@ async def register(body: RegisterRequest, repo: UserRepo):
         raise HTTPException(403, "Registration is currently closed")
     except EmailAlreadyRegistered:
         raise HTTPException(400, "Email already registered")
+    except IntegrityError as exc:
+        raise HTTPException(400, "Email already registered") from exc
 
 
 @router.post("/login", response_model=Token)

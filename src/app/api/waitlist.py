@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.core.db import WaitlistRepo
 from app.schemas.schemas import JoinWaitlistRequest, WaitlistResponse
@@ -13,4 +14,6 @@ async def join(body: JoinWaitlistRequest, repo: WaitlistRepo):
         await join_waitlist(repo, email=body.email, name=body.name)
     except AlreadyOnWaitlist:
         raise HTTPException(409, "This email is already on the waitlist")
+    except IntegrityError as exc:
+        raise HTTPException(409, "This email is already on the waitlist") from exc
     return WaitlistResponse(message="You're on the list! We'll be in touch.")
