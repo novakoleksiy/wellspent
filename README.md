@@ -2,10 +2,14 @@
 
 ## Local Postgres setup
 
-1. Start PostgreSQL:
+1. Start PostgreSQL (requires Docker; on Mac without Docker Desktop use [Colima](https://github.com/abiosoft/colima)):
 
 ```bash
-docker compose up -d postgres
+# Mac without Docker Desktop
+brew install colima docker docker-compose
+colima start
+
+docker-compose up -d postgres
 ```
 
 2. Create a backend `.env` from `.env.example` and set your Swiss Tourism API key.
