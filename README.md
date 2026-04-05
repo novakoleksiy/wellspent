@@ -78,6 +78,7 @@ DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@HOST:5432/DBNAME
 SECRET_KEY=replace-me
 MY_SWISS_TOURISM_API=replace-me
 CORS_ORIGINS=https://your-frontend-domain
+REGISTRATION_OPEN=false
 ```
 
 Frontend:
@@ -85,3 +86,31 @@ Frontend:
 ```bash
 VITE_API_BASE_URL=https://your-backend-domain
 ```
+
+## Deploy to Render + Vercel
+
+### Backend on Render
+
+1. Create a Render Blueprint from `render.yaml`.
+2. Set the required environment variables when prompted:
+   - `DATABASE_URL`
+   - `CORS_ORIGINS`
+3. Leave `REGISTRATION_OPEN=false` for a waitlist-only launch.
+4. Use `/health` as the health check path.
+5. Add `MY_SWISS_TOURISM_API` only when you are ready to enable the recommendation endpoints.
+
+Render commonly provides Postgres URLs in `postgres://` or `postgresql://` format. The app normalizes those to `postgresql+asyncpg://` automatically for SQLAlchemy.
+
+### Frontend on Vercel
+
+1. Set the Vercel project root directory to `frontend/`.
+2. Set `VITE_API_BASE_URL` to your Render backend URL.
+3. Set `frontend/vercel.json` rewrites so client-side routes like `/login` and `/trips` resolve to `index.html`.
+
+### Launch checklist
+
+1. Confirm the landing page loads from Vercel.
+2. Confirm waitlist submissions succeed against the Render backend.
+3. Confirm duplicate waitlist emails show the friendly error state.
+4. Confirm `/register` redirects to `/` while registration is closed.
+5. Confirm `/login` remains available for existing users.

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getPublicSettings } from "../api/waitlist";
 import { useAuth } from "../hooks/useAuth";
 
 export default function RegisterPage() {
@@ -10,6 +11,30 @@ export default function RegisterPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        getPublicSettings()
+            .then(settings => {
+                if (!isMounted) return;
+                if (!settings.registration_open) {
+                    navigate("/", { replace: true });
+                    return;
+                }
+                setRegistrationOpen(true);
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setRegistrationOpen(true);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,6 +49,8 @@ export default function RegisterPage() {
             setLoading(false);
         }
     };
+
+    if (registrationOpen === null) return null;
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_28%),linear-gradient(180deg,#fcfbf8_0%,#f2ecdf_100%)] px-4 py-6 sm:px-6 lg:px-8">

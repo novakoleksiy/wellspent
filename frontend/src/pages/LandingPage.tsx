@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { joinWaitlist } from "../api/waitlist";
 
@@ -78,6 +79,13 @@ export default function LandingPage() {
                                 </h2>
                                 <p className="mt-3 text-sm leading-6 text-slate-500">
                                     Be the first to plan smarter Swiss trips. We&apos;ll notify you when we launch.
+                                </p>
+
+                                <p className="mt-4 text-sm text-slate-500">
+                                    Already have access? {" "}
+                                    <Link to="/login" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:decoration-slate-900">
+                                        Sign in
+                                    </Link>
                                 </p>
 
                                 <form onSubmit={handleSubmit} className="mt-8 space-y-4">
