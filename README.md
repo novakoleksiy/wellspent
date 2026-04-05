@@ -28,6 +28,21 @@ uv run uvicorn src.app.main:app --reload
 
 The backend creates tables automatically on startup for a fresh MVP database.
 
+### Verify the database
+
+```bash
+# Ping Postgres and list all tables
+docker exec -it wellspent-postgres-1 psql -U postgres -d wellspent -c "\dt"
+
+# Check a specific table
+docker exec -it wellspent-postgres-1 psql -U postgres -d wellspent -c "SELECT * FROM users LIMIT 5;"
+
+# Interactive psql shell
+docker exec -it wellspent-postgres-1 psql -U postgres -d wellspent
+```
+
+If the container name differs, find it with `docker ps`.
+
 ## Frontend setup
 
 1. Create `frontend/.env` from `frontend/.env.example`.
