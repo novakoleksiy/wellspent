@@ -23,7 +23,7 @@ npm run build
 npm run lint
 ```
 
-**Environment**: create `.env` with `MY_SWISS_TOURISM_API=<key>`. All other settings have defaults (SQLite at `./travel.db`, HS256 JWT).
+**Environment**: create `.env` with `DATABASE_URL`, `SECRET_KEY`, and `CORS_ORIGINS`. `MY_SWISS_TOURISM_API` is optional and only needed for recommendation endpoints. `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, and `REGISTRATION_OPEN` still have defaults.
 
 ## Architecture
 

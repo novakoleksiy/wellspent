@@ -1,18 +1,17 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = (
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/wellspent"
-    )
-    secret_key: str = "dev-secret-change-in-prod"
+    database_url: str = Field(..., min_length=1)
+    secret_key: str = Field(..., min_length=1)
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     my_swiss_tourism_api: str = ""
-    registration_open: bool = True
-    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    registration_open: bool = False
+    cors_origins: str = Field(..., min_length=1)
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

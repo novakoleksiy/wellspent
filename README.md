@@ -81,6 +81,8 @@ CORS_ORIGINS=https://your-frontend-domain
 REGISTRATION_OPEN=false
 ```
 
+`DATABASE_URL`, `SECRET_KEY`, and `CORS_ORIGINS` are required at startup. The backend no longer falls back to development defaults when they are missing. `MY_SWISS_TOURISM_API` remains optional and only enables the recommendation endpoints.
+
 Frontend:
 
 ```bash
@@ -94,10 +96,12 @@ VITE_API_BASE_URL=https://your-backend-domain
 1. Create a Render Blueprint from `render.yaml`.
 2. Set the required environment variables when prompted:
    - `DATABASE_URL`
+   - `SECRET_KEY`
    - `CORS_ORIGINS`
 3. Leave `REGISTRATION_OPEN=false` for a waitlist-only launch.
 4. Use `/health` as the health check path.
-5. Add `MY_SWISS_TOURISM_API` only when you are ready to enable the recommendation endpoints.
+5. Add `MY_SWISS_TOURISM_API` when you are ready to enable the recommendation endpoints.
+6. Confirm Render generated a strong `SECRET_KEY` value or override it with your own.
 
 Render commonly provides Postgres URLs in `postgres://` or `postgresql://` format. The app normalizes those to `postgresql+asyncpg://` automatically for SQLAlchemy.
 
