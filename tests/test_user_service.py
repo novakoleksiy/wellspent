@@ -86,6 +86,20 @@ async def test_register_user_rejects_duplicate_email():
 
 
 @pytest.mark.asyncio
+async def test_register_user_rejects_when_registration_is_closed():
+    repo = FakeUserRepo()
+
+    with pytest.raises(user_service.RegistrationClosed):
+        await user_service.register_user(
+            repo,
+            email="new@example.com",
+            password="secret123",
+            full_name="New User",
+            registration_open=False,
+        )
+
+
+@pytest.mark.asyncio
 async def test_authenticate_user_returns_token_for_valid_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ):

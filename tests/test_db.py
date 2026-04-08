@@ -26,3 +26,33 @@ def test_get_swiss_tourism_client_returns_httpx_client(
     client = get_swiss_tourism_client()
 
     assert isinstance(client, HttpxSwissTourismClient)
+
+
+def test_sqlalchemy_database_url_normalizes_render_postgres_url(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        settings,
+        "database_url",
+        "postgresql://user:pass@render-host:5432/wellspent",
+    )
+
+    assert (
+        settings.sqlalchemy_database_url
+        == "postgresql+asyncpg://user:pass@render-host:5432/wellspent"
+    )
+
+
+def test_sqlalchemy_database_url_preserves_asyncpg_driver(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        settings,
+        "database_url",
+        "postgresql+asyncpg://user:pass@render-host:5432/wellspent",
+    )
+
+    assert (
+        settings.sqlalchemy_database_url
+        == "postgresql+asyncpg://user:pass@render-host:5432/wellspent"
+    )

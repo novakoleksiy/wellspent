@@ -1,0 +1,23 @@
+services:
+  - type: web
+    runtime: python
+    name: wellspent-backend
+    region: frankfurt
+    buildCommand: pip install uv && uv sync --frozen
+    startCommand: ./.venv/bin/uvicorn app.main:app --app-dir src --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - src/**
+        - pyproject.toml
+        - uv.lock
+        - render.yaml
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: REGISTRATION_OPEN
+        value: "false"

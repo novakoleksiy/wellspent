@@ -15,7 +15,7 @@ from app.core.security import decode_token
 from app.ports.repositories import TripRepository, UserRecord, UserRepository
 from app.ports.swiss_tourism import SwissTourismClient
 
-engine = create_async_engine(settings.database_url, echo=False)
+engine = create_async_engine(settings.sqlalchemy_database_url, echo=False)
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
