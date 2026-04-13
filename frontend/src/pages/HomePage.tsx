@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
@@ -54,54 +53,36 @@ export default function HomePage() {
     navigate(query ? `/explore?destination=${encodeURIComponent(query)}` : "/explore");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handlePlanSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     openExplore(destination);
   }
 
   return (
     <AppShell
-      title={`Homepage${user?.full_name ? ` for ${user.full_name.split(" ")[0]}` : ""}`}
-      description="Start a new trip, revisit your recent plans, and browse a few nearby ideas before heading into deeper exploration."
+      title={`Welcome back, ${user?.full_name ? ` ${user.full_name.split(" ")[0]}` : ""}!`}
     >
       <div className="space-y-6">
         <section className="rounded-[2.25rem] bg-slate-900 px-6 py-7 text-white shadow-xl shadow-slate-900/10 sm:px-8 sm:py-8">
-          <p className="text-sm font-medium text-white/65">Plan a new trip</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Start with a destination or leave it open.
-          </h2>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
-            Use the search bar to jump into Explore with a destination in mind, or browse flexible recommendations if you are still deciding.
-          </p>
-          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <label className="sr-only" htmlFor="homepage-destination">Destination</label>
+          <form className="flex flex-col gap-3 sm:flex-row sm:items-center" onSubmit={handlePlanSubmit}>
+            <label className="sr-only" htmlFor="trip-destination">
+              Plan a new trip
+            </label>
             <input
-              id="homepage-destination"
-              type="text"
-              placeholder="Search by destination"
+              id="trip-destination"
+              type="search"
               value={destination}
               onChange={(event) => setDestination(event.target.value)}
-              className="min-w-0 flex-1 rounded-full border border-white/15 bg-white px-5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-white"
+              placeholder="Plan a new trip"
+              className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-300/40"
             />
             <button
               type="submit"
               className="rounded-full bg-rose-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-rose-300"
             >
-              Explore
+              Plan
             </button>
           </form>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {nearbyIdeas.map((idea) => (
-              <button
-                key={idea.name}
-                type="button"
-                onClick={() => openExplore(idea.name)}
-                className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-              >
-                {idea.name}
-              </button>
-            ))}
-          </div>
         </section>
 
         <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">

@@ -48,7 +48,6 @@ export default function AppShell({
                 <p className="text-sm font-semibold tracking-[0.18em] text-slate-500 uppercase">
                   WellSpent
                 </p>
-                <p className="truncate text-sm text-slate-500">Smart trip planning for Swiss escapes</p>
               </div>
             </NavLink>
           </div>
@@ -100,10 +99,7 @@ export default function AppShell({
       <main className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
         <section className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="mb-3 text-xs font-semibold tracking-[0.28em] text-slate-500 uppercase">
-              Swiss travel planner
-            </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
               {title}
             </h1>
             {description && (
