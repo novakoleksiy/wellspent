@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import TripsPage from "./pages/DashboardPage";
 import HomePage from "./pages/HomePage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -69,7 +70,7 @@ export default function App() {
           <Route path="/explore" element={<RequireAuth><RequireOnboarding><RecommendPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/plan" element={<Navigate to="/explore" replace />} />
           <Route path="/recommend" element={<Navigate to="/explore" replace />} />
-          <Route path="/trips" element={<Navigate to="/" replace />} />
+          <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/settings" element={<Navigate to="/profile" replace />} />

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
@@ -12,7 +12,7 @@ type AppShellProps = {
 const links = [
   { to: "/", label: "Homepage" },
   { to: "/explore", label: "Explore" },
-  { to: "/profile", label: "Profile" },
+  { to: "/trips", label: "My Trips" },
 ];
 
 function navClass(isActive: boolean): string {
@@ -28,6 +28,7 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const { user, logout } = useAuth();
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const initials = user?.full_name
     ?.split(" ")
     .map((part) => part[0])
@@ -41,9 +42,6 @@ export default function AppShell({
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-4">
             <NavLink to="/" className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white shadow-lg shadow-slate-900/15">
-                {initials || "WS"}
-              </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold tracking-[0.18em] text-slate-500 uppercase">
                   WellSpent
@@ -65,34 +63,44 @@ export default function AppShell({
             ))}
           </nav>
 
-          <div className="hidden items-center gap-3 sm:flex">
-            <div className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-right shadow-sm">
-              <p className="text-sm font-medium text-slate-900">{user?.full_name}</p>
-              <p className="text-xs text-slate-500">{user?.email}</p>
-            </div>
-
+          <div className="relative shrink-0">
             <button
-              onClick={logout}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+              type="button"
+              onClick={() => setIsProfileMenuOpen((open) => !open)}
+              className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-3 py-2 text-left shadow-sm transition hover:border-slate-300"
+              aria-expanded={isProfileMenuOpen}
+              aria-haspopup="menu"
             >
-              Sign out
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white shadow-lg shadow-slate-900/15">
+                {initials || "WS"}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-900">{user?.full_name}</p>
+              </div>
             </button>
-          </div>
-        </div>
 
-        <div className="border-t border-white/60 px-4 py-3 sm:hidden">
-          <nav className="mx-auto flex max-w-7xl items-center gap-2 rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-slate-200/70">
-            {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.to === "/"}
-                className={({ isActive }) => navClass(isActive)}
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 top-full z-40 mt-3 w-60 rounded-3xl border border-slate-200 bg-white/95 p-2 shadow-xl shadow-stone-200/60 backdrop-blur">
+                <NavLink
+                  to="/settings"
+                  onClick={() => setIsProfileMenuOpen(false)}
+                  className="block rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  My Profile
+                </NavLink>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    logout();
+                  }}
+                  className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
