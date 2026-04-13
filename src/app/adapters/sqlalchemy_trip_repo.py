@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import Trip, TripStatus
-from app.ports.repositories import NewTrip, TripRecord
+from app.models.user import Trip, TripStatus, User
+from app.ports.repositories import CommunityTripRecord, NewTrip, TripRecord
 
 
 def _to_record(trip: Trip) -> TripRecord:
@@ -19,6 +21,7 @@ def _to_record(trip: Trip) -> TripRecord:
         description=trip.description,
         itinerary=trip.itinerary,
         created_at=trip.created_at,
+        shared_at=trip.shared_at,
     )
 
 
@@ -52,6 +55,46 @@ class SqlAlchemyTripRepo:
         )
         trip = result.scalar_one_or_none()
         return _to_record(trip) if trip else None
+
+    async def list_shared(
+        self, *, viewer_user_id: int, limit: int = 6
+    ) -> list[CommunityTripRecord]:
+        result = await self._session.execute(
+            select(Trip, User.full_name)
+            .join(User, User.id == Trip.user_id)
+            .where(Trip.shared_at.is_not(None), Trip.user_id != viewer_user_id)
+            .order_by(Trip.shared_at.desc(), Trip.created_at.desc())
+            .limit(limit)
+        )
+        return [
+            CommunityTripRecord(
+                id=trip.id,
+                title=trip.title,
+                destination=trip.destination,
+                description=trip.description,
+                itinerary=trip.itinerary,
+                created_at=trip.created_at,
+                shared_at=trip.shared_at,
+                owner_name=owner_name,
+            )
+            for trip, owner_name in result.all()
+            if trip.shared_at is not None
+        ]
+
+    async def set_shared(
+        self, trip_id: int, user_id: int, *, shared: bool
+    ) -> TripRecord | None:
+        result = await self._session.execute(
+            select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)
+        )
+        trip = result.scalar_one_or_none()
+        if not trip:
+            return None
+
+        trip.shared_at = datetime.now(UTC) if shared else None
+        await self._session.flush()
+        await self._session.refresh(trip)
+        return _to_record(trip)
 
     async def delete(self, trip_id: int, user_id: int) -> None:
         result = await self._session.execute(

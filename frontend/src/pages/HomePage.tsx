@@ -48,14 +48,14 @@ export default function HomePage() {
 
   const recentTrips = trips.slice(0, 4);
 
-  function openExplore(nextDestination: string) {
+  function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
-    navigate(query ? `/explore?destination=${encodeURIComponent(query)}` : "/explore");
+    navigate(query ? `/plan?destination=${encodeURIComponent(query)}` : "/plan");
   }
 
   function handlePlanSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    openExplore(destination);
+    openPlan(destination);
   }
 
   return (
@@ -93,7 +93,7 @@ export default function HomePage() {
                 Your completed trips.
               </h2>
             </div>
-            <Link to="/explore" className="text-sm font-medium text-slate-600 transition hover:text-slate-900">
+            <Link to="/plan" className="text-sm font-medium text-slate-600 transition hover:text-slate-900">
               Plan another
             </Link>
           </div>
@@ -171,7 +171,7 @@ export default function HomePage() {
                 <p className="mt-4 text-sm leading-6 text-slate-500">{idea.description}</p>
                 <button
                   type="button"
-                  onClick={() => openExplore(idea.name)}
+                  onClick={() => openPlan(idea.name)}
                   className="mt-5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Explore {idea.name}

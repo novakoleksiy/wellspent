@@ -1,11 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import TripsPage from "./pages/DashboardPage";
+import ExplorePage from "./pages/ExplorePage";
 import HomePage from "./pages/HomePage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
-import RecommendPage from "./pages/RecommendPage";
+import PlanPage from "./pages/PlanPage";
 import RegisterPage from "./pages/RegisterPage";
 import SettingsPage from "./pages/SettingsPage";
 import TripDetailPage from "./pages/TripDetailPage";
@@ -67,9 +68,9 @@ export default function App() {
           <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/onboarding" element={<OnboardingOnly><OnboardingPage /></OnboardingOnly>} />
-          <Route path="/explore" element={<RequireAuth><RequireOnboarding><RecommendPage /></RequireOnboarding></RequireAuth>} />
-          <Route path="/plan" element={<Navigate to="/explore" replace />} />
-          <Route path="/recommend" element={<Navigate to="/explore" replace />} />
+          <Route path="/explore" element={<RequireAuth><RequireOnboarding><ExplorePage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/plan" element={<RequireAuth><RequireOnboarding><PlanPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/recommend" element={<Navigate to="/plan" replace />} />
           <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />

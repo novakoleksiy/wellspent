@@ -1,14 +1,23 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.db import CurrentUser, SwissTourism, TripRepo
-from app.schemas.schemas import Recommendation, RecommendRequest, TripCreate, TripOut
+from app.schemas.schemas import (
+    CommunityTripOut,
+    Recommendation,
+    RecommendRequest,
+    TripCreate,
+    TripOut,
+    TripShareUpdate,
+)
 from app.services import recommendation_service
 from app.services.trip_service import (
     TripNotFound,
     create_trip,
     delete_trip,
     get_trip,
+    list_shared_trips,
     list_trips,
+    set_trip_shared,
 )
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -44,10 +53,25 @@ async def list_all(user: CurrentUser, repo: TripRepo):
     return await list_trips(repo, user.id)
 
 
+@router.get("/community", response_model=list[CommunityTripOut])
+async def list_community(user: CurrentUser, repo: TripRepo):
+    return await list_shared_trips(repo, user.id)
+
+
 @router.get("/{trip_id}", response_model=TripOut)
 async def get_one(trip_id: int, user: CurrentUser, repo: TripRepo):
     try:
         return await get_trip(repo, user.id, trip_id)
+    except TripNotFound:
+        raise HTTPException(404, "Trip not found")
+
+
+@router.patch("/{trip_id}/share", response_model=TripOut)
+async def set_share_state(
+    trip_id: int, body: TripShareUpdate, user: CurrentUser, repo: TripRepo
+):
+    try:
+        return await set_trip_shared(repo, user.id, trip_id, shared=body.shared)
     except TripNotFound:
         raise HTTPException(404, "Trip not found")
 

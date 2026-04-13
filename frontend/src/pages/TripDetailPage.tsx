@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTrip } from "../api/trips";
+import { getTrip, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
 import type { TripOut } from "../types";
 
@@ -17,6 +17,7 @@ export default function TripDetailPage() {
     const [trip, setTrip] = useState<TripOut | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [sharing, setSharing] = useState(false);
 
     useEffect(() => {
         getTrip(Number(id))
@@ -45,6 +46,19 @@ export default function TripDetailPage() {
         );
     }
 
+    const handleShareToggle = async () => {
+        setSharing(true);
+        setError("");
+        try {
+            const updatedTrip = await setTripShared(trip.id, !trip.shared_at);
+            setTrip(updatedTrip);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Unable to update community sharing");
+        } finally {
+            setSharing(false);
+        }
+    };
+
     return (
         <AppShell
             title={trip.title}
@@ -58,6 +72,12 @@ export default function TripDetailPage() {
                 </Link>
             }
         >
+            {error && (
+                <p className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {error}
+                </p>
+            )}
+
             <section className="mb-6 overflow-hidden rounded-[2.25rem] bg-slate-900 text-white shadow-xl shadow-slate-900/10">
                 <div className="grid gap-6 px-6 py-7 sm:px-8 sm:py-8 lg:grid-cols-[1.15fr_0.85fr]">
                     <div>
@@ -78,6 +98,26 @@ export default function TripDetailPage() {
                         <div className="rounded-[1.75rem] border border-white/10 bg-white/8 px-5 py-5">
                             <p className="text-sm text-white/60">Days planned</p>
                             <p className="mt-2 text-lg font-semibold">{trip.itinerary?.days?.length ?? 0}</p>
+                        </div>
+                        <div className="rounded-[1.75rem] border border-white/10 bg-white/8 px-5 py-5 sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                            <p className="text-sm text-white/60">Community</p>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-lg font-semibold">{trip.shared_at ? "Shared with the community" : "Private to you"}</p>
+                                <button
+                                    type="button"
+                                    onClick={handleShareToggle}
+                                    disabled={sharing}
+                                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {sharing
+                                        ? trip.shared_at
+                                            ? "Removing..."
+                                            : "Sharing..."
+                                        : trip.shared_at
+                                            ? "Remove from community"
+                                            : "Share with community"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -149,6 +189,12 @@ export default function TripDetailPage() {
                                 <p className="text-sm text-slate-500">Days planned</p>
                                 <p className="mt-1 text-lg font-semibold text-slate-900">{trip.itinerary?.days?.length ?? 0}</p>
                             </div>
+                            <div>
+                                <p className="text-sm text-slate-500">Community</p>
+                                <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    {trip.shared_at ? "Shared" : "Private"}
+                                </p>
+                            </div>
                             {trip.itinerary && (
                                 <div>
                                     <p className="text-sm text-slate-500">Estimated total</p>
@@ -166,7 +212,7 @@ export default function TripDetailPage() {
                             Want a different destination, timing, or pace? Start a new planning run without losing this saved version.
                         </p>
                         <Link
-                            to="/explore"
+                            to="/plan"
                             className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                             Plan another trip

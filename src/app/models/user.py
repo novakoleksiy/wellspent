@@ -51,6 +51,9 @@ class Trip(Base):
     )
     description: Mapped[str | None] = mapped_column(Text, default=None)
     itinerary: Mapped[dict | None] = mapped_column(JSON, default=None)
+    shared_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
     user: Mapped[User] = relationship(back_populates="trips")
     bookings: Mapped[list[Booking]] = relationship(

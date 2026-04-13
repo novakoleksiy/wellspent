@@ -1,9 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
+from app.adapters.swiss_tourism_client import SwissTourismAuthError
 from app.core.config import settings
 from app.core.db import engine
 from app.models.user import Base
@@ -16,6 +19,11 @@ async def lifespan(app: FastAPI):
     logger.info("Running database migrations (create_all)...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text(
+                "ALTER TABLE trips ADD COLUMN IF NOT EXISTS shared_at TIMESTAMP WITH TIME ZONE"
+            )
+        )
     logger.info("Database tables ready.")
     yield
     await engine.dispose()
@@ -43,6 +51,11 @@ app.include_router(trips_router, prefix="/api")
 app.include_router(swiss_router, prefix="/api")
 app.include_router(waitlist_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+
+
+@app.exception_handler(SwissTourismAuthError)
+async def handle_swiss_tourism_auth_error(request: Request, exc: SwissTourismAuthError):
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
 @app.get("/health")

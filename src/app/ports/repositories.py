@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 
@@ -38,6 +39,19 @@ class TripRecord:
     description: str | None
     itinerary: dict | None
     created_at: object
+    shared_at: datetime | None = None
+
+
+@dataclass
+class CommunityTripRecord:
+    id: int
+    title: str
+    destination: str
+    description: str | None
+    itinerary: dict | None
+    created_at: object
+    shared_at: datetime
+    owner_name: str
 
 
 class UserRepository(Protocol):
@@ -61,6 +75,14 @@ class TripRepository(Protocol):
 
     async def get_by_id_and_user(
         self, trip_id: int, user_id: int
+    ) -> TripRecord | None: ...
+
+    async def list_shared(
+        self, *, viewer_user_id: int, limit: int = 6
+    ) -> list[CommunityTripRecord]: ...
+
+    async def set_shared(
+        self, trip_id: int, user_id: int, *, shared: bool
     ) -> TripRecord | None: ...
 
     async def delete(self, trip_id: int, user_id: int) -> None: ...

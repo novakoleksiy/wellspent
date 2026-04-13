@@ -20,7 +20,7 @@ function formatMoney(total: number, currency: string): string {
     }).format(total);
 }
 
-export default function RecommendPage() {
+export default function PlanPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
@@ -47,10 +47,10 @@ export default function RecommendPage() {
     }, [searchParams]);
 
     const set = (field: string, value: unknown) =>
-        setForm(f => ({ ...f, [field]: value }));
+        setForm((current) => ({ ...current, [field]: value }));
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
         setError("");
         setLoading(true);
         try {
@@ -86,7 +86,7 @@ export default function RecommendPage() {
 
     return (
         <AppShell
-            title="Explore"
+            title="Plan"
             description="Build a trip brief, compare tailored itineraries, and save the option worth turning into your next trip."
             actions={
                 <Link
@@ -142,7 +142,7 @@ export default function RecommendPage() {
                                 type="text"
                                 placeholder="Leave blank for a surprise Swiss destination"
                                 value={form.destination}
-                                onChange={e => set("destination", e.target.value)}
+                                onChange={(event) => set("destination", event.target.value)}
                                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
                             />
                         </div>
@@ -154,7 +154,7 @@ export default function RecommendPage() {
                                     type="date"
                                     required
                                     value={form.start_date}
-                                    onChange={e => set("start_date", e.target.value)}
+                                    onChange={(event) => set("start_date", event.target.value)}
                                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
                                 />
                             </div>
@@ -164,7 +164,7 @@ export default function RecommendPage() {
                                     type="date"
                                     required
                                     value={form.end_date}
-                                    onChange={e => set("end_date", e.target.value)}
+                                    onChange={(event) => set("end_date", event.target.value)}
                                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
                                 />
                             </div>
@@ -176,7 +176,7 @@ export default function RecommendPage() {
                                 type="number"
                                 min={1}
                                 value={form.travelers}
-                                onChange={e => set("travelers", Number(e.target.value))}
+                                onChange={(event) => set("travelers", Number(event.target.value))}
                                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
                             />
                         </div>
@@ -186,7 +186,7 @@ export default function RecommendPage() {
                             <textarea
                                 placeholder="Anniversary weekend, scenic rail journey, minimal museum stops..."
                                 value={form.notes}
-                                onChange={e => set("notes", e.target.value)}
+                                onChange={(event) => set("notes", event.target.value)}
                                 rows={4}
                                 className="w-full rounded-[1.75rem] border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
                             />

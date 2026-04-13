@@ -69,7 +69,23 @@ class TripOut(BaseModel):
     description: str | None
     itinerary: dict[str, Any] | None
     created_at: datetime
+    shared_at: datetime | None = None
     model_config = {"from_attributes": True}
+
+
+class TripShareUpdate(BaseModel):
+    shared: bool
+
+
+class CommunityTripOut(BaseModel):
+    id: int
+    title: str
+    destination: str
+    description: str | None
+    itinerary: dict[str, Any] | None
+    created_at: datetime
+    shared_at: datetime
+    owner_name: str
 
 
 class Recommendation(BaseModel):

@@ -4,7 +4,11 @@ import pytest
 import respx
 from httpx import Response
 
-from app.adapters.swiss_tourism_client import BASE_URL, HttpxSwissTourismClient
+from app.adapters.swiss_tourism_client import (
+    BASE_URL,
+    HttpxSwissTourismClient,
+    SwissTourismAuthError,
+)
 from app.ports.swiss_tourism import (
     AttractionRecord,
     DestinationRecord,
@@ -124,6 +128,17 @@ async def test_list_destinations_passes_query(client: HttpxSwissTourismClient):
     assert request.url.params["page"] == "1"  # 0-indexed
     assert request.url.params["size"] == "5"
     assert request.url.params["lang"] == "en"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_destinations_raises_auth_error_on_unauthorized(
+    client: HttpxSwissTourismClient,
+):
+    respx.get(f"{BASE_URL}/destinations/").mock(return_value=Response(401))
+
+    with pytest.raises(SwissTourismAuthError, match="authentication failed"):
+        await client.list_destinations(query="zurich")
 
 
 # ── get_destination ───────────────────────────────────────────────────────────

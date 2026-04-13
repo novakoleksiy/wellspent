@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteTrip, listTrips } from "../api/trips";
+import { deleteTrip, listTrips, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
 import type { TripOut } from "../types";
 
@@ -28,6 +28,7 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [sharingId, setSharingId] = useState<number | null>(null);
 
   useEffect(() => {
     listTrips()
@@ -51,6 +52,19 @@ export default function TripsPage() {
       setError(err instanceof Error ? err.message : "Unable to delete trip");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleShareToggle = async (trip: TripOut) => {
+    setSharingId(trip.id);
+    setError("");
+    try {
+      const updatedTrip = await setTripShared(trip.id, !trip.shared_at);
+      setTrips((current) => current.map((item) => (item.id === trip.id ? updatedTrip : item)));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to update community sharing");
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -105,6 +119,10 @@ export default function TripsPage() {
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Status</p>
                       <p className="mt-2 font-medium capitalize text-slate-800">{trip.status}</p>
                     </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Community</p>
+                      <p className="mt-2 font-medium text-slate-800">{trip.shared_at ? "Shared" : "Private"}</p>
+                    </div>
                     <div className="col-span-2">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Estimated total</p>
                       <p className="mt-2 font-medium text-slate-800">
@@ -113,21 +131,37 @@ export default function TripsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between gap-3 text-sm text-slate-500">
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
                     <Link
                       to={`/trips/${trip.id}`}
                       className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
                       View itinerary
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(trip.id)}
-                      disabled={deletingId === trip.id}
-                      className="font-medium text-rose-600 transition hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {deletingId === trip.id ? "Deleting..." : "Delete"}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleShareToggle(trip)}
+                        disabled={sharingId === trip.id}
+                        className="font-medium text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {sharingId === trip.id
+                          ? trip.shared_at
+                            ? "Unsharing..."
+                            : "Sharing..."
+                          : trip.shared_at
+                            ? "Remove from community"
+                            : "Share with community"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(trip.id)}
+                        disabled={deletingId === trip.id}
+                        className="font-medium text-rose-600 transition hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingId === trip.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -141,10 +175,9 @@ export default function TripsPage() {
   return (
     <AppShell
       title="My Trips"
-      description="Track the trips you are actively planning, revisit completed itineraries, and keep your travel history in one place."
       actions={
         <Link
-          to="/explore"
+          to="/plan"
           className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
         >
           Plan a trip
@@ -191,7 +224,7 @@ export default function TripsPage() {
               Generate a tailored itinerary, save the one that fits best, and come back to it anytime.
             </p>
             <Link
-              to="/explore"
+              to="/plan"
               className="mt-8 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
             >
               Plan your first trip

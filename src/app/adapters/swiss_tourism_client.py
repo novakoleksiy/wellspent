@@ -15,6 +15,10 @@ from app.ports.swiss_tourism import (
 BASE_URL = "https://opendata.myswitzerland.io/v1"
 
 
+class SwissTourismAuthError(Exception):
+    """Raised when the upstream Swiss Tourism API rejects our credentials."""
+
+
 class HttpxSwissTourismClient:
     """Adapter that talks to the MySwitzerland OpenData API via httpx."""
 
@@ -27,6 +31,12 @@ class HttpxSwissTourismClient:
 
     def _base_params(self) -> dict[str, str]:
         return {"lang": self._language, "striphtml": "true", "expand": "true"}
+
+    @staticmethod
+    def _raise_for_status(resp: httpx.Response) -> None:
+        if resp.status_code in {401, 403}:
+            raise SwissTourismAuthError("Swiss Tourism API authentication failed")
+        resp.raise_for_status()
 
     # ── helpers ──────────────────────────────────────────
 
@@ -82,7 +92,7 @@ class HttpxSwissTourismClient:
                 headers=self._headers(),
                 params=params,
             )
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
         body = resp.json()
         destinations = [self._to_destination(d) for d in body.get("data", [])]
@@ -99,7 +109,7 @@ class HttpxSwissTourismClient:
             )
             if resp.status_code == 404:
                 return None
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
         body = resp.json()
         data = body.get("data")
@@ -144,7 +154,7 @@ class HttpxSwissTourismClient:
                 headers=self._headers(),
                 params=params,
             )
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
         body = resp.json()
         attractions = [self._to_attraction(a) for a in body.get("data", [])]
@@ -161,7 +171,7 @@ class HttpxSwissTourismClient:
             )
             if resp.status_code == 404:
                 return None
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
         body = resp.json()
         data = body.get("data")
@@ -203,7 +213,7 @@ class HttpxSwissTourismClient:
                 headers=self._headers(),
                 params=params,
             )
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
         body = resp.json()
         tours = [self._to_tour(t) for t in body.get("data", [])]
@@ -220,7 +230,7 @@ class HttpxSwissTourismClient:
             )
             if resp.status_code == 404:
                 return None
-            resp.raise_for_status()
+            self._raise_for_status(resp)
 
         body = resp.json()
         data = body.get("data")

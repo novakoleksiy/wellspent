@@ -71,4 +71,16 @@ export interface TripOut {
     description: string | null;
     itinerary: Itinerary | null;
     created_at: string;
+    shared_at: string | null;
+}
+
+export interface CommunityTripOut {
+    id: number;
+    title: string;
+    destination: string;
+    description: string | null;
+    itinerary: Itinerary | null;
+    created_at: string;
+    shared_at: string;
+    owner_name: string;
 }

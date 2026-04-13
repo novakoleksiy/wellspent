@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.ports.repositories import NewTrip, TripRecord, TripRepository
+from app.ports.repositories import (
+    CommunityTripRecord,
+    NewTrip,
+    TripRecord,
+    TripRepository,
+)
 
 
 class TripNotFound(Exception):
@@ -33,6 +38,21 @@ async def list_trips(repo: TripRepository, user_id: int) -> list[TripRecord]:
 
 async def get_trip(repo: TripRepository, user_id: int, trip_id: int) -> TripRecord:
     trip = await repo.get_by_id_and_user(trip_id, user_id)
+    if not trip:
+        raise TripNotFound
+    return trip
+
+
+async def list_shared_trips(
+    repo: TripRepository, user_id: int, *, limit: int = 6
+) -> list[CommunityTripRecord]:
+    return await repo.list_shared(viewer_user_id=user_id, limit=limit)
+
+
+async def set_trip_shared(
+    repo: TripRepository, user_id: int, trip_id: int, *, shared: bool
+) -> TripRecord:
+    trip = await repo.set_shared(trip_id, user_id, shared=shared)
     if not trip:
         raise TripNotFound
     return trip
