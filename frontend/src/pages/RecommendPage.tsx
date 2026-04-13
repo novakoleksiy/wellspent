@@ -76,21 +76,21 @@ export default function RecommendPage() {
 
     return (
         <AppShell
-            title="Plan a trip"
-            description="Generate a tailored itinerary from your saved preferences, then keep the best option in your trip library."
+            title="Plan"
+            description="Move from trip brief to saved itinerary in one guided flow, using the profile you already set up."
             actions={
                 <Link
                     to="/settings"
                     className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
                 >
-                    Refine preferences
+                    Open profile
                 </Link>
             }
         >
             <section className="mb-6 rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p className="text-sm font-medium text-slate-500">Tailored from your profile</p>
+                        <p className="text-sm font-medium text-slate-500">Step 1: Use your profile</p>
                         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
                             Your current travel settings
                         </h2>
@@ -114,7 +114,7 @@ export default function RecommendPage() {
             <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
                 <form onSubmit={handleSubmit} className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-8">
                     <div className="mb-8">
-                        <p className="text-sm font-medium text-rose-600">Trip brief</p>
+                        <p className="text-sm font-medium text-rose-600">Step 2: Build the brief</p>
                         <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
                             Build the first draft
                         </h2>
@@ -199,6 +199,13 @@ export default function RecommendPage() {
                 </form>
 
                 <section className="space-y-5">
+                    <div className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-5 shadow-sm">
+                        <p className="text-sm font-medium text-slate-500">Step 3: Compare results</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                            Generated itineraries appear here. Save the option that best fits your dates, budget, and pace.
+                        </p>
+                    </div>
+
                     {!loading && results.length === 0 && (
                         <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/65 p-10 text-center shadow-sm">
                             <p className="text-sm font-semibold tracking-[0.22em] text-slate-500 uppercase">

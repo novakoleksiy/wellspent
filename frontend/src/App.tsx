@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import HomePage from "./pages/HomePage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
@@ -41,7 +42,7 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (user) {
-    return <Navigate to={isOnboarded(user.preferences) ? "/trips" : "/onboarding"} replace />;
+    return <Navigate to={isOnboarded(user.preferences) ? "/" : "/onboarding"} replace />;
   }
   return <>{children}</>;
 }
@@ -50,7 +51,11 @@ function HomeRedirect() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <LandingPage />;
-  return <Navigate to={isOnboarded(user.preferences) ? "/trips" : "/onboarding"} replace />;
+  if (!isOnboarded(user.preferences)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <HomePage />;
 }
 
 export default function App() {
@@ -62,7 +67,8 @@ export default function App() {
           <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/onboarding" element={<OnboardingOnly><OnboardingPage /></OnboardingOnly>} />
-          <Route path="/recommend" element={<RequireAuth><RequireOnboarding><RecommendPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/plan" element={<RequireAuth><RequireOnboarding><RecommendPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/recommend" element={<Navigate to="/plan" replace />} />
           <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />

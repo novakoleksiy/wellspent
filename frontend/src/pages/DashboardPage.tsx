@@ -47,18 +47,18 @@ export default function TripsPage() {
 
     return (
         <AppShell
-            title="My trips"
-            description="Your saved itineraries live here, ready to revisit whenever the next escape starts taking shape."
+            title="Trips"
+            description="Browse your saved itineraries, reopen the strongest options, and keep your trip library tidy."
             actions={
                 <Link
-                    to="/recommend"
+                    to="/plan"
                     className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
                 >
-                    Plan a new trip
+                    Plan a trip
                 </Link>
             }
         >
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="mb-8 grid gap-4 md:grid-cols-3">
                 <div className="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
                     <p className="text-sm text-slate-500">Saved trips</p>
                     <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">{trips.length}</p>
@@ -68,10 +68,10 @@ export default function TripsPage() {
                     <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">{tripsWithItinerary}</p>
                 </div>
                 <div className="rounded-[2rem] border border-slate-200/80 bg-slate-900 p-6 text-white shadow-lg shadow-slate-900/10">
-                    <p className="text-sm text-white/70">Planning loop</p>
-                    <p className="mt-3 text-lg font-semibold">Generate, save, revisit.</p>
+                    <p className="text-sm text-white/70">Library flow</p>
+                    <p className="mt-3 text-lg font-semibold">Plan, save, reopen.</p>
                     <p className="mt-2 text-sm leading-6 text-white/70">
-                        This MVP focuses on the fastest path from preferences to a saved travel plan.
+                        Keep the options worth revisiting and return when the next escape starts taking shape.
                     </p>
                 </div>
             </div>
@@ -100,7 +100,7 @@ export default function TripsPage() {
                         Generate a tailored itinerary, save the one that fits best, and come back to it anytime.
                     </p>
                     <Link
-                        to="/recommend"
+                        to="/plan"
                         className="mt-8 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
                     >
                         Plan your first trip
