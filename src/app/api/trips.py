@@ -5,6 +5,7 @@ from app.schemas.schemas import (
     CommunityTripOut,
     Recommendation,
     RecommendRequest,
+    RefreshRecommendationItemRequest,
     TripCreate,
     TripOut,
     TripShareUpdate,
@@ -32,8 +33,33 @@ async def recommend(body: RecommendRequest, user: CurrentUser, client: SwissTour
         start_date=body.start_date,
         end_date=body.end_date,
         travelers=body.travelers,
+        mood=body.mood,
+        transport_mode=body.transport_mode,
+        trip_length=body.trip_length,
+        group_type=body.group_type,
     )
     return [Recommendation(**r) for r in recs]
+
+
+@router.post("/recommend/refresh-item", response_model=Recommendation)
+async def refresh_recommendation_item(
+    body: RefreshRecommendationItemRequest, user: CurrentUser, client: SwissTourism
+):
+    rec = await recommendation_service.refresh_recommendation_item(
+        client,
+        preferences=user.preferences,
+        destination=body.destination,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        travelers=body.travelers,
+        mood=body.mood,
+        transport_mode=body.transport_mode,
+        trip_length=body.trip_length,
+        group_type=body.group_type,
+        itinerary=body.itinerary.model_dump(),
+        item_id=body.item_id,
+    )
+    return Recommendation(**rec)
 
 
 @router.post("/", response_model=TripOut, status_code=201)

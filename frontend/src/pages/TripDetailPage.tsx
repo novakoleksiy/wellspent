@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTrip, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
-import type { TripOut } from "../types";
+import type { TimelineItem, TripOut } from "../types";
 
 function formatMoney(total: number, currency: string): string {
     return new Intl.NumberFormat(undefined, {
@@ -10,6 +10,23 @@ function formatMoney(total: number, currency: string): string {
         currency: currency || "CHF",
         maximumFractionDigits: 0,
     }).format(total);
+}
+
+function timelineForDay(day: NonNullable<TripOut["itinerary"]>["days"][number]): TimelineItem[] {
+    if (day.timeline_items?.length) {
+        return day.timeline_items;
+    }
+
+    return day.activities.map((activity, index) => ({
+        id: activity.id || `activity-${day.day}-${index}`,
+        kind: "activity" as const,
+        time: activity.time,
+        title: activity.title,
+        category: activity.category,
+        cost: activity.cost,
+        url: activity.url,
+        refreshable: false,
+    }));
 }
 
 export default function TripDetailPage() {
@@ -145,18 +162,22 @@ export default function TripDetailPage() {
                             </div>
 
                             <div className="mt-6 space-y-3">
-                                {day.activities.map((activity, index) => (
+                                {timelineForDay(day).map((item, index) => (
                                     <div
-                                        key={`${day.day}-${activity.time}-${activity.title}-${index}`}
+                                        key={`${day.day}-${item.time}-${item.title}-${index}`}
                                         className="grid gap-4 rounded-[1.5rem] border border-stone-200 bg-stone-50 px-4 py-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
                                     >
-                                        <div className="text-sm font-medium text-slate-500">{activity.time}</div>
+                                        <div className="text-sm font-medium text-slate-500">{item.time}</div>
                                         <div>
-                                            <p className="text-base font-semibold text-slate-900">{activity.title}</p>
-                                            <p className="mt-1 text-sm text-slate-500 capitalize">{activity.category}</p>
+                                            <p className="text-base font-semibold text-slate-900">{item.title}</p>
+                                            <p className="mt-1 text-sm text-slate-500 capitalize">{item.category}</p>
+                                            {item.duration_text && (
+                                                <p className="mt-1 text-sm text-slate-500">{item.duration_text}</p>
+                                            )}
+                                            {item.notes && <p className="mt-1 text-sm text-slate-500">{item.notes}</p>}
                                         </div>
                                         <div className="text-sm font-medium text-slate-600">
-                                            {formatMoney(activity.cost, trip.itinerary?.currency || "CHF")}
+                                            {formatMoney(item.cost, trip.itinerary?.currency || "CHF")}
                                         </div>
                                     </div>
                                 ))}

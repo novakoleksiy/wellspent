@@ -3,12 +3,19 @@ import type {
     CommunityTripOut,
     Recommendation,
     RecommendRequest,
+    RefreshRecommendationItemRequest,
     TripCreate,
     TripOut,
 } from "../types";
 
 export const recommend = (body: RecommendRequest) =>
     request<Recommendation[]>("/api/trips/recommend", {
+        method: "POST",
+        body: JSON.stringify(body),
+    });
+
+export const refreshRecommendationItem = (body: RefreshRecommendationItemRequest) =>
+    request<Recommendation>("/api/trips/recommend/refresh-item", {
         method: "POST",
         body: JSON.stringify(body),
     });

@@ -26,19 +26,40 @@ export interface RecommendRequest {
     travelers: number;
     budget_max?: number;
     notes: string;
+    mood: "culture_history" | "nature_outdoors" | "food_markets" | "slow_relaxing";
+    transport_mode: "car" | "public_transport";
+    trip_length: "2_3_hours" | "half_day" | "full_day";
+    group_type: "solo" | "couple" | "family" | "friends";
 }
 
 export interface Activity {
+    id?: string;
     time: string;
     title: string;
     category: string;
     cost: number;
+    url?: string | null;
+}
+
+export interface TimelineItem {
+    id: string;
+    kind: "activity" | "transport";
+    time: string;
+    title: string;
+    category: string;
+    cost: number;
+    duration_text?: string | null;
+    transport_mode?: string | null;
+    notes?: string | null;
+    url?: string | null;
+    refreshable: boolean;
 }
 
 export interface ItineraryDay {
     day: number;
     date: string;
     activities: Activity[];
+    timeline_items?: TimelineItem[];
 }
 
 export interface Itinerary {
@@ -54,6 +75,11 @@ export interface Recommendation {
     itinerary: Itinerary;
     match_score: number;
     highlights: string[];
+}
+
+export interface RefreshRecommendationItemRequest extends RecommendRequest {
+    itinerary: Itinerary;
+    item_id: string;
 }
 
 export interface TripCreate {

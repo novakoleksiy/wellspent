@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -52,6 +52,56 @@ class RecommendRequest(BaseModel):
     travelers: int = 1
     budget_max: float | None = None
     notes: str = ""
+    mood: Literal[
+        "culture_history",
+        "nature_outdoors",
+        "food_markets",
+        "slow_relaxing",
+    ] = "culture_history"
+    transport_mode: Literal["car", "public_transport"] = "public_transport"
+    trip_length: Literal["2_3_hours", "half_day", "full_day"] | None = None
+    group_type: Literal["solo", "couple", "family", "friends"] = "solo"
+
+
+class TimelineItem(BaseModel):
+    id: str
+    kind: Literal["activity", "transport"]
+    time: str
+    title: str
+    category: str
+    cost: float
+    duration_text: str | None = None
+    transport_mode: str | None = None
+    notes: str | None = None
+    url: str | None = None
+    refreshable: bool = False
+
+
+class ItineraryActivity(BaseModel):
+    id: str | None = None
+    time: str
+    title: str
+    category: str
+    cost: float
+    url: str | None = None
+
+
+class ItineraryDay(BaseModel):
+    day: int
+    date: str
+    activities: list[ItineraryActivity] = Field(default_factory=list)
+    timeline_items: list[TimelineItem] = Field(default_factory=list)
+
+
+class RecommendationItinerary(BaseModel):
+    days: list[ItineraryDay]
+    estimated_total: float
+    currency: str
+
+
+class RefreshRecommendationItemRequest(RecommendRequest):
+    itinerary: RecommendationItinerary
+    item_id: str
 
 
 class TripCreate(BaseModel):
@@ -92,7 +142,7 @@ class Recommendation(BaseModel):
     title: str
     destination: str
     description: str
-    itinerary: dict[str, Any]
+    itinerary: RecommendationItinerary
     match_score: float
     highlights: list[str]
 
