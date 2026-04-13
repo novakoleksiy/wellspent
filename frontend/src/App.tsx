@@ -7,7 +7,6 @@ import OnboardingPage from "./pages/OnboardingPage";
 import RecommendPage from "./pages/RecommendPage";
 import RegisterPage from "./pages/RegisterPage";
 import SettingsPage from "./pages/SettingsPage";
-import TripsPage from "./pages/DashboardPage";
 import TripDetailPage from "./pages/TripDetailPage";
 import { hasCompletedOnboarding } from "./preferences";
 
@@ -34,7 +33,7 @@ function OnboardingOnly({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (isOnboarded(user.preferences)) return <Navigate to="/trips" replace />;
+  if (isOnboarded(user.preferences)) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -67,11 +66,13 @@ export default function App() {
           <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/onboarding" element={<OnboardingOnly><OnboardingPage /></OnboardingOnly>} />
-          <Route path="/plan" element={<RequireAuth><RequireOnboarding><RecommendPage /></RequireOnboarding></RequireAuth>} />
-          <Route path="/recommend" element={<Navigate to="/plan" replace />} />
-          <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/explore" element={<RequireAuth><RequireOnboarding><RecommendPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/plan" element={<Navigate to="/explore" replace />} />
+          <Route path="/recommend" element={<Navigate to="/explore" replace />} />
+          <Route path="/trips" element={<Navigate to="/" replace />} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />
-          <Route path="/settings" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/settings" element={<Navigate to="/profile" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

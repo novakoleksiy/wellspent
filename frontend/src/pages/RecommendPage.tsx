@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend } from "../api/trips";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../hooks/useAuth";
@@ -22,6 +22,7 @@ function formatMoney(total: number, currency: string): string {
 
 export default function RecommendPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const [form, setForm] = useState({
         destination: "",
@@ -35,6 +36,15 @@ export default function RecommendPage() {
     const [savingTitle, setSavingTitle] = useState<string | null>(null);
     const [error, setError] = useState("");
     const preferences = coercePreferences(user?.preferences);
+
+    useEffect(() => {
+        const nextDestination = searchParams.get("destination") || "";
+        setForm((current) =>
+            current.destination === nextDestination
+                ? current
+                : { ...current, destination: nextDestination },
+        );
+    }, [searchParams]);
 
     const set = (field: string, value: unknown) =>
         setForm(f => ({ ...f, [field]: value }));
@@ -76,11 +86,11 @@ export default function RecommendPage() {
 
     return (
         <AppShell
-            title="Plan"
-            description="Move from trip brief to saved itinerary in one guided flow, using the profile you already set up."
+            title="Explore"
+            description="Build a trip brief, compare tailored itineraries, and save the option worth turning into your next trip."
             actions={
                 <Link
-                    to="/settings"
+                    to="/profile"
                     className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
                 >
                     Open profile

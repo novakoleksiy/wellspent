@@ -51,10 +51,10 @@ export default function TripDetailPage() {
             description={`Saved itinerary for ${trip.destination}`}
             actions={
                 <Link
-                    to="/trips"
+                    to="/"
                     className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
                 >
-                    Back to trips
+                    Back to homepage
                 </Link>
             }
         >
@@ -166,7 +166,7 @@ export default function TripDetailPage() {
                             Want a different destination, timing, or pace? Start a new planning run without losing this saved version.
                         </p>
                         <Link
-                            to="/plan"
+                            to="/explore"
                             className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                             Plan another trip

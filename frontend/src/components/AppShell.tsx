@@ -10,10 +10,9 @@ type AppShellProps = {
 };
 
 const links = [
-  { to: "/", label: "Home" },
-  { to: "/plan", label: "Plan" },
-  { to: "/trips", label: "Trips" },
-  { to: "/settings", label: "Profile" },
+  { to: "/", label: "Homepage" },
+  { to: "/explore", label: "Explore" },
+  { to: "/profile", label: "Profile" },
 ];
 
 function navClass(isActive: boolean): string {
