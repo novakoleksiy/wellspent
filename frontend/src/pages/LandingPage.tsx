@@ -1,15 +1,57 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { joinWaitlist } from "../api/waitlist";
 import "./landing.css";
 
-function preventSubmit(event: FormEvent<HTMLFormElement>) {
+async function submitWaitlist(
+  event: FormEvent<HTMLFormElement>,
+  email: string,
+  setError: (value: string) => void,
+  setLoading: (value: boolean) => void,
+  setSubmitted: (value: boolean) => void,
+) {
   event.preventDefault();
+
+  setError("");
+  setLoading(true);
+
+  try {
+    await joinWaitlist({ email });
+    setSubmitted(true);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes("already on the waitlist")) {
+      setError("You're already on the list - we'll reach out soon!");
+    } else {
+      setError(error instanceof Error ? error.message : "Something went wrong");
+    }
+  } finally {
+    setLoading(false);
+  }
 }
 
 export default function LandingPage() {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const waitlistInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     document.title = "Wellspent - Day trips, ready in two minutes";
   }, []);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    void submitWaitlist(event, email, setError, setLoading, setSubmitted);
+  };
+
+  const focusWaitlistInput = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    waitlistInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    window.setTimeout(() => {
+      waitlistInputRef.current?.focus({ preventScroll: true });
+    }, 450);
+  };
 
   return (
     <div className="landing-page">
@@ -18,7 +60,7 @@ export default function LandingPage() {
           <img className="nav-logo" src="/landing/logo.png" alt="Wellspent" />
           <div className="nav-right">
             <span className="mono">Winterthur · CH</span>
-            <a className="btn" href="#waitlist">
+            <a className="btn" href="#waitlist" onClick={focusWaitlistInput}>
               Join the waitlist
             </a>
           </div>
@@ -56,12 +98,24 @@ export default function LandingPage() {
                 Tell us your time, budget, mood, and who you&apos;re with. We build a full day trip with real train
                 connections, local stops, food worth finding, and the detours you&apos;d never plan yourself.
               </p>
-              <form className="form" id="waitlist" onSubmit={preventSubmit}>
-                <input type="email" placeholder="you@example.ch" required />
-                <button className="btn" type="submit">
-                  Join the waitlist →
-                </button>
-              </form>
+              {submitted ? (
+                <p className="hero-foot">Thanks for joining. We&apos;ll email you when Wellspent is ready.</p>
+              ) : (
+                <form className="form" id="waitlist" onSubmit={handleSubmit}>
+                  <input
+                    ref={waitlistInputRef}
+                    type="email"
+                    placeholder="you@example.ch"
+                    value={email}
+                    onChange={event => setEmail(event.target.value)}
+                    required
+                  />
+                  <button className="btn" type="submit" disabled={loading}>
+                    {loading ? "Joining..." : "Join the waitlist →"}
+                  </button>
+                </form>
+              )}
+              {error && <p className="hero-foot">{error}</p>}
               <p className="hero-foot">Be one of the first. Early members get priority access at launch.</p>
             </div>
 
@@ -357,14 +411,25 @@ export default function LandingPage() {
           </h2>
           <div className="cta-row">
             <p>We&apos;ll write once, when it&apos;s ready. One email, no name, no follow-ups unless you ask.</p>
-            <form className="form" onSubmit={preventSubmit} style={{ background: "#fff" }}>
-              <input type="email" placeholder="you@example.ch" required />
-              <button className="btn" type="submit">
-                Join the waitlist →
-              </button>
-            </form>
-          </div>
-        </div>
+             {submitted ? (
+               <p>Thanks for joining. We&apos;ll email you when Wellspent is ready.</p>
+             ) : (
+               <form className="form" onSubmit={handleSubmit} style={{ background: "#fff" }}>
+                 <input
+                   type="email"
+                   placeholder="you@example.ch"
+                   value={email}
+                   onChange={event => setEmail(event.target.value)}
+                   required
+                 />
+                 <button className="btn" type="submit" disabled={loading}>
+                   {loading ? "Joining..." : "Join the waitlist →"}
+                 </button>
+               </form>
+             )}
+             {error && <p>{error}</p>}
+           </div>
+         </div>
       </main>
 
       <footer>
