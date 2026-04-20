@@ -31,6 +31,14 @@
       --sans: "Inter Tight", system-ui, -apple-system, Segoe UI, sans-serif;
       --serif: "Instrument Serif", Georgia, serif;
       --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --display-line: 1.02;
+      --heading-line: 1.05;
+      --body-line: 1.5;
+      --display-track: -0.03em;
+      --heading-track: -0.02em;
+      --mono-track: 0.06em;
+      --meta-size: 12px;
+      --mono-size: 11px;
     }
 
     * {
@@ -48,6 +56,8 @@
       color: var(--ink);
       font-family: var(--sans);
       font-weight: 400;
+      line-height: var(--body-line);
+      font-optical-sizing: auto;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
@@ -67,8 +77,8 @@
       font-family: var(--mono);
       font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-size: 11px;
+      letter-spacing: var(--mono-track);
+      font-size: var(--mono-size);
       color: var(--muted);
     }
 
@@ -146,8 +156,8 @@
       font-weight: 600;
       color: var(--ink);
       font-size: clamp(56px, 10.5vw, 161.7px);
-      line-height: 1.06;
-      letter-spacing: -0.035em;
+      line-height: var(--display-line);
+      letter-spacing: var(--display-track);
     }
 
     h1.hero-title .accent {
@@ -171,7 +181,7 @@
     .hero-copy p {
       font-size: 19px;
       font-weight: 500;
-      line-height: 1.45;
+      line-height: var(--body-line);
       color: var(--ink-soft);
       margin: 0 0 28px;
       max-width: 570px;
@@ -210,7 +220,7 @@
       white-space: nowrap;
     }
 
-    .hero-foot {
+    .hero-copy p.hero-foot {
       margin-top: 16px;
       font-size: 13px;
       font-weight: 500;
@@ -274,8 +284,8 @@
       position: absolute;
       font-family: var(--mono);
       font-weight: 400;
-      font-size: 10px;
-      letter-spacing: 0.08em;
+      font-size: var(--mono-size);
+      letter-spacing: var(--mono-track);
       text-transform: uppercase;
       padding: 8px 16px;
       border-radius: 999px;
@@ -391,7 +401,8 @@
       animation: marquee 40s linear infinite;
       font-size: 36px;
       font-weight: 500;
-      letter-spacing: -0.02em;
+      line-height: var(--heading-line);
+      letter-spacing: -0.015em;
     }
 
     .marquee-track span.star {
@@ -420,8 +431,8 @@
       margin: 0;
       font-weight: 600;
       font-size: clamp(40px, 6vw, 84px);
-      line-height: 0.95;
-      letter-spacing: -0.03em;
+      line-height: 0.98;
+      letter-spacing: var(--display-track);
       max-width: 960px;
     }
 
@@ -465,14 +476,14 @@
       margin: 14px 0 24px;
       font-weight: 600;
       font-size: 34px;
-      line-height: 1.02;
-      letter-spacing: -0.02em;
+      line-height: var(--heading-line);
+      letter-spacing: var(--heading-track);
     }
 
     .card h3.big {
       font-size: 44px;
-      line-height: 1;
-      letter-spacing: -0.02em;
+      line-height: 1.02;
+      letter-spacing: var(--heading-track);
     }
 
     .card p {
@@ -569,8 +580,8 @@
 
     .chip-num {
       font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.08em;
+      font-size: var(--mono-size);
+      letter-spacing: var(--mono-track);
       opacity: .6;
     }
 
@@ -583,7 +594,8 @@
 
     .chip-values {
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: var(--meta-size);
+      letter-spacing: 0.02em;
       opacity: .7;
       line-height: 1.35;
     }
@@ -617,25 +629,29 @@
 
     .itinerary .time {
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: var(--meta-size);
+      letter-spacing: 0.02em;
       opacity: .75;
     }
 
     .itinerary .main {
       font-weight: 500;
       font-size: 14.5px;
+      line-height: 1.35;
       margin: 0 0 4px;
     }
 
     .itinerary .sub {
       font-size: 12.5px;
+      line-height: 1.4;
       opacity: .7;
       margin: 0 0 4px;
     }
 
     .itinerary .pl {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: var(--mono-size);
+      letter-spacing: var(--mono-track);
       opacity: .7;
       font-weight: 500;
     }
@@ -691,8 +707,9 @@
     .step-num {
       font-family: var(--serif);
       font-style: italic;
-      font-size: 64px;
-      line-height: 1;
+      font-size: 60px;
+      line-height: 0.92;
+      letter-spacing: -0.015em;
       color: var(--orange);
     }
 
@@ -708,14 +725,15 @@
       margin: 36px 0 12px;
       font-weight: 600;
       font-size: 22px;
-      letter-spacing: -0.01em;
+      line-height: var(--heading-line);
+      letter-spacing: -0.015em;
     }
 
     .step p {
       margin: 0;
       color: var(--ink-soft);
       font-size: 14.5px;
-      line-height: 1.5;
+      line-height: var(--body-line);
     }
 
     .step img.shot {
@@ -737,8 +755,9 @@
     .stat .num {
       font-family: var(--serif);
       font-style: italic;
-      font-size: 72px;
-      line-height: 1;
+      font-size: 68px;
+      line-height: 0.92;
+      letter-spacing: -0.015em;
     }
 
     .stat.green .num {
@@ -773,8 +792,8 @@
       margin: 0;
       font-weight: 600;
       font-size: clamp(44px, 6.5vw, 96px);
-      line-height: 0.95;
-      letter-spacing: -0.03em;
+      line-height: 0.98;
+      letter-spacing: var(--display-track);
     }
 
     .cta h2 .accent {
@@ -793,7 +812,7 @@
       margin: 0;
       max-width: 432px;
       font-size: 17px;
-      line-height: 1.5;
+      line-height: var(--body-line);
       opacity: .88;
     }
 
