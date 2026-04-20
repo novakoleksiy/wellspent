@@ -9,6 +9,7 @@ async function submitWaitlist(
   setError: (value: string) => void,
   setLoading: (value: boolean) => void,
   setSubmitted: (value: boolean) => void,
+  setShowConfirmation: (value: boolean) => void,
 ) {
   event.preventDefault();
 
@@ -18,6 +19,7 @@ async function submitWaitlist(
   try {
     await joinWaitlist({ email });
     setSubmitted(true);
+    setShowConfirmation(true);
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes("already on the waitlist")) {
       setError("You're already on the list - we'll reach out soon!");
@@ -34,6 +36,7 @@ export default function LandingPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const waitlistInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,7 +44,7 @@ export default function LandingPage() {
   }, []);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    void submitWaitlist(event, email, setError, setLoading, setSubmitted);
+    void submitWaitlist(event, email, setError, setLoading, setSubmitted, setShowConfirmation);
   };
 
   const focusWaitlistInput = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -55,6 +58,18 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page">
+      {showConfirmation && (
+        <div className="confirmation-overlay" role="dialog" aria-modal="true" aria-labelledby="waitlist-confirmation-title">
+          <div className="confirmation-card">
+            <p className="confirmation-eyebrow">You&apos;re in</p>
+            <h2 id="waitlist-confirmation-title">Thanks for joining the waitlist.</h2>
+            <p>We&apos;ll email you as soon as Wellspent is ready.</p>
+            <button className="btn" type="button" onClick={() => setShowConfirmation(false)}>
+              Continue browsing
+            </button>
+          </div>
+        </div>
+      )}
       <header className="nav">
         <div className="nav-inner">
           <img className="nav-logo" src="/landing/logo.png" alt="Wellspent" />
