@@ -705,6 +705,7 @@
       padding: 28px;
       min-height: 431px;
       position: relative;
+      overflow: visible;
     }
 
     .step-num {
@@ -739,12 +740,27 @@
       line-height: var(--body-line);
     }
 
-    .step img.shot {
-      display: block;
-      width: calc(100% - 40px);
-      margin: 24px auto 0;
+    .step-polaroid {
+      width: calc(100% - 8px);
+      max-width: 278px;
+      position: absolute;
+      left: 50%;
+      bottom: -100px;
+      transform: translateX(-50%);
+      padding: 10px 10px 22px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(20, 19, 15, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 16px 32px rgba(20, 19, 15, 0.08);
+      backdrop-filter: blur(6px);
+    }
+
+    .step-polaroid img {
+      width: 100%;
+      aspect-ratio: 1 / 1.12;
+      object-fit: cover;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 1px 0 rgba(20, 19, 15, 0.06);
     }
 
     /* Stats card */
@@ -1222,19 +1238,25 @@
             <div class="step-num italic">01</div>
             <h4>Tell us the day.</h4>
             <p>Four taps: time, budget, vibe, company. No sign-up to try it.</p>
-            <img class="shot" src="/landing/screen1.png" alt="" />
+            <div class="step-polaroid" aria-hidden="true">
+              <img src="/landing/polaroid_4.png" alt="" />
+            </div>
           </div>
           <div class="step">
             <div class="step-num italic">02</div>
             <h4>Read the plan.</h4>
             <p>Train times, platforms, a handful of stops with notes from people who actually live there.</p>
-            <img class="shot" src="/landing/screen2.png" alt="" />
+            <div class="step-polaroid" aria-hidden="true">
+              <img src="/landing/polaroid_5.png" alt="" />
+            </div>
           </div>
           <div class="step">
             <div class="step-num italic">03</div>
             <h4>Go.</h4>
             <p>Chat to change anything en route. Partner deals apply automatically at the café, museum, or workshop.</p>
-            <img class="shot" src="/landing/screen2.png" alt="" />
+            <div class="step-polaroid" aria-hidden="true">
+              <img src="/landing/polaroid_6.png" alt="" />
+            </div>
           </div>
         </div>
       </div>
