@@ -159,11 +159,18 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 40px;
-      align-items: end;
+      align-items: center;
+    }
+
+    .hero-copy {
+      justify-self: center;
+      width: 100%;
+      max-width: 660px;
     }
 
     .hero-copy p {
       font-size: 19px;
+      font-weight: 500;
       line-height: 1.45;
       color: var(--ink-soft);
       margin: 0 0 28px;
@@ -206,6 +213,7 @@
     .hero-foot {
       margin-top: 16px;
       font-size: 13px;
+      font-weight: 500;
       color: var(--muted-2);
     }
 
@@ -279,8 +287,9 @@
     .chip-dark {
       background: var(--ink);
       color: var(--cream);
-      left: 22px;
-      top: 166px;
+      font-weight: 500;
+      left: 52px;
+      top: 178px;
       transform: rotate(-5deg);
     }
 
@@ -325,38 +334,44 @@
     }
 
     .polaroids {
-      margin-top: 40px;
-      position: relative;
-      height: 230px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin: 0 0 28px;
+      max-width: 732px;
     }
 
     .polaroid {
-      position: absolute;
-      width: 182px;
-      height: 210px;
+      width: 100%;
+      max-width: 214px;
+      padding: 10px 10px 22px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(20, 19, 15, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 16px 32px rgba(20, 19, 15, 0.08);
+      backdrop-filter: blur(6px);
+    }
+
+    .polaroid img {
+      width: 100%;
+      aspect-ratio: 1 / 1.12;
       object-fit: cover;
-      background: #fff;
-      padding: 10px 10px 34px;
-      border-radius: 2px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+      border-radius: 10px;
+      box-shadow: 0 1px 0 rgba(20, 19, 15, 0.06);
     }
 
     .polaroid:nth-child(1) {
-      left: 0;
-      top: 10px;
-      transform: rotate(4.5deg);
+      transform: rotate(-4deg);
+      margin-top: 24px;
     }
 
     .polaroid:nth-child(2) {
-      left: 200px;
-      top: 18px;
-      transform: rotate(-4.5deg);
+      transform: rotate(1.5deg);
     }
 
     .polaroid:nth-child(3) {
-      left: 400px;
-      top: 6px;
-      transform: rotate(0.5deg);
+      transform: rotate(4.5deg);
+      margin-top: 18px;
     }
 
     /* Marquee */
@@ -848,6 +863,10 @@
         top: 18px;
       }
 
+      .polaroids {
+        justify-content: flex-start;
+      }
+
       .cards {
         grid-template-columns: 1fr;
       }
@@ -887,7 +906,14 @@
       }
 
       .polaroids {
-        display: none;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+
+      .polaroid {
+        max-width: none;
+        flex: 1;
+        padding: 8px 8px 16px;
       }
 
       .hero-visual {
@@ -920,8 +946,8 @@
       }
 
       .chip-dark {
-        left: 12px;
-        top: 82px;
+        left: 28px;
+        top: 92px;
       }
 
       .chip-yellow {
@@ -983,6 +1009,17 @@
 
       <div class="hero-grid">
         <div class="hero-copy">
+          <div class="polaroids" aria-hidden="true">
+            <div class="polaroid">
+              <img src="/landing/polaroid_1.png" alt="" />
+            </div>
+            <div class="polaroid">
+              <img src="/landing/polaroid_2.png" alt="" />
+            </div>
+            <div class="polaroid">
+              <img src="/landing/polaroid_3.png" alt="" />
+            </div>
+          </div>
           <p>Tell us your time, budget, mood, and who you're with. We build a full day trip with real train connections,
             local stops, food worth finding, and the detours you'd never plan yourself.</p>
           <form class="form" id="waitlist" onsubmit="event.preventDefault();">
@@ -1000,11 +1037,6 @@
         </div>
       </div>
 
-      <div class="polaroids">
-        <img class="polaroid" src="/landing/polaroid_1.png" alt="" />
-        <img class="polaroid" src="/landing/polaroid_2.png" alt="" />
-        <img class="polaroid" src="/landing/polaroid_3.png" alt="" />
-      </div>
     </section>
 
     <!-- MARQUEE -->
