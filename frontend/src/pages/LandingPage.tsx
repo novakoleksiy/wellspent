@@ -93,7 +93,7 @@ export default function LandingPage() {
           <h1 className="hero-title">
             Your next <span className="italic">well spent</span>
             <br />
-            trip, planned in <span className="accent">two minutes</span>.
+            trip, planned in <span className="accent">two&nbsp;minutes</span>.
           </h1>
 
           <div className="hero-grid">
