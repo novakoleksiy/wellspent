@@ -18,11 +18,7 @@ export default function LoginPage() {
         getPublicSettings()
             .then(settings => {
                 if (!isMounted) return;
-                if (!settings.registration_open) {
-                    navigate("/", { replace: true });
-                    return;
-                }
-                setRegistrationOpen(true);
+                setRegistrationOpen(settings.registration_open);
             })
             .catch(() => {
                 if (isMounted) {
