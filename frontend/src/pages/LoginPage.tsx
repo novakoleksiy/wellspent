@@ -10,13 +10,30 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [registrationOpen, setRegistrationOpen] = useState(true);
+    const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
 
     useEffect(() => {
+        let isMounted = true;
+
         getPublicSettings()
-            .then(s => setRegistrationOpen(s.registration_open))
-            .catch(() => {});
-    }, []);
+            .then(settings => {
+                if (!isMounted) return;
+                if (!settings.registration_open) {
+                    navigate("/", { replace: true });
+                    return;
+                }
+                setRegistrationOpen(true);
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setRegistrationOpen(true);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,6 +48,8 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+
+    if (registrationOpen === null) return null;
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_28%),linear-gradient(180deg,#fcfbf8_0%,#f2ecdf_100%)] px-4 py-6 sm:px-6 lg:px-8">
