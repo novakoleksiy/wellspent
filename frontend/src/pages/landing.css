@@ -175,7 +175,7 @@
 }
 
 .landing-page .hero {
-  padding-top: 56px;
+  padding-top: 24px;
   padding-bottom: 40px;
 }
 
@@ -187,7 +187,7 @@
 }
 
 .landing-page h1.hero-title {
-  margin: 48px 0 0;
+  margin: 0;
   font-weight: 600;
   color: var(--ink);
   font-size: clamp(56px, 10.5vw, 161.7px);
@@ -388,7 +388,7 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  margin: 0 0 28px;
+  margin: 0 0 56px;
   max-width: 732px;
 }
 
@@ -443,7 +443,7 @@
   display: inline-flex;
   gap: 56px;
   white-space: nowrap;
-  animation: landing-marquee 40s linear infinite;
+  animation: landing-marquee 22s linear infinite;
   font-size: 36px;
   font-weight: 500;
   line-height: var(--heading-line);
@@ -468,6 +468,16 @@
 
 .landing-page section.section {
   padding: 81px 0;
+}
+
+.landing-page section.section-dmos {
+  padding-top: 81px;
+}
+
+@media (min-width: 641px) {
+  .landing-page section.section-dmos {
+    padding-top: 160px;
+  }
 }
 
 .landing-page h2.section-title {
@@ -569,6 +579,19 @@
 
 .landing-page .card-yellow {
   background: var(--yellow);
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-page .card-yellow h3 {
+  flex: 1;
+  margin: 18px 0 14px;
+  font-size: clamp(52px, 5.6vw, 78px);
+  line-height: 0.94;
+}
+
+.landing-page .card-yellow p {
+  font-size: 13.5px;
 }
 
 .landing-page .card-green {
@@ -984,7 +1007,7 @@
 
 @media (max-width: 640px) {
   .landing-page .hero {
-    padding-top: 32px;
+    padding-top: 16px;
     padding-bottom: 24px;
   }
 
@@ -1002,7 +1025,22 @@
 
   .landing-page .polaroids {
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 40px;
+  }
+
+  .landing-page .marquee {
+    padding: 14px 0;
+  }
+
+  .landing-page .marquee-track {
+    gap: 32px;
+    font-size: 20px;
+    animation-duration: 16s;
+  }
+
+  .landing-page .marquee-track span.star {
+    margin: 0 18px;
+    font-size: 14px;
   }
 
   .landing-page .polaroid {
@@ -1017,7 +1055,7 @@
 
   .landing-page .hero-visual {
     height: 440px;
-    margin-top: -24px;
+    margin-top: -80px;
   }
 
   .landing-page .hero-phone {
@@ -1025,7 +1063,7 @@
     height: 440px;
     right: auto;
     left: 50%;
-    margin-left: -160px;
+    margin-left: -120px;
     top: -30px;
     animation-name: landing-hero-phone-bounce-mobile;
   }
@@ -1049,7 +1087,7 @@
     font-size: 10px;
     padding: 6px 12px;
     top: 62%;
-    left: 50%;
+    left: 62%;
     --orbit-r: 135px;
   }
 
@@ -1113,6 +1151,26 @@
 
   .landing-page .nav-right .mono {
     display: none;
+  }
+
+  .landing-page .card-yellow h3 {
+    font-size: clamp(44px, 12vw, 64px);
+  }
+
+  .landing-page .foot-right {
+    flex-wrap: wrap;
+    row-gap: 24px;
+  }
+
+  .landing-page .foot-socials {
+    flex-basis: 100%;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .landing-page .foot-socials img {
+    width: 40px;
+    height: 40px;
   }
 }
 

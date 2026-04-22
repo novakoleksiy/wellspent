@@ -84,10 +84,6 @@ export default function LandingPage() {
 
       <main>
         <section className="hero container">
-          <div className="hero-meta">
-            <span className="mono">Launching soon</span>
-          </div>
-
           <h1 className="hero-title">
             <span className="title-desktop">
               Your next <span className="italic">well spent</span>
@@ -248,8 +244,8 @@ export default function LandingPage() {
             </div>
 
             <div className="duet">
-              <div className="card card-dark">
-                <span className="mono eyebrow" style={{ color: "var(--yellow)", opacity: 0.8 }}>
+              <div className="card card-green">
+                <span className="mono eyebrow" style={{ color: "var(--green-tint)", opacity: 0.85 }}>
                   Specimen · Zürich → Appenzell · Nature · 2 pax
                 </span>
                 <h3>
@@ -309,8 +305,8 @@ export default function LandingPage() {
             </div>
 
             <div className="triple">
-              <div className="card card-green">
-                <span className="mono eyebrow" style={{ color: "var(--green-tint)", opacity: 0.85 }}>
+              <div className="card card-dark">
+                <span className="mono eyebrow" style={{ color: "var(--yellow)", opacity: 0.8 }}>
                   Chat to edit
                 </span>
                 <h3>
@@ -384,8 +380,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-
-        <section className="section">
+              
+        <section className="section section-dmos">
           <div className="container">
             <h2 className="section-title" style={{ marginBottom: 40 }}>
               For DMOs.
