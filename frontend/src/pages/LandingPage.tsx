@@ -89,9 +89,20 @@ export default function LandingPage() {
           </div>
 
           <h1 className="hero-title">
-            Your next <span className="italic">well spent</span>
-            <br />
-            trip, planned in <span className="accent">two&nbsp;minutes</span>.
+            <span className="title-desktop">
+              Your next <span className="italic">well spent</span>
+              <br />
+              trip, planned in <span className="accent">two&nbsp;minutes</span>.
+            </span>
+            <span className="title-mobile">
+              Your next 
+              <br />
+              <span className="italic">well spent</span> trip,
+              <br />
+              planned in
+              <br />
+              <span className="accent">two&nbsp;minutes</span>
+            </span>
           </h1>
 
           <div className="hero-grid">
@@ -424,25 +435,25 @@ export default function LandingPage() {
           </h2>
           <div className="cta-row">
             <p>We&apos;ll write once, when it&apos;s ready. One email, no name, no follow-ups unless you ask.</p>
-             {submitted ? (
-               <p>Thanks for joining. We&apos;ll email you when Wellspent is ready.</p>
-             ) : (
-               <form className="form" onSubmit={handleSubmit} style={{ background: "#fff" }}>
-                 <input
-                   type="email"
-                   placeholder="you@example.ch"
-                   value={email}
-                   onChange={event => setEmail(event.target.value)}
-                   required
-                 />
-                 <button className="btn" type="submit" disabled={loading}>
-                   {loading ? "Joining..." : "Join the waitlist →"}
-                 </button>
-               </form>
-             )}
-             {error && <p>{error}</p>}
-           </div>
-         </div>
+            {submitted ? (
+              <p>Thanks for joining. We&apos;ll email you when Wellspent is ready.</p>
+            ) : (
+              <form className="form" onSubmit={handleSubmit} style={{ background: "#fff" }}>
+                <input
+                  type="email"
+                  placeholder="you@example.ch"
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
+                  required
+                />
+                <button className="btn" type="submit" disabled={loading}>
+                  {loading ? "Joining..." : "Join the waitlist →"}
+                </button>
+              </form>
+            )}
+            {error && <p>{error}</p>}
+          </div>
+        </div>
       </main>
 
       <footer>
@@ -454,8 +465,8 @@ export default function LandingPage() {
             </div>
             <div className="foot-col">
               <span className="mono">Contact</span>
-              <a href="mailto:hello@wellspent.ch" style={{ color: "inherit", textDecoration: "none" }}>
-                hello@wellspent.ch
+              <a href="mailto:hello@wellspent.world" style={{ color: "inherit", textDecoration: "none" }}>
+                hello@wellspent.world
               </a>
             </div>
             <div className="foot-socials">

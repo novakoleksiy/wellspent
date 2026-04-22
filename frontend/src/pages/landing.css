@@ -199,6 +199,10 @@
   color: var(--orange);
 }
 
+.landing-page h1.hero-title .title-mobile {
+  display: none;
+}
+
 .landing-page .hero-grid {
   margin-top: 48px;
   display: grid;
@@ -982,6 +986,18 @@
   .landing-page .hero {
     padding-top: 32px;
     padding-bottom: 24px;
+  }
+
+  .landing-page h1.hero-title .title-desktop {
+    display: none;
+  }
+
+  .landing-page h1.hero-title .title-mobile {
+    display: inline;
+  }
+
+  .landing-page .hero-visual {
+    pointer-events: none;
   }
 
   .landing-page .polaroids {
