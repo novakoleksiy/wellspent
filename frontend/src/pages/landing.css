@@ -175,12 +175,13 @@
 }
 
 .landing-page .hero {
-  padding: 56px 0 40px;
+  padding-top: 56px;
+  padding-bottom: 40px;
 }
 
 .landing-page .hero-meta {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   gap: 24px;
   flex-wrap: wrap;
 }
@@ -387,20 +388,25 @@
 .landing-page .polaroid {
   width: 100%;
   max-width: 214px;
-  padding: 10px 10px 22px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(20, 19, 15, 0.08);
-  border-radius: 16px;
-  box-shadow: 0 16px 32px rgba(20, 19, 15, 0.08);
-  backdrop-filter: blur(6px);
+  padding: 12px 12px 44px;
+  background: #fcf8e4;
+  border: 1px solid rgba(120, 100, 40, 0.08);
+  border-radius: 3px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 4px rgba(20, 19, 15, 0.08),
+    0 18px 28px rgba(20, 19, 15, 0.14);
 }
 
 .landing-page .polaroid img {
   width: 100%;
   aspect-ratio: 1 / 1.12;
   object-fit: cover;
-  border-radius: 10px;
-  box-shadow: 0 1px 0 rgba(20, 19, 15, 0.06);
+  border-radius: 1px;
+  background: #14130f;
+  box-shadow:
+    0 0 0 1px rgba(120, 100, 40, 0.06),
+    0 1px 3px rgba(20, 19, 15, 0.12);
 }
 
 .landing-page .polaroid:nth-child(1) {
@@ -771,21 +777,34 @@
   position: absolute;
   left: 50%;
   bottom: -120px;
-  transform: translateX(-50%);
-  padding: 10px 10px 22px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(20, 19, 15, 0.08);
-  border-radius: 16px;
-  box-shadow: 0 16px 32px rgba(20, 19, 15, 0.08);
-  backdrop-filter: blur(6px);
+  transform: translateX(-50%) rotate(-1.5deg);
+  padding: 14px 14px 52px;
+  background: #fcf8e4;
+  border: 1px solid rgba(120, 100, 40, 0.08);
+  border-radius: 3px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 4px rgba(20, 19, 15, 0.08),
+    0 22px 36px rgba(20, 19, 15, 0.16);
+}
+
+.landing-page .step:nth-child(2) .step-polaroid {
+  transform: translateX(-50%) rotate(1.5deg);
+}
+
+.landing-page .step:nth-child(3) .step-polaroid {
+  transform: translateX(-50%) rotate(-0.5deg);
 }
 
 .landing-page .step-polaroid img {
   width: 100%;
   aspect-ratio: 1 / 1.12;
   object-fit: cover;
-  border-radius: 10px;
-  box-shadow: 0 1px 0 rgba(20, 19, 15, 0.06);
+  border-radius: 1px;
+  background: #14130f;
+  box-shadow:
+    0 0 0 1px rgba(120, 100, 40, 0.06),
+    0 1px 3px rgba(20, 19, 15, 0.12);
 }
 
 .landing-page .stats {
@@ -937,6 +956,14 @@
     grid-template-columns: 1fr;
   }
 
+  .landing-page .steps {
+    row-gap: 160px;
+  }
+
+  .landing-page .step:last-child {
+    margin-bottom: 160px;
+  }
+
   .landing-page .foot-inner {
     padding: 0 28px;
   }
@@ -944,7 +971,8 @@
 
 @media (max-width: 640px) {
   .landing-page .hero {
-    padding: 32px 0 24px;
+    padding-top: 32px;
+    padding-bottom: 24px;
   }
 
   .landing-page .polaroids {
@@ -955,7 +983,7 @@
   .landing-page .polaroid {
     max-width: none;
     flex: 1;
-    padding: 8px 8px 16px;
+    padding: 9px 9px 32px;
   }
 
   .landing-page .hero-visual {
