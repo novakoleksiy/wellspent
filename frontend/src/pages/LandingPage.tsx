@@ -85,9 +85,7 @@ export default function LandingPage() {
       <main>
         <section className="hero container">
           <div className="hero-meta">
-            <span className="mono">① Day trips, DACH region</span>
             <span className="mono">Launching soon</span>
-            <span className="mono">AI itineraries · Real SBB data</span>
           </div>
 
           <h1 className="hero-title">
