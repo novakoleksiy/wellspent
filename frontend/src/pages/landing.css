@@ -327,31 +327,34 @@
   box-shadow: 0 14px 28px rgba(20, 19, 15, 0.3);
   white-space: nowrap;
   z-index: 2;
+  --orbit-r: 240px;
+  top: 46%;
+  left: calc(100% - 258px);
+  right: auto;
+  bottom: auto;
+  translate: -50% -50%;
+  transform-origin: center;
+  animation: chip-orbit 22s linear infinite;
+  will-change: transform;
 }
 
 .landing-page .chip-dark {
   background: var(--ink);
   color: var(--cream);
   font-weight: 500;
-  left: 52px;
-  top: 178px;
-  transform: rotate(-5deg);
+  animation-delay: -13.75s;
 }
 
 .landing-page .chip-yellow {
   background: var(--yellow);
   color: var(--ink);
-  right: 6px;
-  top: 214px;
-  transform: rotate(4deg);
+  animation-delay: -19.25s;
 }
 
 .landing-page .chip-pale {
   background: rgba(255, 255, 255, 0.88);
   color: var(--ink);
-  right: 112px;
-  bottom: 94px;
-  transform: rotate(-3deg);
+  animation-delay: -5.5s;
 }
 
 @keyframes landing-hero-phone-bounce {
@@ -919,6 +922,12 @@
 }
 
 @media (max-width: 1100px) {
+  .landing-page .chip {
+    top: 49%;
+    left: calc(100% - 210px);
+    --orbit-r: 210px;
+  }
+
   .landing-page .hero-grid {
     grid-template-columns: 1fr;
   }
@@ -986,49 +995,46 @@
     padding: 9px 9px 32px;
   }
 
+  .landing-page .hero-grid {
+    gap: 12px;
+  }
+
   .landing-page .hero-visual {
-    height: 430px;
-    margin-top: -8px;
+    height: 440px;
+    margin-top: -24px;
   }
 
   .landing-page .hero-phone {
     width: 320px;
-    height: 400px;
+    height: 440px;
     right: auto;
     left: 50%;
     margin-left: -160px;
-    top: -22px;
+    top: -30px;
+    animation-name: landing-hero-phone-bounce-mobile;
   }
 
   .landing-page .hero-visual::before {
-    width: 340px;
-    height: 340px;
+    width: 420px;
+    height: 420px;
     right: 50%;
-    top: 8px;
+    top: 20px;
     transform: translateX(50%);
   }
 
   .landing-page .hero-visual::after {
-    width: 280px;
+    width: 340px;
     right: 50%;
-    bottom: 42px;
+    bottom: 24px;
     transform: translateX(50%);
   }
 
-  .landing-page .chip-dark {
-    left: 28px;
-    top: 92px;
-  }
-
-  .landing-page .chip-yellow {
-    right: 10px;
-    top: 134px;
-  }
-
-  .landing-page .chip-pale {
-    right: 50%;
-    bottom: 54px;
-    transform: translateX(108px) rotate(-3deg);
+  .landing-page .chip {
+    font-size: 10px;
+    padding: 6px 12px;
+    top: 62%;
+    left: 50%;
+    --orbit-r: 135px;
   }
 
   .landing-page .inputs {
@@ -1037,6 +1043,51 @@
 
   .landing-page .form {
     width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    border-radius: 20px;
+    padding: 8px;
+  }
+
+  .landing-page .form input[type="email"] {
+    padding: 14px 14px;
+    font-size: 15px;
+  }
+
+  .landing-page .form .btn {
+    width: 100%;
+    padding: 14px 22px;
+  }
+
+  .landing-page .steps {
+    row-gap: 32px;
+  }
+
+  .landing-page .step {
+    min-height: auto;
+    padding-bottom: 28px;
+  }
+
+  .landing-page .step:last-child {
+    margin-bottom: 0;
+  }
+
+  .landing-page .step-polaroid {
+    position: static;
+    left: auto;
+    bottom: auto;
+    margin: 36px auto 0;
+    max-width: 240px;
+    transform: rotate(-1.5deg);
+  }
+
+  .landing-page .step:nth-child(2) .step-polaroid {
+    transform: rotate(1.5deg);
+  }
+
+  .landing-page .step:nth-child(3) .step-polaroid {
+    transform: rotate(-0.5deg);
   }
 
   .landing-page .cta {
@@ -1046,5 +1097,44 @@
 
   .landing-page .nav-right .mono {
     display: none;
+  }
+}
+
+@keyframes chip-orbit {
+  from {
+    transform: rotate(0deg) translateX(var(--orbit-r)) rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .chip {
+    animation: none;
+  }
+}
+
+@keyframes landing-hero-phone-bounce-mobile {
+  0%,
+  100% {
+    transform: scale(1.7) translateY(0);
+  }
+
+  22% {
+    transform: scale(1.7) translateY(-14px);
+  }
+
+  38% {
+    transform: scale(1.7) translateY(-6px);
+  }
+
+  52% {
+    transform: scale(1.7) translateY(-18px);
+  }
+
+  72% {
+    transform: scale(1.7) translateY(-7px);
   }
 }
