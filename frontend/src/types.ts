@@ -100,6 +100,24 @@ export interface TripOut {
     itinerary: Itinerary | null;
     created_at: string;
     shared_at: string | null;
+    folder_id: number | null;
+}
+
+export interface FolderCreate {
+    name: string;
+    description?: string | null;
+}
+
+export interface FolderUpdate {
+    name: string;
+    description?: string | null;
+}
+
+export interface FolderOut {
+    id: number;
+    name: string;
+    description: string | null;
+    created_at: string;
 }
 
 export interface CommunityTripOut {

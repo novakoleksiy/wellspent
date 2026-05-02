@@ -44,5 +44,11 @@ export const setTripStatus = (id: number, status: "completed") =>
         body: JSON.stringify({ status }),
     });
 
+export const setTripFolder = (id: number, folderId: number | null) =>
+    request<TripOut>(`/api/trips/${id}/folder`, {
+        method: "PATCH",
+        body: JSON.stringify({ folder_id: folderId }),
+    });
+
 export const deleteTrip = (id: number) =>
     request<void>(`/api/trips/${id}`, { method: "DELETE" });
