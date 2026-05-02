@@ -1,16 +1,18 @@
 from fastapi import APIRouter, HTTPException
 
-from app.core.db import CurrentUser, SwissTourism, TripRepo
+from app.core.db import CurrentUser, FolderRepo, SwissTourism, TripRepo
 from app.schemas.schemas import (
     CommunityTripOut,
     Recommendation,
     RecommendRequest,
     RefreshRecommendationItemRequest,
     TripCreate,
+    TripFolderUpdate,
     TripOut,
     TripShareUpdate,
 )
 from app.services import recommendation_service
+from app.services.folder_service import FolderNotFound, move_trip_to_folder
 from app.services.trip_service import (
     TripNotFound,
     create_trip,
@@ -98,6 +100,28 @@ async def set_share_state(
 ):
     try:
         return await set_trip_shared(repo, user.id, trip_id, shared=body.shared)
+    except TripNotFound:
+        raise HTTPException(404, "Trip not found")
+
+
+@router.patch("/{trip_id}/folder", response_model=TripOut)
+async def set_folder(
+    trip_id: int,
+    body: TripFolderUpdate,
+    user: CurrentUser,
+    trip_repo: TripRepo,
+    folder_repo: FolderRepo,
+):
+    try:
+        return await move_trip_to_folder(
+            trip_repo,
+            folder_repo,
+            user.id,
+            trip_id,
+            folder_id=body.folder_id,
+        )
+    except FolderNotFound:
+        raise HTTPException(404, "Folder not found")
     except TripNotFound:
         raise HTTPException(404, "Trip not found")
 

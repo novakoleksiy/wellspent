@@ -25,6 +25,7 @@ class NewTrip:
     status: str
     description: str | None = None
     itinerary: dict | None = None
+    folder_id: int | None = None
 
 
 @dataclass
@@ -40,6 +41,23 @@ class TripRecord:
     itinerary: dict | None
     created_at: object
     shared_at: datetime | None = None
+    folder_id: int | None = None
+
+
+@dataclass
+class NewFolder:
+    user_id: int
+    name: str
+    description: str | None = None
+
+
+@dataclass
+class FolderRecord:
+    id: int
+    user_id: int
+    name: str
+    description: str | None
+    created_at: object
 
 
 @dataclass
@@ -85,7 +103,38 @@ class TripRepository(Protocol):
         self, trip_id: int, user_id: int, *, shared: bool
     ) -> TripRecord | None: ...
 
+    async def set_folder(
+        self, trip_id: int, user_id: int, *, folder_id: int | None
+    ) -> TripRecord | None: ...
+
     async def delete(self, trip_id: int, user_id: int) -> None: ...
+
+
+class FolderRepository(Protocol):
+    async def create(self, data: NewFolder) -> FolderRecord: ...
+
+    async def list_by_user(self, user_id: int) -> list[FolderRecord]: ...
+
+    async def get_by_id_and_user(
+        self, folder_id: int, user_id: int
+    ) -> FolderRecord | None: ...
+
+    async def get_by_name_and_user(
+        self, name: str, user_id: int
+    ) -> FolderRecord | None: ...
+
+    async def update(
+        self,
+        folder_id: int,
+        user_id: int,
+        *,
+        name: str,
+        description: str | None,
+    ) -> FolderRecord | None: ...
+
+    async def list_trips(self, folder_id: int, user_id: int) -> list[TripRecord]: ...
+
+    async def delete(self, folder_id: int, user_id: int) -> None: ...
 
 
 @dataclass

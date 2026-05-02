@@ -24,6 +24,32 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE trips ADD COLUMN IF NOT EXISTS shared_at TIMESTAMP WITH TIME ZONE"
             )
         )
+        await conn.execute(
+            text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS folder_id INTEGER")
+        )
+        await conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_trips_folder_id ON trips (folder_id)")
+        )
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_constraint
+                        WHERE conname = 'trips_folder_id_fkey'
+                    ) THEN
+                        ALTER TABLE trips
+                        ADD CONSTRAINT trips_folder_id_fkey
+                        FOREIGN KEY (folder_id) REFERENCES folders (id)
+                        ON DELETE SET NULL;
+                    END IF;
+                END
+                $$
+                """
+            )
+        )
     logger.info("Database tables ready.")
     yield
     await engine.dispose()
@@ -40,6 +66,7 @@ app.add_middleware(
 )
 
 # Routes
+from app.api.folders import router as folders_router  # noqa: E402
 from app.api.public_settings import router as settings_router  # noqa: E402
 from app.api.swiss_tourism import router as swiss_router  # noqa: E402
 from app.api.trips import router as trips_router  # noqa: E402
@@ -48,6 +75,7 @@ from app.api.waitlist import router as waitlist_router  # noqa: E402
 
 app.include_router(users_router, prefix="/api")
 app.include_router(trips_router, prefix="/api")
+app.include_router(folders_router, prefix="/api")
 app.include_router(swiss_router, prefix="/api")
 app.include_router(waitlist_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")

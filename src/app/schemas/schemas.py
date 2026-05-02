@@ -120,11 +120,34 @@ class TripOut(BaseModel):
     itinerary: dict[str, Any] | None
     created_at: datetime
     shared_at: datetime | None = None
+    folder_id: int | None = None
     model_config = {"from_attributes": True}
 
 
 class TripShareUpdate(BaseModel):
     shared: bool
+
+
+class TripFolderUpdate(BaseModel):
+    folder_id: int | None = None
+
+
+class FolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+
+
+class FolderUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+
+
+class FolderOut(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    created_at: datetime
+    model_config = {"from_attributes": True}
 
 
 class CommunityTripOut(BaseModel):

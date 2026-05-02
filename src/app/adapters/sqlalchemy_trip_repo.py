@@ -22,6 +22,7 @@ def _to_record(trip: Trip) -> TripRecord:
         itinerary=trip.itinerary,
         created_at=trip.created_at,
         shared_at=trip.shared_at,
+        folder_id=trip.folder_id,
     )
 
 
@@ -32,6 +33,7 @@ class SqlAlchemyTripRepo:
     async def create(self, data: NewTrip) -> TripRecord:
         trip = Trip(
             user_id=data.user_id,
+            folder_id=data.folder_id,
             title=data.title,
             destination=data.destination,
             description=data.description,
@@ -103,3 +105,18 @@ class SqlAlchemyTripRepo:
         trip = result.scalar_one_or_none()
         if trip:
             await self._session.delete(trip)
+
+    async def set_folder(
+        self, trip_id: int, user_id: int, *, folder_id: int | None
+    ) -> TripRecord | None:
+        result = await self._session.execute(
+            select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)
+        )
+        trip = result.scalar_one_or_none()
+        if not trip:
+            return None
+
+        trip.folder_id = folder_id
+        await self._session.flush()
+        await self._session.refresh(trip)
+        return _to_record(trip)

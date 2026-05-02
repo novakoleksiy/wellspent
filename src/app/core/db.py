@@ -6,13 +6,19 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.adapters.sqlalchemy_folder_repo import SqlAlchemyFolderRepo
 from app.adapters.sqlalchemy_trip_repo import SqlAlchemyTripRepo
 from app.adapters.sqlalchemy_user_repo import SqlAlchemyUserRepo
 from app.adapters.sqlalchemy_waitlist_repo import SqlAlchemyWaitlistRepo
 from app.adapters.swiss_tourism_client import HttpxSwissTourismClient
 from app.core.config import settings
 from app.core.security import decode_token
-from app.ports.repositories import TripRepository, UserRecord, UserRepository
+from app.ports.repositories import (
+    FolderRepository,
+    TripRepository,
+    UserRecord,
+    UserRepository,
+)
 from app.ports.swiss_tourism import SwissTourismClient
 
 engine = create_async_engine(settings.sqlalchemy_database_url, echo=False)
@@ -37,6 +43,10 @@ def get_user_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> UserRepositor
 
 def get_trip_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> TripRepository:
     return SqlAlchemyTripRepo(db)
+
+
+def get_folder_repo(db: Annotated[AsyncSession, Depends(get_db)]) -> FolderRepository:
+    return SqlAlchemyFolderRepo(db)
 
 
 async def get_current_user(
@@ -77,6 +87,7 @@ def get_swiss_tourism_client() -> SwissTourismClient:
 Db = Annotated[AsyncSession, Depends(get_db)]
 UserRepo = Annotated[UserRepository, Depends(get_user_repo)]
 TripRepo = Annotated[TripRepository, Depends(get_trip_repo)]
+FolderRepo = Annotated[FolderRepository, Depends(get_folder_repo)]
 CurrentUser = Annotated[UserRecord, Depends(get_current_user)]
 WaitlistRepo = Annotated[SqlAlchemyWaitlistRepo, Depends(get_waitlist_repo)]
 SwissTourism = Annotated[SwissTourismClient, Depends(get_swiss_tourism_client)]
