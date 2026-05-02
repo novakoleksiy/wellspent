@@ -38,5 +38,11 @@ export const setTripShared = (id: number, shared: boolean) =>
         body: JSON.stringify({ shared }),
     });
 
+export const setTripStatus = (id: number, status: "completed") =>
+    request<TripOut>(`/api/trips/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+    });
+
 export const deleteTrip = (id: number) =>
     request<void>(`/api/trips/${id}`, { method: "DELETE" });

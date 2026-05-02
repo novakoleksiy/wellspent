@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTrip, setTripShared } from "../api/trips";
+import { getTrip, setTripShared, setTripStatus } from "../api/trips";
 import AppShell from "../components/AppShell";
 import type { TimelineItem, TripOut } from "../types";
 
@@ -35,6 +35,7 @@ export default function TripDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [sharing, setSharing] = useState(false);
+    const [completing, setCompleting] = useState(false);
 
     useEffect(() => {
         getTrip(Number(id))
@@ -76,17 +77,42 @@ export default function TripDetailPage() {
         }
     };
 
+    const handleCompleteTrip = async () => {
+        setCompleting(true);
+        setError("");
+        try {
+            const updatedTrip = await setTripStatus(trip.id, "completed");
+            setTrip(updatedTrip);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Unable to complete trip");
+        } finally {
+            setCompleting(false);
+        }
+    };
+
     return (
         <AppShell
             title={trip.title}
             description={`Saved itinerary for ${trip.destination}`}
             actions={
-                <Link
-                    to="/"
-                    className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
-                >
-                    Back to homepage
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                    {trip.status !== "completed" && (
+                        <button
+                            type="button"
+                            onClick={handleCompleteTrip}
+                            disabled={completing}
+                            className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {completing ? "Completing..." : "Complete Trip"}
+                        </button>
+                    )}
+                    <Link
+                        to="/"
+                        className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                    >
+                        Back to homepage
+                    </Link>
+                </div>
             }
         >
             {error && (

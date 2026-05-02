@@ -89,11 +89,13 @@ export interface TripCreate {
     itinerary?: Record<string, unknown>;
 }
 
+export type TripStatus = "draft" | "recommended" | "booked" | "completed" | "cancelled";
+
 export interface TripOut {
     id: number;
     title: string;
     destination: string;
-    status: string;
+    status: TripStatus;
     description: string | null;
     itinerary: Itinerary | null;
     created_at: string;

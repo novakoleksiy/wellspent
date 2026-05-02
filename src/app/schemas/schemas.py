@@ -128,6 +128,10 @@ class TripShareUpdate(BaseModel):
     shared: bool
 
 
+class TripStatusUpdate(BaseModel):
+    status: Literal["completed"]
+
+
 class TripFolderUpdate(BaseModel):
     folder_id: int | None = None
 

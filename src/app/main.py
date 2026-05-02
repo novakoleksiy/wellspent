@@ -25,6 +25,9 @@ async def lifespan(app: FastAPI):
             )
         )
         await conn.execute(
+            text("ALTER TYPE tripstatus ADD VALUE IF NOT EXISTS 'COMPLETED'")
+        )
+        await conn.execute(
             text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS folder_id INTEGER")
         )
         await conn.execute(

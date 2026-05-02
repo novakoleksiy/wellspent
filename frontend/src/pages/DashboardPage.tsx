@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteTrip, listTrips, setTripShared } from "../api/trips";
+import { deleteTrip, listTrips, setTripShared, setTripStatus } from "../api/trips";
 import AppShell from "../components/AppShell";
 import type { TripOut } from "../types";
 
@@ -29,6 +29,7 @@ export default function TripsPage() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [sharingId, setSharingId] = useState<number | null>(null);
+  const [completingId, setCompletingId] = useState<number | null>(null);
 
   useEffect(() => {
     listTrips()
@@ -65,6 +66,19 @@ export default function TripsPage() {
       setError(err instanceof Error ? err.message : "Unable to update community sharing");
     } finally {
       setSharingId(null);
+    }
+  };
+
+  const handleCompleteTrip = async (trip: TripOut) => {
+    setCompletingId(trip.id);
+    setError("");
+    try {
+      const updatedTrip = await setTripStatus(trip.id, "completed");
+      setTrips((current) => current.map((item) => (item.id === trip.id ? updatedTrip : item)));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to complete trip");
+    } finally {
+      setCompletingId(null);
     }
   };
 
@@ -139,6 +153,16 @@ export default function TripsPage() {
                       View itinerary
                     </Link>
                     <div className="flex items-center gap-3">
+                      {trip.status !== "completed" && (
+                        <button
+                          type="button"
+                          onClick={() => handleCompleteTrip(trip)}
+                          disabled={completingId === trip.id}
+                          className="font-medium text-emerald-700 transition hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {completingId === trip.id ? "Completing..." : "Complete Trip"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleShareToggle(trip)}

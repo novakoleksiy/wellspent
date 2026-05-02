@@ -58,6 +58,15 @@ async def set_trip_shared(
     return trip
 
 
+async def set_trip_status(
+    repo: TripRepository, user_id: int, trip_id: int, *, status: str
+) -> TripRecord:
+    trip = await repo.set_status(trip_id, user_id, status=status)
+    if not trip:
+        raise TripNotFound
+    return trip
+
+
 async def delete_trip(repo: TripRepository, user_id: int, trip_id: int) -> None:
     trip = await repo.get_by_id_and_user(trip_id, user_id)
     if not trip:

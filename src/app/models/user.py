@@ -67,6 +67,7 @@ class TripStatus(enum.StrEnum):
     DRAFT = "draft"
     RECOMMENDED = "recommended"
     BOOKED = "booked"
+    COMPLETED = "completed"
     CANCELLED = "cancelled"
 
 

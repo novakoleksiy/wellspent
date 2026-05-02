@@ -98,6 +98,21 @@ class SqlAlchemyTripRepo:
         await self._session.refresh(trip)
         return _to_record(trip)
 
+    async def set_status(
+        self, trip_id: int, user_id: int, *, status: str
+    ) -> TripRecord | None:
+        result = await self._session.execute(
+            select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)
+        )
+        trip = result.scalar_one_or_none()
+        if not trip:
+            return None
+
+        trip.status = TripStatus(status)
+        await self._session.flush()
+        await self._session.refresh(trip)
+        return _to_record(trip)
+
     async def delete(self, trip_id: int, user_id: int) -> None:
         result = await self._session.execute(
             select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)

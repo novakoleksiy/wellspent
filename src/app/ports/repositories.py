@@ -103,6 +103,10 @@ class TripRepository(Protocol):
         self, trip_id: int, user_id: int, *, shared: bool
     ) -> TripRecord | None: ...
 
+    async def set_status(
+        self, trip_id: int, user_id: int, *, status: str
+    ) -> TripRecord | None: ...
+
     async def set_folder(
         self, trip_id: int, user_id: int, *, folder_id: int | None
     ) -> TripRecord | None: ...

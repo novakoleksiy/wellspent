@@ -46,7 +46,7 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const recentTrips = trips.slice(0, 4);
+  const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 4);
 
   function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
