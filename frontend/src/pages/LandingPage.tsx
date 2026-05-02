@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { joinWaitlist } from "../api/waitlist";
 import "./landing.css";
 
@@ -494,6 +495,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <Analytics />
     </div>
   );
 }
