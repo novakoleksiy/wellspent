@@ -121,6 +121,10 @@ class TripOut(BaseModel):
     created_at: datetime
     shared_at: datetime | None = None
     folder_id: int | None = None
+    completion_rating: int | None = None
+    completion_comment: str | None = None
+    completion_image_urls: list[str] = Field(default_factory=list)
+    completed_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 
@@ -130,6 +134,12 @@ class TripShareUpdate(BaseModel):
 
 class TripStatusUpdate(BaseModel):
     status: Literal["completed"]
+
+
+class TripCompletionUpdate(BaseModel):
+    rating: int = Field(ge=0, le=5)
+    comment: str | None = None
+    image_urls: list[str] = Field(default_factory=list)
 
 
 class TripFolderUpdate(BaseModel):

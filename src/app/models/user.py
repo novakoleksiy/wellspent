@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -86,6 +87,12 @@ class Trip(Base):
     description: Mapped[str | None] = mapped_column(Text, default=None)
     itinerary: Mapped[dict | None] = mapped_column(JSON, default=None)
     shared_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    completion_rating: Mapped[int | None] = mapped_column(Integer, default=None)
+    completion_comment: Mapped[str | None] = mapped_column(Text, default=None)
+    completion_image_urls: Mapped[list[str] | None] = mapped_column(JSON, default=None)
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
 

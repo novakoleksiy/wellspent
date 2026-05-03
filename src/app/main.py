@@ -34,6 +34,23 @@ async def lifespan(app: FastAPI):
             text("CREATE INDEX IF NOT EXISTS ix_trips_folder_id ON trips (folder_id)")
         )
         await conn.execute(
+            text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS completion_rating INTEGER")
+        )
+        await conn.execute(
+            text("ALTER TABLE trips ADD COLUMN IF NOT EXISTS completion_comment TEXT")
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE trips ADD COLUMN IF NOT EXISTS completion_image_urls JSON"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE trips ADD COLUMN IF NOT EXISTS completed_at "
+                "TIMESTAMP WITH TIME ZONE"
+            )
+        )
+        await conn.execute(
             text(
                 """
                 DO $$

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTrip, setTripShared, setTripStatus } from "../api/trips";
+import { completeTrip, getTrip, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
-import type { TimelineItem, TripOut } from "../types";
+import TripCompletionModal from "../components/TripCompletionModal";
+import type { TimelineItem, TripCompleteRequest, TripOut } from "../types";
 
 function formatMoney(total: number, currency: string): string {
     return new Intl.NumberFormat(undefined, {
@@ -36,6 +37,7 @@ export default function TripDetailPage() {
     const [error, setError] = useState("");
     const [sharing, setSharing] = useState(false);
     const [completing, setCompleting] = useState(false);
+    const [isCompletionOpen, setIsCompletionOpen] = useState(false);
 
     useEffect(() => {
         getTrip(Number(id))
@@ -77,16 +79,33 @@ export default function TripDetailPage() {
         }
     };
 
-    const handleCompleteTrip = async () => {
+    const handleCompleteTrip = async (body: TripCompleteRequest) => {
         setCompleting(true);
         setError("");
         try {
-            const updatedTrip = await setTripStatus(trip.id, "completed");
+            const updatedTrip = await completeTrip(trip.id, body);
             setTrip(updatedTrip);
+            return updatedTrip;
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Unable to complete trip");
+            throw err;
         } finally {
             setCompleting(false);
+        }
+    };
+
+    const handleShareCompletedTrip = async (completedTrip: TripOut) => {
+        setSharing(true);
+        setError("");
+        try {
+            const updatedTrip = await setTripShared(completedTrip.id, true);
+            setTrip(updatedTrip);
+            return updatedTrip;
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Unable to share trip with the community");
+            throw err;
+        } finally {
+            setSharing(false);
         }
     };
 
@@ -99,7 +118,7 @@ export default function TripDetailPage() {
                     {trip.status !== "completed" && (
                         <button
                             type="button"
-                            onClick={handleCompleteTrip}
+                            onClick={() => setIsCompletionOpen(true)}
                             disabled={completing}
                             className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -260,13 +279,23 @@ export default function TripDetailPage() {
                         </p>
                         <Link
                             to="/plan"
-                            className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
                         >
                             Plan another trip
                         </Link>
                     </div>
                 </aside>
             </div>
+            {isCompletionOpen && (
+                <TripCompletionModal
+                    trip={trip}
+                    completing={completing}
+                    sharing={sharing}
+                    onClose={() => setIsCompletionOpen(false)}
+                    onComplete={handleCompleteTrip}
+                    onShare={handleShareCompletedTrip}
+                />
+            )}
         </AppShell>
     );
 }

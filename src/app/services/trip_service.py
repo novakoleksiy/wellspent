@@ -67,6 +67,27 @@ async def set_trip_status(
     return trip
 
 
+async def complete_trip(
+    repo: TripRepository,
+    user_id: int,
+    trip_id: int,
+    *,
+    rating: int,
+    comment: str | None,
+    image_urls: list[str],
+) -> TripRecord:
+    trip = await repo.complete(
+        trip_id,
+        user_id,
+        rating=rating,
+        comment=comment,
+        image_urls=image_urls,
+    )
+    if not trip:
+        raise TripNotFound
+    return trip
+
+
 async def delete_trip(repo: TripRepository, user_id: int, trip_id: int) -> None:
     trip = await repo.get_by_id_and_user(trip_id, user_id)
     if not trip:

@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { createFolder, deleteFolder, listFolders } from "../api/folders";
-import { deleteTrip, listTrips, setTripFolder, setTripShared, setTripStatus } from "../api/trips";
+import { completeTrip, deleteTrip, listTrips, setTripFolder, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
-import type { FolderOut, TripOut } from "../types";
+import TripCompletionModal from "../components/TripCompletionModal";
+import type { FolderOut, TripCompleteRequest, TripOut } from "../types";
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString(undefined, {
@@ -45,11 +46,13 @@ export default function TripsPage() {
   const [sharingId, setSharingId] = useState<number | null>(null);
   const [completingId, setCompletingId] = useState<number | null>(null);
   const [movingId, setMovingId] = useState<number | null>(null);
+  const [openTripActionsId, setOpenTripActionsId] = useState<number | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<number | "all" | "unfiled">("all");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [folderDescription, setFolderDescription] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [completionTrip, setCompletionTrip] = useState<TripOut | null>(null);
 
   useEffect(() => {
     Promise.all([listTrips(), listFolders()])
@@ -62,6 +65,34 @@ export default function TripsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (openTripActionsId === null) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenTripActionsId(null);
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-trip-actions]")) {
+        return;
+      }
+
+      setOpenTripActionsId(null);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [openTripActionsId]);
 
   const visibleTrips = trips.filter((trip) => {
     if (selectedFolderId === "all") {
@@ -145,16 +176,47 @@ export default function TripsPage() {
     }
   };
 
-  const handleCompleteTrip = async (trip: TripOut) => {
-    setCompletingId(trip.id);
+  const openCompleteTrip = (trip: TripOut) => {
+    setCompletionTrip(trip);
+  };
+
+  const closeCompleteTrip = () => {
+    setCompletionTrip(null);
+  };
+
+  const handleCompleteTrip = async (body: TripCompleteRequest) => {
+    if (!completionTrip) {
+      throw new Error("No trip selected");
+    }
+
+    setCompletingId(completionTrip.id);
     setError("");
     try {
-      const updatedTrip = await setTripStatus(trip.id, "completed");
-      setTrips((current) => current.map((item) => (item.id === trip.id ? updatedTrip : item)));
+      const updatedTrip = await completeTrip(completionTrip.id, body);
+      setTrips((current) => current.map((item) => (item.id === completionTrip.id ? updatedTrip : item)));
+      setCompletionTrip(updatedTrip);
+      return updatedTrip;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to complete trip");
+      throw err;
     } finally {
       setCompletingId(null);
+    }
+  };
+
+  const handleShareCompletedTrip = async (trip: TripOut) => {
+    setSharingId(trip.id);
+    setError("");
+    try {
+      const updatedTrip = await setTripShared(trip.id, true);
+      setTrips((current) => current.map((item) => (item.id === updatedTrip.id ? updatedTrip : item)));
+      setCompletionTrip(updatedTrip);
+      return updatedTrip;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to share trip with the community");
+      throw err;
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -232,6 +294,116 @@ export default function TripsPage() {
     }
   };
 
+  function renderTripActions(trip: TripOut) {
+    const isOpen = openTripActionsId === trip.id;
+    const menuItemClass = "flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60";
+    const dangerItemClass = "flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60";
+
+    return (
+      <div className="mt-5 flex items-center gap-3">
+        <Link
+          to={`/trips/${trip.id}`}
+          className="inline-flex flex-1 justify-center rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold !text-white transition hover:bg-slate-800"
+        >
+          View itinerary
+        </Link>
+        <div className="relative" data-trip-actions>
+          <button
+            type="button"
+            aria-label={`Trip actions for ${trip.title}`}
+            aria-expanded={isOpen}
+            onClick={() => setOpenTripActionsId((current) => (current === trip.id ? null : trip.id))}
+            className="inline-flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-semibold leading-none text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+          >
+            ⋯
+          </button>
+
+          {isOpen && (
+            <div className="absolute right-0 bottom-12 z-20 w-64 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+              <div className="px-3 py-2">
+                <p className="text-xs font-semibold tracking-[0.16em] text-slate-400 uppercase">Move to folder</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenTripActionsId(null);
+                  void handleMoveTrip(trip, null);
+                }}
+                disabled={movingId === trip.id || (trip.folder_id ?? null) === null}
+                className={menuItemClass}
+              >
+                <span>No folder</span>
+                {(trip.folder_id ?? null) === null && <span className="text-xs text-slate-400">Current</span>}
+              </button>
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => {
+                    setOpenTripActionsId(null);
+                    void handleMoveTrip(trip, folder.id);
+                  }}
+                  disabled={movingId === trip.id || trip.folder_id === folder.id}
+                  className={menuItemClass}
+                >
+                  <span>{folder.name}</span>
+                  {trip.folder_id === folder.id && <span className="text-xs text-slate-400">Current</span>}
+                </button>
+              ))}
+
+              <div className="my-2 h-px bg-slate-100" />
+
+              {trip.status !== "completed" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenTripActionsId(null);
+                    openCompleteTrip(trip);
+                  }}
+                  disabled={completingId === trip.id}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {completingId === trip.id ? "Completing..." : "Complete trip"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenTripActionsId(null);
+                  void handleShareToggle(trip);
+                }}
+                disabled={sharingId === trip.id}
+                className={menuItemClass}
+              >
+                {sharingId === trip.id
+                  ? trip.shared_at
+                    ? "Unsharing..."
+                    : "Sharing..."
+                  : trip.shared_at
+                    ? "Remove from community"
+                    : "Share with community"}
+              </button>
+
+              <div className="my-2 h-px bg-slate-100" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenTripActionsId(null);
+                  void handleDelete(trip.id);
+                }}
+                disabled={deletingId === trip.id}
+                className={dangerItemClass}
+              >
+                {deletingId === trip.id ? "Deleting..." : "Delete trip"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderTripSection(label: string, title: string, items: TripOut[], emptyLabel: string) {
     return (
       <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
@@ -295,67 +467,7 @@ export default function TripsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-                    <Link
-                      to={`/trips/${trip.id}`}
-                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    >
-                      View itinerary
-                    </Link>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                        Folder
-                        <select
-                          value={trip.folder_id ?? ""}
-                          onChange={(event) => {
-                            const nextFolderId = event.target.value ? Number(event.target.value) : null;
-                            void handleMoveTrip(trip, nextFolderId);
-                          }}
-                          disabled={movingId === trip.id}
-                          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <option value="">No folder</option>
-                          {folders.map((folder) => (
-                            <option key={folder.id} value={folder.id}>
-                              {folder.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {trip.status !== "completed" && (
-                        <button
-                          type="button"
-                          onClick={() => handleCompleteTrip(trip)}
-                          disabled={completingId === trip.id}
-                          className="font-medium text-emerald-700 transition hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {completingId === trip.id ? "Completing..." : "Complete Trip"}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleShareToggle(trip)}
-                        disabled={sharingId === trip.id}
-                        className="font-medium text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {sharingId === trip.id
-                          ? trip.shared_at
-                            ? "Unsharing..."
-                            : "Sharing..."
-                          : trip.shared_at
-                            ? "Remove from community"
-                            : "Share with community"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(trip.id)}
-                        disabled={deletingId === trip.id}
-                        className="font-medium text-rose-600 transition hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {deletingId === trip.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  </div>
+                  {renderTripActions(trip)}
                 </article>
               );
             })}
@@ -482,48 +594,7 @@ export default function TripsPage() {
                           </span>
                         </div>
 
-                        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <Link
-                            to={`/trips/${trip.id}`}
-                            className="inline-flex justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                          >
-                            View itinerary
-                          </Link>
-                          <div className="flex flex-wrap items-center gap-3 text-sm">
-                            <button
-                              type="button"
-                              onClick={() => handleShareToggle(trip)}
-                              disabled={sharingId === trip.id}
-                              className="font-medium text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {sharingId === trip.id
-                                ? trip.shared_at
-                                  ? "Unsharing..."
-                                  : "Sharing..."
-                                : trip.shared_at
-                                  ? "Unshare"
-                                  : "Share"}
-                            </button>
-                            <label className="sr-only" htmlFor={`past-trip-folder-${trip.id}`}>Folder</label>
-                            <select
-                              id={`past-trip-folder-${trip.id}`}
-                              value={trip.folder_id ?? ""}
-                              onChange={(event) => {
-                                const nextFolderId = event.target.value ? Number(event.target.value) : null;
-                                void handleMoveTrip(trip, nextFolderId);
-                              }}
-                              disabled={movingId === trip.id}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <option value="">No folder</option>
-                              {folders.map((folder) => (
-                                <option key={folder.id} value={folder.id}>
-                                  {folder.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
+                        {renderTripActions(trip)}
                       </article>
                     );
                   })}
@@ -550,7 +621,7 @@ export default function TripsPage() {
           </button>
           <Link
             to="/plan"
-            className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
+            className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
           >
             Plan a trip
           </Link>
@@ -769,7 +840,7 @@ export default function TripsPage() {
             </p>
             <Link
               to="/plan"
-              className="mt-8 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
+              className="mt-8 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
             >
               Plan your first trip
             </Link>
@@ -787,6 +858,16 @@ export default function TripsPage() {
           renderPastArchive()
         )}
       </div>
+      {completionTrip && (
+        <TripCompletionModal
+          trip={completionTrip}
+          completing={completingId === completionTrip.id}
+          sharing={sharingId === completionTrip.id}
+          onClose={closeCompleteTrip}
+          onComplete={handleCompleteTrip}
+          onShare={handleShareCompletedTrip}
+        />
+      )}
     </AppShell>
   );
 }

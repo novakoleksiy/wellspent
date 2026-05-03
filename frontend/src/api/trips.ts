@@ -5,6 +5,7 @@ import type {
     RecommendRequest,
     RefreshRecommendationItemRequest,
     TripCreate,
+    TripCompleteRequest,
     TripOut,
 } from "../types";
 
@@ -42,6 +43,12 @@ export const setTripStatus = (id: number, status: "completed") =>
     request<TripOut>(`/api/trips/${id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
+    });
+
+export const completeTrip = (id: number, body: TripCompleteRequest) =>
+    request<TripOut>(`/api/trips/${id}/complete`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
     });
 
 export const setTripFolder = (id: number, folderId: number | null) =>

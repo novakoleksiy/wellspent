@@ -23,6 +23,10 @@ def _to_record(trip: Trip) -> TripRecord:
         created_at=trip.created_at,
         shared_at=trip.shared_at,
         folder_id=trip.folder_id,
+        completion_rating=trip.completion_rating,
+        completion_comment=trip.completion_comment,
+        completion_image_urls=trip.completion_image_urls or [],
+        completed_at=trip.completed_at,
     )
 
 
@@ -109,6 +113,31 @@ class SqlAlchemyTripRepo:
             return None
 
         trip.status = TripStatus(status)
+        await self._session.flush()
+        await self._session.refresh(trip)
+        return _to_record(trip)
+
+    async def complete(
+        self,
+        trip_id: int,
+        user_id: int,
+        *,
+        rating: int,
+        comment: str | None,
+        image_urls: list[str],
+    ) -> TripRecord | None:
+        result = await self._session.execute(
+            select(Trip).where(Trip.id == trip_id, Trip.user_id == user_id)
+        )
+        trip = result.scalar_one_or_none()
+        if not trip:
+            return None
+
+        trip.status = TripStatus.COMPLETED
+        trip.completion_rating = rating
+        trip.completion_comment = comment
+        trip.completion_image_urls = image_urls
+        trip.completed_at = datetime.now(UTC)
         await self._session.flush()
         await self._session.refresh(trip)
         return _to_record(trip)

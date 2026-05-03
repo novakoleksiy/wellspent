@@ -101,6 +101,16 @@ export interface TripOut {
     created_at: string;
     shared_at: string | null;
     folder_id: number | null;
+    completion_rating: number | null;
+    completion_comment: string | null;
+    completion_image_urls: string[];
+    completed_at: string | null;
+}
+
+export interface TripCompleteRequest {
+    rating: number;
+    comment?: string | null;
+    image_urls?: string[];
 }
 
 export interface FolderCreate {

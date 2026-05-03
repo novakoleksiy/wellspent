@@ -27,6 +27,30 @@ class FakeTripRepo:
         self.trips[trip_id] = updated
         return updated
 
+    async def complete(
+        self,
+        trip_id: int,
+        user_id: int,
+        *,
+        rating: int,
+        comment: str | None,
+        image_urls: list[str],
+    ) -> TripRecord | None:
+        trip = self.trips.get(trip_id)
+        if not trip or trip.user_id != user_id:
+            return None
+
+        updated = replace(
+            trip,
+            status="completed",
+            completion_rating=rating,
+            completion_comment=comment,
+            completion_image_urls=image_urls,
+            completed_at=datetime.now(timezone.utc),
+        )
+        self.trips[trip_id] = updated
+        return updated
+
 
 def _user_record(user_id: int = 1) -> UserRecord:
     return UserRecord(
@@ -108,3 +132,52 @@ async def test_patch_trip_status_marks_trip_as_completed():
 
     assert response.status_code == 200
     assert response.json()["status"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_patch_trip_complete_saves_review_details():
+    trip_repo = FakeTripRepo(trips=[_trip_record()])
+    app.dependency_overrides[get_current_user] = lambda: _user_record()
+    app.dependency_overrides[get_trip_repo] = lambda: trip_repo
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.patch(
+                "/api/trips/1/complete",
+                json={
+                    "rating": 4,
+                    "comment": "Great train connections.",
+                    "image_urls": ["https://example.com/train.jpg"],
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+    assert response.json()["completion_rating"] == 4
+    assert response.json()["completion_comment"] == "Great train connections."
+    assert response.json()["completion_image_urls"] == ["https://example.com/train.jpg"]
+    assert response.json()["completed_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_patch_trip_complete_rejects_invalid_rating():
+    trip_repo = FakeTripRepo(trips=[_trip_record()])
+    app.dependency_overrides[get_current_user] = lambda: _user_record()
+    app.dependency_overrides[get_trip_repo] = lambda: trip_repo
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.patch(
+                "/api/trips/1/complete",
+                json={"rating": 6, "comment": None, "image_urls": []},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422

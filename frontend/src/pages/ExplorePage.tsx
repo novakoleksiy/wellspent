@@ -53,7 +53,7 @@ export default function ExplorePage() {
             actions={
                 <Link
                     to="/plan"
-                    className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
+                    className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
                 >
                     Plan a trip
                 </Link>

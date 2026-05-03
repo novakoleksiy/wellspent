@@ -6,6 +6,7 @@ from app.schemas.schemas import (
     Recommendation,
     RecommendRequest,
     RefreshRecommendationItemRequest,
+    TripCompletionUpdate,
     TripCreate,
     TripFolderUpdate,
     TripOut,
@@ -16,6 +17,7 @@ from app.services import recommendation_service
 from app.services.folder_service import FolderNotFound, move_trip_to_folder
 from app.services.trip_service import (
     TripNotFound,
+    complete_trip,
     create_trip,
     delete_trip,
     get_trip,
@@ -112,6 +114,23 @@ async def set_status(
 ):
     try:
         return await set_trip_status(repo, user.id, trip_id, status=body.status)
+    except TripNotFound:
+        raise HTTPException(404, "Trip not found")
+
+
+@router.patch("/{trip_id}/complete", response_model=TripOut)
+async def complete(
+    trip_id: int, body: TripCompletionUpdate, user: CurrentUser, repo: TripRepo
+):
+    try:
+        return await complete_trip(
+            repo,
+            user.id,
+            trip_id,
+            rating=body.rating,
+            comment=body.comment,
+            image_urls=body.image_urls,
+        )
     except TripNotFound:
         raise HTTPException(404, "Trip not found")
 

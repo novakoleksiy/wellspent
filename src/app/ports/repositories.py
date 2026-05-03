@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
@@ -42,6 +42,10 @@ class TripRecord:
     created_at: object
     shared_at: datetime | None = None
     folder_id: int | None = None
+    completion_rating: int | None = None
+    completion_comment: str | None = None
+    completion_image_urls: list[str] = field(default_factory=list)
+    completed_at: datetime | None = None
 
 
 @dataclass
@@ -105,6 +109,16 @@ class TripRepository(Protocol):
 
     async def set_status(
         self, trip_id: int, user_id: int, *, status: str
+    ) -> TripRecord | None: ...
+
+    async def complete(
+        self,
+        trip_id: int,
+        user_id: int,
+        *,
+        rating: int,
+        comment: str | None,
+        image_urls: list[str],
     ) -> TripRecord | None: ...
 
     async def set_folder(

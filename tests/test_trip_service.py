@@ -84,6 +84,29 @@ class FakeTripRepo:
         self.trips[trip.id] = updated
         return updated
 
+    async def complete(
+        self,
+        trip_id: int,
+        user_id: int,
+        *,
+        rating: int,
+        comment: str | None,
+        image_urls: list[str],
+    ) -> TripRecord | None:
+        trip = await self.get_by_id_and_user(trip_id, user_id)
+        if trip is None:
+            return None
+        updated = replace(
+            trip,
+            status="completed",
+            completion_rating=rating,
+            completion_comment=comment,
+            completion_image_urls=image_urls,
+            completed_at=datetime.now(timezone.utc),
+        )
+        self.trips[trip.id] = updated
+        return updated
+
     async def delete(self, trip_id: int, user_id: int) -> None:
         trip = await self.get_by_id_and_user(trip_id, user_id)
         if trip:
@@ -183,6 +206,41 @@ async def test_set_trip_status_marks_trip_as_completed():
     trip = await trip_service.set_trip_status(repo, 1, 1, status="completed")
 
     assert trip.status == "completed"
+
+
+@pytest.mark.asyncio
+async def test_complete_trip_saves_review_details():
+    repo = FakeTripRepo(trips=[_trip_record()])
+
+    trip = await trip_service.complete_trip(
+        repo,
+        1,
+        1,
+        rating=5,
+        comment="Worth repeating.",
+        image_urls=["https://example.com/lake.jpg"],
+    )
+
+    assert trip.status == "completed"
+    assert trip.completion_rating == 5
+    assert trip.completion_comment == "Worth repeating."
+    assert trip.completion_image_urls == ["https://example.com/lake.jpg"]
+    assert trip.completed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_complete_trip_raises_when_trip_missing():
+    repo = FakeTripRepo()
+
+    with pytest.raises(trip_service.TripNotFound):
+        await trip_service.complete_trip(
+            repo,
+            1,
+            999,
+            rating=4,
+            comment=None,
+            image_urls=[],
+        )
 
 
 @pytest.mark.asyncio
