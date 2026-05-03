@@ -1,8 +1,22 @@
 import { request } from "./client";
-import type { Recommendation, RecommendRequest, TripCreate, TripOut } from "../types";
+import type {
+    CommunityTripOut,
+    Recommendation,
+    RecommendRequest,
+    RefreshRecommendationItemRequest,
+    TripCreate,
+    TripCompleteRequest,
+    TripOut,
+} from "../types";
 
 export const recommend = (body: RecommendRequest) =>
     request<Recommendation[]>("/api/trips/recommend", {
+        method: "POST",
+        body: JSON.stringify(body),
+    });
+
+export const refreshRecommendationItem = (body: RefreshRecommendationItemRequest) =>
+    request<Recommendation>("/api/trips/recommend/refresh-item", {
         method: "POST",
         body: JSON.stringify(body),
     });
@@ -15,7 +29,27 @@ export const createTrip = (body: TripCreate) =>
 
 export const listTrips = () => request<TripOut[]>("/api/trips/");
 
+export const listCommunityTrips = () => request<CommunityTripOut[]>("/api/trips/community");
+
 export const getTrip = (id: number) => request<TripOut>(`/api/trips/${id}`);
+
+export const setTripShared = (id: number, shared: boolean) =>
+    request<TripOut>(`/api/trips/${id}/share`, {
+        method: "PATCH",
+        body: JSON.stringify({ shared }),
+    });
+
+export const completeTrip = (id: number, body: TripCompleteRequest) =>
+    request<TripOut>(`/api/trips/${id}/complete`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+    });
+
+export const setTripFolder = (id: number, folderId: number | null) =>
+    request<TripOut>(`/api/trips/${id}/folder`, {
+        method: "PATCH",
+        body: JSON.stringify({ folder_id: folderId }),
+    });
 
 export const deleteTrip = (id: number) =>
     request<void>(`/api/trips/${id}`, { method: "DELETE" });

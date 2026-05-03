@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Protocol
 
 
@@ -24,6 +25,7 @@ class NewTrip:
     status: str
     description: str | None = None
     itinerary: dict | None = None
+    folder_id: int | None = None
 
 
 @dataclass
@@ -38,6 +40,40 @@ class TripRecord:
     description: str | None
     itinerary: dict | None
     created_at: object
+    shared_at: datetime | None = None
+    folder_id: int | None = None
+    completion_rating: int | None = None
+    completion_comment: str | None = None
+    completion_image_urls: list[str] = field(default_factory=list)
+    completed_at: datetime | None = None
+
+
+@dataclass
+class NewFolder:
+    user_id: int
+    name: str
+    description: str | None = None
+
+
+@dataclass
+class FolderRecord:
+    id: int
+    user_id: int
+    name: str
+    description: str | None
+    created_at: object
+
+
+@dataclass
+class CommunityTripRecord:
+    id: int
+    title: str
+    destination: str
+    description: str | None
+    itinerary: dict | None
+    created_at: object
+    shared_at: datetime
+    owner_name: str
 
 
 class UserRepository(Protocol):
@@ -63,7 +99,56 @@ class TripRepository(Protocol):
         self, trip_id: int, user_id: int
     ) -> TripRecord | None: ...
 
+    async def list_shared(
+        self, *, viewer_user_id: int, limit: int = 6
+    ) -> list[CommunityTripRecord]: ...
+
+    async def set_shared(
+        self, trip_id: int, user_id: int, *, shared: bool
+    ) -> TripRecord | None: ...
+
+    async def complete(
+        self,
+        trip_id: int,
+        user_id: int,
+        *,
+        rating: int,
+        comment: str | None,
+        image_urls: list[str],
+    ) -> TripRecord | None: ...
+
+    async def set_folder(
+        self, trip_id: int, user_id: int, *, folder_id: int | None
+    ) -> TripRecord | None: ...
+
     async def delete(self, trip_id: int, user_id: int) -> None: ...
+
+
+class FolderRepository(Protocol):
+    async def create(self, data: NewFolder) -> FolderRecord: ...
+
+    async def list_by_user(self, user_id: int) -> list[FolderRecord]: ...
+
+    async def get_by_id_and_user(
+        self, folder_id: int, user_id: int
+    ) -> FolderRecord | None: ...
+
+    async def get_by_name_and_user(
+        self, name: str, user_id: int
+    ) -> FolderRecord | None: ...
+
+    async def update(
+        self,
+        folder_id: int,
+        user_id: int,
+        *,
+        name: str,
+        description: str | None,
+    ) -> FolderRecord | None: ...
+
+    async def list_trips(self, folder_id: int, user_id: int) -> list[TripRecord]: ...
+
+    async def delete(self, folder_id: int, user_id: int) -> None: ...
 
 
 @dataclass

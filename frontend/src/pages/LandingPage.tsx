@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { joinWaitlist } from "../api/waitlist";
 import "./landing.css";
 
@@ -91,7 +92,7 @@ export default function LandingPage() {
               trip, planned in <span className="accent">two&nbsp;minutes</span>.
             </span>
             <span className="title-mobile">
-              Your next 
+              Your next
               <br />
               <span className="italic">well spent</span> trip,
               <br />
@@ -380,7 +381,7 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-              
+
         <section className="section section-dmos">
           <div className="container">
             <h2 className="section-title" style={{ marginBottom: 40 }}>
@@ -494,6 +495,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <Analytics />
     </div>
   );
 }

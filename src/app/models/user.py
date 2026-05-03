@@ -3,7 +3,18 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, String, Text, func
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -28,6 +39,26 @@ class User(Base):
     trips: Mapped[list[Trip]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    folders: Mapped[list[Folder]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+# ── Folder ───────────────────────────────────────────
+
+
+class Folder(Base):
+    __tablename__ = "folders"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_folders_user_id_name"),
+    )
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
+
+    user: Mapped[User] = relationship(back_populates="folders")
+    trips: Mapped[list[Trip]] = relationship(back_populates="folder")
 
 
 # ── Trip ─────────────────────────────────────────────
@@ -37,6 +68,7 @@ class TripStatus(enum.StrEnum):
     DRAFT = "draft"
     RECOMMENDED = "recommended"
     BOOKED = "booked"
+    COMPLETED = "completed"
     CANCELLED = "cancelled"
 
 
@@ -44,6 +76,9 @@ class Trip(Base):
     __tablename__ = "trips"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    folder_id: Mapped[int | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"), index=True, default=None
+    )
     title: Mapped[str] = mapped_column(String(255))
     destination: Mapped[str] = mapped_column(String(255))
     status: Mapped[TripStatus] = mapped_column(
@@ -51,8 +86,18 @@ class Trip(Base):
     )
     description: Mapped[str | None] = mapped_column(Text, default=None)
     itinerary: Mapped[dict | None] = mapped_column(JSON, default=None)
+    shared_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    completion_rating: Mapped[int | None] = mapped_column(Integer, default=None)
+    completion_comment: Mapped[str | None] = mapped_column(Text, default=None)
+    completion_image_urls: Mapped[list[str] | None] = mapped_column(JSON, default=None)
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
     user: Mapped[User] = relationship(back_populates="trips")
+    folder: Mapped[Folder | None] = relationship(back_populates="trips")
     bookings: Mapped[list[Booking]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )

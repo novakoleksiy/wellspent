@@ -33,8 +33,8 @@ export default function SettingsPage() {
 
   return (
     <AppShell
-      title="Settings"
-      description="Keep your travel profile up to date so every itinerary stays aligned with the way you like to travel."
+      title="Profile"
+      description="Keep your travel profile current so planning and recommendations stay aligned with the way you like to travel."
       actions={
         <button
           onClick={handleSave}
@@ -48,7 +48,7 @@ export default function SettingsPage() {
       <div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
         <section className="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
           <p className="text-sm font-semibold tracking-[0.22em] text-slate-500 uppercase">
-            Account
+            Profile
           </p>
           <div className="mt-6 space-y-5">
             <div>

@@ -77,7 +77,7 @@ export default function OnboardingPage() {
     try {
       await updatePreferences(preferences);
       await refreshUser();
-      navigate("/recommend", { replace: true });
+      navigate("/plan", { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to save preferences");
     } finally {

@@ -26,19 +26,40 @@ export interface RecommendRequest {
     travelers: number;
     budget_max?: number;
     notes: string;
+    mood: "culture_history" | "nature_outdoors" | "food_markets" | "slow_relaxing";
+    transport_mode: "car" | "public_transport";
+    trip_length: "2_3_hours" | "half_day" | "full_day";
+    group_type: "solo" | "couple" | "family" | "friends";
 }
 
 export interface Activity {
+    id?: string;
     time: string;
     title: string;
     category: string;
     cost: number;
+    url?: string | null;
+}
+
+export interface TimelineItem {
+    id: string;
+    kind: "activity" | "transport";
+    time: string;
+    title: string;
+    category: string;
+    cost: number;
+    duration_text?: string | null;
+    transport_mode?: string | null;
+    notes?: string | null;
+    url?: string | null;
+    refreshable: boolean;
 }
 
 export interface ItineraryDay {
     day: number;
     date: string;
     activities: Activity[];
+    timeline_items?: TimelineItem[];
 }
 
 export interface Itinerary {
@@ -56,6 +77,11 @@ export interface Recommendation {
     highlights: string[];
 }
 
+export interface RefreshRecommendationItemRequest extends RecommendRequest {
+    itinerary: Itinerary;
+    item_id: string;
+}
+
 export interface TripCreate {
     title: string;
     destination: string;
@@ -63,12 +89,54 @@ export interface TripCreate {
     itinerary?: Record<string, unknown>;
 }
 
+export type TripStatus = "draft" | "recommended" | "booked" | "completed" | "cancelled";
+
 export interface TripOut {
     id: number;
     title: string;
     destination: string;
-    status: string;
+    status: TripStatus;
     description: string | null;
     itinerary: Itinerary | null;
     created_at: string;
+    shared_at: string | null;
+    folder_id: number | null;
+    completion_rating: number | null;
+    completion_comment: string | null;
+    completion_image_urls: string[];
+    completed_at: string | null;
+}
+
+export interface TripCompleteRequest {
+    rating: number;
+    comment?: string | null;
+    image_urls?: string[];
+}
+
+export interface FolderCreate {
+    name: string;
+    description?: string | null;
+}
+
+export interface FolderUpdate {
+    name: string;
+    description?: string | null;
+}
+
+export interface FolderOut {
+    id: number;
+    name: string;
+    description: string | null;
+    created_at: string;
+}
+
+export interface CommunityTripOut {
+    id: number;
+    title: string;
+    destination: string;
+    description: string | null;
+    itinerary: Itinerary | null;
+    created_at: string;
+    shared_at: string;
+    owner_name: string;
 }
