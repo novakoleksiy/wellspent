@@ -39,12 +39,6 @@ export const setTripShared = (id: number, shared: boolean) =>
         body: JSON.stringify({ shared }),
     });
 
-export const setTripStatus = (id: number, status: "completed") =>
-    request<TripOut>(`/api/trips/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-    });
-
 export const completeTrip = (id: number, body: TripCompleteRequest) =>
     request<TripOut>(`/api/trips/${id}/complete`, {
         method: "PATCH",

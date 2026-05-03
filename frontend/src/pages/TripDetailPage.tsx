@@ -161,6 +161,7 @@ export default function TripDetailPage() {
                             <p className="text-sm text-white/60">Days planned</p>
                             <p className="mt-2 text-lg font-semibold">{trip.itinerary?.days?.length ?? 0}</p>
                         </div>
+                        {trip.status === "completed" && (
                         <div className="rounded-[1.75rem] border border-white/10 bg-white/8 px-5 py-5 sm:col-span-2 lg:col-span-1 xl:col-span-2">
                             <p className="text-sm text-white/60">Community</p>
                             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -181,6 +182,7 @@ export default function TripDetailPage() {
                                 </button>
                             </div>
                         </div>
+                        )}
                     </div>
                 </div>
             </section>

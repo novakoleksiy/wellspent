@@ -1,6 +1,9 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import type { TripCompleteRequest, TripOut } from "../types";
 
+const MAX_IMAGE_FILES = 10;
+const MAX_IMAGE_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
 interface TripCompletionModalProps {
   trip: TripOut;
   completing: boolean;
@@ -22,14 +25,37 @@ export default function TripCompletionModal({
   const [rating, setRating] = useState(trip.completion_rating ?? 0);
   const [comment, setComment] = useState(trip.completion_comment ?? "");
   const [images, setImages] = useState<File[]>([]);
+  const [fileError, setFileError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setImages(Array.from(event.target.files ?? []));
+    const nextImages = Array.from(event.target.files ?? []);
+    const oversized = nextImages.find((image) => image.size > MAX_IMAGE_FILE_SIZE_BYTES);
+
+    if (nextImages.length > MAX_IMAGE_FILES) {
+      setImages([]);
+      setFileError(`Select up to ${MAX_IMAGE_FILES} images.`);
+      event.target.value = "";
+      return;
+    }
+
+    if (oversized) {
+      setImages([]);
+      setFileError(`${oversized.name} is larger than 5 MB.`);
+      event.target.value = "";
+      return;
+    }
+
+    setFileError("");
+    setImages(nextImages);
   };
 
   const handleComplete = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (fileError) {
+      return;
+    }
+
     const trimmedComment = comment.trim();
     const updatedTrip = await onComplete({
       rating,
@@ -147,8 +173,9 @@ export default function TripCompletionModal({
                 className="mt-2 block w-full rounded-3xl border border-dashed border-slate-300 bg-stone-50 px-4 py-4 text-sm text-slate-500 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
               />
               <p className="mt-2 text-xs leading-5 text-slate-400">
-                Image upload storage is not enabled yet, so selected files are shown here but not saved.
+                Select up to 10 images. Each file must be 5 MB or smaller. Image upload storage is not enabled yet, so selected files are shown here but not saved.
               </p>
+              {fileError && <p className="mt-2 text-xs font-medium text-rose-600">{fileError}</p>}
               {images.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {images.map((image) => (
@@ -170,7 +197,7 @@ export default function TripCompletionModal({
               </button>
               <button
                 type="submit"
-                disabled={completing}
+                disabled={completing || Boolean(fileError)}
                 className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/10 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {completing ? "Completing..." : "Complete"}

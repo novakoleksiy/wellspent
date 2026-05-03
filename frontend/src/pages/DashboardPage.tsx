@@ -366,23 +366,25 @@ export default function TripsPage() {
                   {completingId === trip.id ? "Completing..." : "Complete trip"}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenTripActionsId(null);
-                  void handleShareToggle(trip);
-                }}
-                disabled={sharingId === trip.id}
-                className={menuItemClass}
-              >
-                {sharingId === trip.id
-                  ? trip.shared_at
-                    ? "Unsharing..."
-                    : "Sharing..."
-                  : trip.shared_at
-                    ? "Remove from community"
-                    : "Share with community"}
-              </button>
+              {trip.status === "completed" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenTripActionsId(null);
+                    void handleShareToggle(trip);
+                  }}
+                  disabled={sharingId === trip.id}
+                  className={menuItemClass}
+                >
+                  {sharingId === trip.id
+                    ? trip.shared_at
+                      ? "Unsharing..."
+                      : "Sharing..."
+                    : trip.shared_at
+                      ? "Remove from community"
+                      : "Share with community"}
+                </button>
+              )}
 
               <div className="my-2 h-px bg-slate-100" />
 

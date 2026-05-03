@@ -12,6 +12,10 @@ class TripNotFound(Exception):
     pass
 
 
+class TripNotShareable(Exception):
+    pass
+
+
 async def create_trip(
     repo: TripRepository,
     user_id: int,
@@ -52,16 +56,13 @@ async def list_shared_trips(
 async def set_trip_shared(
     repo: TripRepository, user_id: int, trip_id: int, *, shared: bool
 ) -> TripRecord:
-    trip = await repo.set_shared(trip_id, user_id, shared=shared)
-    if not trip:
+    existing = await repo.get_by_id_and_user(trip_id, user_id)
+    if not existing:
         raise TripNotFound
-    return trip
+    if shared and existing.status != "completed":
+        raise TripNotShareable
 
-
-async def set_trip_status(
-    repo: TripRepository, user_id: int, trip_id: int, *, status: str
-) -> TripRecord:
-    trip = await repo.set_status(trip_id, user_id, status=status)
+    trip = await repo.set_shared(trip_id, user_id, shared=shared)
     if not trip:
         raise TripNotFound
     return trip

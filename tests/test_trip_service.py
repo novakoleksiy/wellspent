@@ -74,16 +74,6 @@ class FakeTripRepo:
         self.trips[trip.id] = updated
         return updated
 
-    async def set_status(
-        self, trip_id: int, user_id: int, *, status: str
-    ) -> TripRecord | None:
-        trip = await self.get_by_id_and_user(trip_id, user_id)
-        if trip is None:
-            return None
-        updated = replace(trip, status=status)
-        self.trips[trip.id] = updated
-        return updated
-
     async def complete(
         self,
         trip_id: int,
@@ -192,7 +182,7 @@ async def test_delete_trip_raises_when_trip_missing():
 
 @pytest.mark.asyncio
 async def test_set_trip_shared_marks_trip_as_shared():
-    repo = FakeTripRepo(trips=[_trip_record()])
+    repo = FakeTripRepo(trips=[replace(_trip_record(), status="completed")])
 
     trip = await trip_service.set_trip_shared(repo, 1, 1, shared=True)
 
@@ -200,12 +190,11 @@ async def test_set_trip_shared_marks_trip_as_shared():
 
 
 @pytest.mark.asyncio
-async def test_set_trip_status_marks_trip_as_completed():
+async def test_set_trip_shared_rejects_active_trip():
     repo = FakeTripRepo(trips=[_trip_record()])
 
-    trip = await trip_service.set_trip_status(repo, 1, 1, status="completed")
-
-    assert trip.status == "completed"
+    with pytest.raises(trip_service.TripNotShareable):
+        await trip_service.set_trip_shared(repo, 1, 1, shared=True)
 
 
 @pytest.mark.asyncio

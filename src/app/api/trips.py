@@ -11,12 +11,12 @@ from app.schemas.schemas import (
     TripFolderUpdate,
     TripOut,
     TripShareUpdate,
-    TripStatusUpdate,
 )
 from app.services import recommendation_service
 from app.services.folder_service import FolderNotFound, move_trip_to_folder
 from app.services.trip_service import (
     TripNotFound,
+    TripNotShareable,
     complete_trip,
     create_trip,
     delete_trip,
@@ -24,7 +24,6 @@ from app.services.trip_service import (
     list_shared_trips,
     list_trips,
     set_trip_shared,
-    set_trip_status,
 )
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -104,16 +103,8 @@ async def set_share_state(
 ):
     try:
         return await set_trip_shared(repo, user.id, trip_id, shared=body.shared)
-    except TripNotFound:
-        raise HTTPException(404, "Trip not found")
-
-
-@router.patch("/{trip_id}/status", response_model=TripOut)
-async def set_status(
-    trip_id: int, body: TripStatusUpdate, user: CurrentUser, repo: TripRepo
-):
-    try:
-        return await set_trip_status(repo, user.id, trip_id, status=body.status)
+    except TripNotShareable:
+        raise HTTPException(400, "Only completed trips can be shared")
     except TripNotFound:
         raise HTTPException(404, "Trip not found")
 
