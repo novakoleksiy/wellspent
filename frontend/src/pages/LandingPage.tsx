@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Analytics } from "@vercel/analytics/react";
+import { track } from "@vercel/analytics";
 import { joinWaitlist } from "../api/waitlist";
 import "./landing.css";
 
@@ -11,6 +11,7 @@ async function submitWaitlist(
   setLoading: (value: boolean) => void,
   setSubmitted: (value: boolean) => void,
   setShowConfirmation: (value: boolean) => void,
+  location: "hero" | "footer",
 ) {
   event.preventDefault();
 
@@ -19,6 +20,7 @@ async function submitWaitlist(
 
   try {
     await joinWaitlist({ email });
+    track("Waitlist Joined", { location });
     setSubmitted(true);
     setShowConfirmation(true);
   } catch (error: unknown) {
@@ -44,8 +46,8 @@ export default function LandingPage() {
     document.title = "Wellspent - Day trips, ready in two minutes";
   }, []);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    void submitWaitlist(event, email, setError, setLoading, setSubmitted, setShowConfirmation);
+  const handleSubmit = (location: "hero" | "footer") => (event: FormEvent<HTMLFormElement>) => {
+    void submitWaitlist(event, email, setError, setLoading, setSubmitted, setShowConfirmation, location);
   };
 
   const focusWaitlistInput = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -122,7 +124,7 @@ export default function LandingPage() {
               {submitted ? (
                 <p className="hero-foot">Thanks for joining. We&apos;ll email you when Wellspent is ready.</p>
               ) : (
-                <form className="form" id="waitlist" onSubmit={handleSubmit}>
+                <form className="form" id="waitlist" onSubmit={handleSubmit("hero")}>
                   <input
                     ref={waitlistInputRef}
                     type="email"
@@ -435,7 +437,7 @@ export default function LandingPage() {
             {submitted ? (
               <p>Thanks for joining. We&apos;ll email you when Wellspent is ready.</p>
             ) : (
-              <form className="form" onSubmit={handleSubmit} style={{ background: "#fff" }}>
+              <form className="form" onSubmit={handleSubmit("footer")} style={{ background: "#fff" }}>
                 <input
                   type="email"
                   placeholder="you@example.ch"
@@ -495,7 +497,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-      <Analytics />
     </div>
   );
 }
