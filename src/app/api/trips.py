@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.core.db import CurrentUser, FolderRepo, SwissTourism, TripRepo
+from app.core.db import CurrentUser, FolderRepo, PublicTransport, SwissTourism, TripRepo
 from app.schemas.schemas import (
     CommunityTripOut,
     Recommendation,
@@ -30,7 +30,12 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 
 
 @router.post("/recommend", response_model=list[Recommendation])
-async def recommend(body: RecommendRequest, user: CurrentUser, client: SwissTourism):
+async def recommend(
+    body: RecommendRequest,
+    user: CurrentUser,
+    client: SwissTourism,
+    transport: PublicTransport,
+):
     recs = await recommendation_service.recommend(
         client,
         preferences=user.preferences,
@@ -42,13 +47,17 @@ async def recommend(body: RecommendRequest, user: CurrentUser, client: SwissTour
         transport_mode=body.transport_mode,
         trip_length=body.trip_length,
         group_type=body.group_type,
+        public_transport_client=transport,
     )
     return [Recommendation(**r) for r in recs]
 
 
 @router.post("/recommend/refresh-item", response_model=Recommendation)
 async def refresh_recommendation_item(
-    body: RefreshRecommendationItemRequest, user: CurrentUser, client: SwissTourism
+    body: RefreshRecommendationItemRequest,
+    user: CurrentUser,
+    client: SwissTourism,
+    transport: PublicTransport,
 ):
     rec = await recommendation_service.refresh_recommendation_item(
         client,
@@ -63,6 +72,7 @@ async def refresh_recommendation_item(
         group_type=body.group_type,
         itinerary=body.itinerary.model_dump(),
         item_id=body.item_id,
+        public_transport_client=transport,
     )
     return Recommendation(**rec)
 

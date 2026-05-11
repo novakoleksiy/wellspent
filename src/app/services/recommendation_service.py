@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
 from app.ports.swiss_tourism import DestinationRecord, SwissTourismClient
+from app.ports.transport import (
+    PublicTransportClient,
+    TransportItinerary,
+    TransportPlace,
+)
 
 _STYLE_KEYWORDS: dict[str, list[str]] = {
     "adventure": [
@@ -126,7 +132,15 @@ _COSTS: dict[str, dict[str, float]] = {
     "luxury": {"activity": 130.0, "meals_per_day": 180.0, "hotel_per_night": 450.0},
 }
 
-_Item = tuple[str, str, str, float]
+
+@dataclass
+class RecommendationItem:
+    name: str
+    category: str
+    url: str
+    score: float
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 def _score_text(name: str, description: str, category: str, styles: list[str]) -> float:
@@ -225,8 +239,111 @@ def _build_day_timeline(
     return timeline_items
 
 
+def _transport_place(activity: dict) -> TransportPlace:
+    return TransportPlace(
+        name=activity["title"],
+        latitude=activity.get("_latitude"),
+        longitude=activity.get("_longitude"),
+    )
+
+
+def _summarize_transport_route(route: TransportItinerary) -> tuple[str, str, str]:
+    public_legs = [leg for leg in route.legs if leg.mode != "walk"]
+    named_legs = [leg for leg in public_legs if leg.line]
+    if named_legs:
+        title = ", then ".join(f"{leg.mode} {leg.line}" for leg in named_legs[:2])
+        if len(named_legs) > 2:
+            title += f", +{len(named_legs) - 2} more"
+    elif public_legs:
+        title = "Public transport connection"
+    else:
+        title = "Walk to next stop"
+
+    duration_text = "Live public transport route"
+    if route.duration_minutes is not None:
+        transfer_label = "transfer" if route.transfers == 1 else "transfers"
+        duration_text = (
+            f"{route.duration_minutes} min, {route.transfers or 0} {transfer_label}"
+        )
+
+    first_departure = next(
+        (leg.departure_time for leg in route.legs if leg.departure_time), None
+    )
+    last_arrival = next(
+        (leg.arrival_time for leg in reversed(route.legs) if leg.arrival_time), None
+    )
+    origin = route.legs[0].origin
+    destination = route.legs[-1].destination
+    notes_parts = []
+    if first_departure:
+        notes_parts.append(f"Depart {first_departure}")
+    if origin:
+        notes_parts.append(f"from {origin}")
+    if last_arrival:
+        notes_parts.append(f"arrive {last_arrival}")
+    if destination:
+        notes_parts.append(f"at {destination}")
+    notes = " ".join(notes_parts) or "Live route from OpenTransportData Swiss."
+    return title, duration_text, notes
+
+
+async def _enrich_public_transport_timeline(
+    days: list[dict],
+    transport_client: PublicTransportClient,
+    travelers: int,
+) -> None:
+    async def _route_for_pair(
+        day: dict, index: int, activity: dict, next_activity: dict
+    ):
+        try:
+            return await transport_client.plan_route(
+                origin=_transport_place(activity),
+                destination=_transport_place(next_activity),
+                departure_date=date.fromisoformat(day["date"]),
+                departure_time=activity["time"],
+                travelers=travelers,
+            )
+        except Exception:
+            return None
+
+    for day in days:
+        activities = day.get("activities", [])
+        if len(activities) < 2:
+            continue
+
+        routes = await asyncio.gather(
+            *[
+                _route_for_pair(day, index, activities[index], activities[index + 1])
+                for index in range(len(activities) - 1)
+            ]
+        )
+        route_by_transport_id = {
+            f"transport-{day.get('day', 1)}-{index}": route
+            for index, route in enumerate(routes)
+            if route is not None
+        }
+
+        for timeline_item in day.get("timeline_items", []):
+            route = route_by_transport_id.get(timeline_item.get("id"))
+            if route is None:
+                continue
+            title, duration_text, notes = _summarize_transport_route(route)
+            timeline_item["title"] = title
+            timeline_item["duration_text"] = duration_text
+            timeline_item["notes"] = notes
+            if route.price is not None:
+                timeline_item["cost"] = route.price
+
+
+def _remove_internal_activity_fields(days: list[dict]) -> None:
+    for day in days:
+        for activity in day.get("activities", []):
+            activity.pop("_latitude", None)
+            activity.pop("_longitude", None)
+
+
 def _build_itinerary(
-    items: list[_Item],
+    items: list[RecommendationItem],
     start_date: date,
     end_date: date,
     budget_tier: str,
@@ -241,7 +358,7 @@ def _build_itinerary(
     costs = _COSTS.get(budget_tier, _COSTS["mid"])
     slot_cost = _activity_cost(costs, group_type, travelers)
 
-    sorted_items = sorted(items, key=lambda x: x[3], reverse=True)
+    sorted_items = sorted(items, key=lambda item: item.score, reverse=True)
     needed = num_days * len(times)
     pool = (
         (sorted_items * ((needed // len(sorted_items)) + 1))[:needed]
@@ -260,10 +377,13 @@ def _build_itinerary(
 
         for slot_index, time in enumerate(times):
             if idx < len(pool):
-                name, category, url, _ = pool[idx]
+                item = pool[idx]
                 idx += 1
+                name, category, url = item.name, item.category, item.url
+                latitude, longitude = item.latitude, item.longitude
             else:
                 name, category, url = "Free exploration", "leisure", ""
+                latitude, longitude = None, None
 
             activity_total += slot_cost
             activities.append(
@@ -274,6 +394,8 @@ def _build_itinerary(
                     "category": category or "activity",
                     "cost": slot_cost,
                     "url": url or None,
+                    "_latitude": latitude,
+                    "_longitude": longitude,
                 }
             )
 
@@ -307,24 +429,51 @@ async def _collect_destination_items(
     client: SwissTourismClient,
     dest: DestinationRecord,
     styles: list[str],
-) -> list[_Item]:
+) -> list[RecommendationItem]:
     attractions_result, tours_result = await asyncio.gather(
         client.list_attractions(destination_id=dest.id, page=1, page_size=20),
         client.list_tours(query=dest.name, page=1, page_size=10),
     )
 
-    items: list[_Item] = []
+    items: list[RecommendationItem] = []
     for attr in attractions_result.data:
         score = _score_text(attr.name, attr.description, attr.category, styles)
-        items.append((attr.name, attr.category or "attraction", attr.url, score))
+        items.append(
+            RecommendationItem(
+                name=attr.name,
+                category=attr.category or "attraction",
+                url=attr.url,
+                score=score,
+                latitude=attr.geo.latitude if attr.geo else None,
+                longitude=attr.geo.longitude if attr.geo else None,
+            )
+        )
 
     for tour in tours_result.data:
         score = _score_text(tour.name, tour.description, "tour", styles)
         label = tour.name + (f" ({tour.duration})" if tour.duration else "")
-        items.append((label, "tour", tour.url, score))
+        items.append(
+            RecommendationItem(
+                name=label,
+                category="tour",
+                url=tour.url,
+                score=score,
+                latitude=tour.geo.latitude if tour.geo else None,
+                longitude=tour.geo.longitude if tour.geo else None,
+            )
+        )
 
     if not items:
-        items = [(f"Explore {dest.name}", "sightseeing", dest.url, 0.7)]
+        items = [
+            RecommendationItem(
+                name=f"Explore {dest.name}",
+                category="sightseeing",
+                url=dest.url,
+                score=0.7,
+                latitude=dest.geo.latitude if dest.geo else None,
+                longitude=dest.geo.longitude if dest.geo else None,
+            )
+        ]
 
     return items
 
@@ -366,6 +515,7 @@ async def recommend(
     transport_mode: Literal["car", "public_transport"] = "public_transport",
     trip_length: Literal["2_3_hours", "half_day", "full_day"] | None = None,
     group_type: Literal["solo", "couple", "family", "friends"] = "solo",
+    public_transport_client: PublicTransportClient | None = None,
 ) -> list[dict]:
     prefs = preferences or {}
     budget_tier: str = prefs.get("budget_tier", "mid")
@@ -392,9 +542,14 @@ async def recommend(
             travelers,
             trip_length is not None,
         )
+        if transport_mode == "public_transport" and public_transport_client is not None:
+            await _enrich_public_transport_timeline(
+                days, public_transport_client, travelers
+            )
+        _remove_internal_activity_fields(days)
 
-        top3 = sorted(items, key=lambda x: x[3], reverse=True)[:3]
-        highlights = [name for name, *_ in top3]
+        top3 = sorted(items, key=lambda item: item.score, reverse=True)[:3]
+        highlights = [item.name for item in top3]
         match_score = _score_text(
             dest.name, dest.description, dest.category or "", styles
         )
@@ -424,11 +579,10 @@ async def recommend(
 def _replace_activity_in_itinerary(
     itinerary: dict,
     item_id: str,
-    replacement: _Item,
+    replacement: RecommendationItem,
     transport_mode: str,
     travelers: int,
 ) -> dict:
-    replacement_name, replacement_category, replacement_url, _ = replacement
     next_itinerary = {
         **itinerary,
         "days": [dict(day) for day in itinerary.get("days", [])],
@@ -440,9 +594,11 @@ def _replace_activity_in_itinerary(
         for activity in activities:
             if activity.get("id") != item_id:
                 continue
-            activity["title"] = replacement_name
-            activity["category"] = replacement_category or "activity"
-            activity["url"] = replacement_url or None
+            activity["title"] = replacement.name
+            activity["category"] = replacement.category or "activity"
+            activity["url"] = replacement.url or None
+            activity["_latitude"] = replacement.latitude
+            activity["_longitude"] = replacement.longitude
             replaced = True
             break
         if not replaced:
@@ -470,6 +626,7 @@ async def refresh_recommendation_item(
     group_type: str,
     itinerary: dict,
     item_id: str,
+    public_transport_client: PublicTransportClient | None = None,
 ) -> dict:
     styles = _effective_styles(preferences, mood, group_type)
     pace = (preferences or {}).get("pace", "moderate")
@@ -498,13 +655,13 @@ async def refresh_recommendation_item(
     replacement = next(
         (
             item
-            for item in sorted(items, key=lambda x: x[3], reverse=True)
-            if item[0] not in current_titles
+            for item in sorted(items, key=lambda item: item.score, reverse=True)
+            if item.name not in current_titles
         ),
         None,
     )
     if replacement is None and items:
-        replacement = sorted(items, key=lambda x: x[3], reverse=True)[0]
+        replacement = sorted(items, key=lambda item: item.score, reverse=True)[0]
 
     next_itinerary = (
         _replace_activity_in_itinerary(
@@ -513,8 +670,13 @@ async def refresh_recommendation_item(
         if replacement is not None
         else itinerary
     )
+    if transport_mode == "public_transport" and public_transport_client is not None:
+        await _enrich_public_transport_timeline(
+            next_itinerary.get("days", []), public_transport_client, travelers
+        )
+    _remove_internal_activity_fields(next_itinerary.get("days", []))
 
-    top3 = sorted(items, key=lambda x: x[3], reverse=True)[:3]
+    top3 = sorted(items, key=lambda item: item.score, reverse=True)[:3]
     return {
         "title": f"{target_dest.name} {selected_trip_length.replace('_', ' ')} plan",
         "destination": target_dest.name,
@@ -529,5 +691,5 @@ async def refresh_recommendation_item(
             target_dest.category or "",
             styles,
         ),
-        "highlights": [name for name, *_ in top3],
+        "highlights": [item.name for item in top3],
     }

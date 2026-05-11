@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.adapters.ojp_transport_client import OjpTransportAuthError
 from app.adapters.swiss_tourism_client import SwissTourismAuthError
 from app.core.config import settings
 from app.core.db import engine
@@ -103,6 +104,11 @@ app.include_router(settings_router, prefix="/api")
 
 @app.exception_handler(SwissTourismAuthError)
 async def handle_swiss_tourism_auth_error(request: Request, exc: SwissTourismAuthError):
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
+@app.exception_handler(OjpTransportAuthError)
+async def handle_ojp_transport_auth_error(request: Request, exc: OjpTransportAuthError):
     return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 

@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     my_swiss_tourism_api: str = ""
+    opentransportdata_api_key: str = ""
+    opentransportdata_ojp_url: str = "https://api.opentransportdata.swiss/ojp20"
+    opentransportdata_requestor_ref: str = "wellspent_test"
+    opentransportdata_user_agent: str = "wellspent"
     registration_open: bool = False
     cors_origins: str = Field(..., min_length=1)
 
