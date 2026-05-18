@@ -40,7 +40,6 @@ class HttpxOjpTransportClient:
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/xml",
             "User-Agent": self._user_agent,
-            "Accept-Encoding": "zip, br, deflate",
         }
 
     @staticmethod

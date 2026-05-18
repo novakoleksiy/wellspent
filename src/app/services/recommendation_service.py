@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
@@ -131,6 +132,9 @@ _COSTS: dict[str, dict[str, float]] = {
     "mid": {"activity": 45.0, "meals_per_day": 70.0, "hotel_per_night": 170.0},
     "luxury": {"activity": 130.0, "meals_per_day": 180.0, "hotel_per_night": 450.0},
 }
+
+logger = logging.getLogger(__name__)
+_PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS = 8.0
 
 
 @dataclass
@@ -296,14 +300,22 @@ async def _enrich_public_transport_timeline(
         day: dict, index: int, activity: dict, next_activity: dict
     ):
         try:
-            return await transport_client.plan_route(
-                origin=_transport_place(activity),
-                destination=_transport_place(next_activity),
-                departure_date=date.fromisoformat(day["date"]),
-                departure_time=activity["time"],
-                travelers=travelers,
+            return await asyncio.wait_for(
+                transport_client.plan_route(
+                    origin=_transport_place(activity),
+                    destination=_transport_place(next_activity),
+                    departure_date=date.fromisoformat(day["date"]),
+                    departure_time=activity["time"],
+                    travelers=travelers,
+                ),
+                timeout=_PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS,
             )
         except Exception:
+            logger.exception(
+                "Failed to enrich public transport route from %s to %s",
+                activity.get("title"),
+                next_activity.get("title"),
+            )
             return None
 
     for day in days:
