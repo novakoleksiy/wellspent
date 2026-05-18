@@ -145,6 +145,7 @@ class RecommendationItem:
     score: float
     latitude: float | None = None
     longitude: float | None = None
+    image_url: str | None = None
 
 
 def _score_text(name: str, description: str, category: str, styles: list[str]) -> float:
@@ -218,6 +219,7 @@ def _build_day_timeline(
                 "category": activity["category"],
                 "cost": activity["cost"],
                 "url": activity.get("url"),
+                "image_url": activity.get("image_url"),
                 "refreshable": True,
             }
         )
@@ -411,9 +413,11 @@ def _build_itinerary(
                 idx += 1
                 name, category, url = item.name, item.category, item.url
                 latitude, longitude = item.latitude, item.longitude
+                image_url = item.image_url
             else:
                 name, category, url = "Free exploration", "leisure", ""
                 latitude, longitude = None, None
+                image_url = None
 
             activity_total += slot_cost
             activities.append(
@@ -424,6 +428,7 @@ def _build_itinerary(
                     "category": category or "activity",
                     "cost": slot_cost,
                     "url": url or None,
+                    "image_url": image_url,
                     "_latitude": latitude,
                     "_longitude": longitude,
                 }
@@ -466,6 +471,7 @@ async def _collect_destination_items(
     )
 
     items: list[RecommendationItem] = []
+    fallback_image_url = dest.images[0].url if dest.images else None
     for attr in attractions_result.data:
         score = _score_text(attr.name, attr.description, attr.category, styles)
         items.append(
@@ -476,6 +482,7 @@ async def _collect_destination_items(
                 score=score,
                 latitude=attr.geo.latitude if attr.geo else None,
                 longitude=attr.geo.longitude if attr.geo else None,
+                image_url=attr.images[0].url if attr.images else fallback_image_url,
             )
         )
 
@@ -490,6 +497,7 @@ async def _collect_destination_items(
                 score=score,
                 latitude=tour.geo.latitude if tour.geo else None,
                 longitude=tour.geo.longitude if tour.geo else None,
+                image_url=tour.images[0].url if tour.images else fallback_image_url,
             )
         )
 
@@ -502,6 +510,7 @@ async def _collect_destination_items(
                 score=0.7,
                 latitude=dest.geo.latitude if dest.geo else None,
                 longitude=dest.geo.longitude if dest.geo else None,
+                image_url=fallback_image_url,
             )
         ]
 
@@ -628,6 +637,7 @@ def _replace_activity_in_itinerary(
             activity["title"] = replacement.name
             activity["category"] = replacement.category or "activity"
             activity["url"] = replacement.url or None
+            activity["image_url"] = replacement.image_url
             activity["_latitude"] = replacement.latitude
             activity["_longitude"] = replacement.longitude
             replaced = True

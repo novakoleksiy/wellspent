@@ -446,6 +446,14 @@ export default function PlanPage() {
                                                             <span className="absolute top-5 bottom-0 w-px bg-slate-200" />
                                                         </div>
                                                         <div className="rounded-[1.5rem] bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70">
+                                                            {item.kind === "activity" && item.image_url && (
+                                                                <img
+                                                                    src={item.image_url}
+                                                                    alt={item.title}
+                                                                    className="mb-4 h-44 w-full rounded-[1.15rem] object-cover"
+                                                                    loading="lazy"
+                                                                />
+                                                            )}
                                                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                                 <div>
                                                                     <p className="text-base font-semibold text-slate-900">{item.title}</p>

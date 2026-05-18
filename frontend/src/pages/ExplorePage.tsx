@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listCommunityTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
+import { getTripHeroImageUrl } from "../tripImages";
 import type { CommunityTripOut } from "../types";
 
 const nearbyIdeas = [
@@ -94,49 +95,65 @@ export default function ExplorePage() {
                         </div>
                     ) : (
                         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {communityTrips.map((trip) => (
-                                <article
-                                    key={trip.id}
-                                    className="rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                                            <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
-                                                {trip.title}
-                                            </p>
-                                        </div>
-                                        <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
-                                            {formatDate(trip.shared_at)}
-                                        </span>
-                                    </div>
+                            {communityTrips.map((trip) => {
+                                const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
 
-                                    <p className="mt-4 text-sm leading-6 text-slate-500">
-                                        {trip.description || "Shared from another member's saved itinerary."}
-                                    </p>
-
-                                    <div className="mt-5 grid gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-slate-600 sm:grid-cols-2">
-                                        <div>
-                                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Shared by</p>
-                                            <p className="mt-2 font-medium text-slate-800">{trip.owner_name}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Days</p>
-                                            <p className="mt-2 font-medium text-slate-800">
-                                                {trip.itinerary?.days?.length ?? 0}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => openPlan(trip.destination)}
-                                        className="mt-5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                return (
+                                    <article
+                                        key={trip.id}
+                                        className={heroImageUrl
+                                            ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white"
+                                            : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5"}
                                     >
-                                        Plan your version
-                                    </button>
-                                </article>
-                            ))}
+                                        {heroImageUrl && (
+                                            <img
+                                                src={heroImageUrl}
+                                                alt={trip.destination}
+                                                className="h-44 w-full object-cover"
+                                                loading="lazy"
+                                            />
+                                        )}
+                                        <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
+                                                    <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                                                        {trip.title}
+                                                    </p>
+                                                </div>
+                                                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                                                    {formatDate(trip.shared_at)}
+                                                </span>
+                                            </div>
+
+                                            <p className="mt-4 text-sm leading-6 text-slate-500">
+                                                {trip.description || "Shared from another member's saved itinerary."}
+                                            </p>
+
+                                            <div className="mt-5 grid gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-slate-600 sm:grid-cols-2">
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Shared by</p>
+                                                    <p className="mt-2 font-medium text-slate-800">{trip.owner_name}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Days</p>
+                                                    <p className="mt-2 font-medium text-slate-800">
+                                                        {trip.itinerary?.days?.length ?? 0}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => openPlan(trip.destination)}
+                                                className="mt-5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                            >
+                                                Plan your version
+                                            </button>
+                                        </div>
+                                    </article>
+                                );
+                            })}
                         </div>
                     )}
                 </section>

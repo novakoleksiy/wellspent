@@ -97,6 +97,7 @@ class TimelineItem(BaseModel):
     )
     notes: str | None = Field(default=None, max_length=500)
     url: str | None = Field(default=None, max_length=2048)
+    image_url: str | None = Field(default=None, max_length=2048)
     refreshable: bool = False
 
 
@@ -107,6 +108,7 @@ class ItineraryActivity(BaseModel):
     category: str = Field(max_length=80)
     cost: float = Field(ge=0, le=100_000)
     url: str | None = Field(default=None, max_length=2048)
+    image_url: str | None = Field(default=None, max_length=2048)
 
 
 class ItineraryDay(BaseModel):

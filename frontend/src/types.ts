@@ -40,6 +40,7 @@ export interface Activity {
     category: string;
     cost: number;
     url?: string | null;
+    image_url?: string | null;
 }
 
 export interface TimelineItem {
@@ -54,6 +55,7 @@ export interface TimelineItem {
     transport_legs?: TransportLeg[];
     notes?: string | null;
     url?: string | null;
+    image_url?: string | null;
     refreshable: boolean;
 }
 

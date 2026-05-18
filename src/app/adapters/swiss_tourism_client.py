@@ -53,10 +53,18 @@ class HttpxSwissTourismClient:
     @staticmethod
     def _extract_images(item: dict) -> list[SwissImage]:
         images: list[SwissImage] = []
+        seen_urls: set[str] = set()
+
+        photo = item.get("photo")
+        if photo:
+            images.append(SwissImage(url=photo, title=item.get("name", "")))
+            seen_urls.add(photo)
+
         for img in item.get("image", []):
             url = img.get("url") or img.get("src") or ""
-            if url:
+            if url and url not in seen_urls:
                 images.append(SwissImage(url=url, title=img.get("name", "")))
+                seen_urls.add(url)
         return images
 
     @staticmethod
@@ -81,7 +89,7 @@ class HttpxSwissTourismClient:
         params = {
             **self._base_params(),
             "page": str(page - 1),
-            "size": str(page_size),
+            "hitsPerPage": str(page_size),
         }
         if query:
             params["query"] = query
@@ -122,7 +130,7 @@ class HttpxSwissTourismClient:
             id=item.get("identifier", ""),
             name=item.get("name", ""),
             category=item.get("category"),
-            description=item.get("description", ""),
+            description=item.get("description") or item.get("abstract", ""),
             geo=self._extract_geo(item),
             images=self._extract_images(item),
             url=item.get("url", ""),
@@ -135,18 +143,32 @@ class HttpxSwissTourismClient:
         *,
         query: str | None = None,
         destination_id: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        radius_m: int | None = None,
+        bbox: tuple[float, float, float, float] | None = None,
+        top: bool | None = None,
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[AttractionRecord]:
         params = {
             **self._base_params(),
             "page": str(page - 1),
-            "size": str(page_size),
+            "hitsPerPage": str(page_size),
         }
         if query:
             params["query"] = query
         if destination_id:
             params["placeId"] = destination_id
+        if bbox:
+            params["geo.bbox"] = ",".join(str(value) for value in bbox)
+        elif latitude is not None and longitude is not None:
+            values = [str(latitude), str(longitude)]
+            if radius_m is not None:
+                values.append(str(radius_m))
+            params["geo.dist"] = ",".join(values)
+        if top is not None:
+            params["top"] = str(top).lower()
 
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -181,9 +203,9 @@ class HttpxSwissTourismClient:
 
     def _to_attraction(self, item: dict) -> AttractionRecord:
         return AttractionRecord(
-            id=item.get("id", ""),
+            id=item.get("identifier") or item.get("id", ""),
             name=item.get("name", ""),
-            description=item.get("description", ""),
+            description=item.get("description") or item.get("abstract", ""),
             category=item.get("category", ""),
             geo=self._extract_geo(item),
             images=self._extract_images(item),
@@ -202,7 +224,7 @@ class HttpxSwissTourismClient:
         params = {
             **self._base_params(),
             "page": str(page - 1),
-            "size": str(page_size),
+            "hitsPerPage": str(page_size),
         }
         if query:
             params["query"] = query
@@ -240,9 +262,9 @@ class HttpxSwissTourismClient:
 
     def _to_tour(self, item: dict) -> TourRecord:
         return TourRecord(
-            id=item.get("id", ""),
+            id=item.get("identifier") or item.get("id", ""),
             name=item.get("name", ""),
-            description=item.get("description", ""),
+            description=item.get("description") or item.get("abstract", ""),
             distance_km=item.get("distance"),
             duration=item.get("duration", ""),
             geo=self._extract_geo(item),
