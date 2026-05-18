@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.adapters.ojp_transport_client import HttpxOjpTransportClient
 from app.adapters.sqlalchemy_folder_repo import SqlAlchemyFolderRepo
 from app.adapters.sqlalchemy_trip_repo import SqlAlchemyTripRepo
 from app.adapters.sqlalchemy_user_repo import SqlAlchemyUserRepo
@@ -20,6 +21,7 @@ from app.ports.repositories import (
     UserRepository,
 )
 from app.ports.swiss_tourism import SwissTourismClient
+from app.ports.transport import PublicTransportClient
 
 engine = create_async_engine(settings.sqlalchemy_database_url, echo=False)
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -83,6 +85,17 @@ def get_swiss_tourism_client() -> SwissTourismClient:
     return HttpxSwissTourismClient(api_key=settings.my_swiss_tourism_api)
 
 
+def get_public_transport_client() -> PublicTransportClient | None:
+    if not settings.opentransportdata_api_key:
+        return None
+    return HttpxOjpTransportClient(
+        api_key=settings.opentransportdata_api_key,
+        url=settings.opentransportdata_ojp_url,
+        requestor_ref=settings.opentransportdata_requestor_ref,
+        user_agent=settings.opentransportdata_user_agent,
+    )
+
+
 # Type aliases for route signatures
 Db = Annotated[AsyncSession, Depends(get_db)]
 UserRepo = Annotated[UserRepository, Depends(get_user_repo)]
@@ -91,3 +104,6 @@ FolderRepo = Annotated[FolderRepository, Depends(get_folder_repo)]
 CurrentUser = Annotated[UserRecord, Depends(get_current_user)]
 WaitlistRepo = Annotated[SqlAlchemyWaitlistRepo, Depends(get_waitlist_repo)]
 SwissTourism = Annotated[SwissTourismClient, Depends(get_swiss_tourism_client)]
+PublicTransport = Annotated[
+    PublicTransportClient | None, Depends(get_public_transport_client)
+]
