@@ -30,6 +30,7 @@ export interface RecommendRequest {
     transport_mode: "car" | "public_transport";
     trip_length: "2_3_hours" | "half_day" | "full_day";
     group_type: "solo" | "couple" | "family" | "friends";
+    budget_tier?: "budget" | "mid" | "luxury";
 }
 
 export interface Activity {

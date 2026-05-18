@@ -527,10 +527,11 @@ async def recommend(
     transport_mode: Literal["car", "public_transport"] = "public_transport",
     trip_length: Literal["2_3_hours", "half_day", "full_day"] | None = None,
     group_type: Literal["solo", "couple", "family", "friends"] = "solo",
+    budget_tier: Literal["budget", "mid", "luxury"] | None = None,
     public_transport_client: PublicTransportClient | None = None,
 ) -> list[dict]:
     prefs = preferences or {}
-    budget_tier: str = prefs.get("budget_tier", "mid")
+    selected_budget_tier: str = budget_tier or prefs.get("budget_tier", "mid")
     pace: str = prefs.get("pace", "moderate")
     styles = _effective_styles(preferences, mood, group_type)
     selected_trip_length = trip_length or _PACE_TO_TRIP_LENGTH.get(pace, "half_day")
@@ -547,7 +548,7 @@ async def recommend(
             items,
             start_date,
             end_date,
-            budget_tier,
+            selected_budget_tier,
             selected_trip_length,
             group_type,
             transport_mode,

@@ -68,6 +68,7 @@ class RecommendRequest(BaseModel):
     transport_mode: Literal["car", "public_transport"] = "public_transport"
     trip_length: Literal["2_3_hours", "half_day", "full_day"] | None = None
     group_type: Literal["solo", "couple", "family", "friends"] = "solo"
+    budget_tier: Literal["budget", "mid", "luxury"] | None = None
 
 
 class TimelineItem(BaseModel):

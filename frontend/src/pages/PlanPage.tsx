@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend, refreshRecommendationItem } from "../api/trips";
 import AppShell from "../components/AppShell";
-import { useAuth } from "../hooks/useAuth";
-import { coercePreferences } from "../preferences";
 import type { Recommendation, TimelineItem } from "../types";
 
 function inputDate(daysAhead: number): string {
@@ -72,6 +70,17 @@ const quizSteps = [
             { value: "friends", label: "Friends", hint: "More active, social energy" },
         ],
     },
+    {
+        key: "budget_tier",
+        eyebrow: "Question 5",
+        title: "What budget feels right?",
+        description: "This shapes the estimate for activities, meals, stays, and transport.",
+        options: [
+            { value: "budget", label: "Low", hint: "Value-led picks and simple stops", visual: "$" },
+            { value: "mid", label: "Medium", hint: "Balanced comfort and standout moments", visual: "$$" },
+            { value: "luxury", label: "High", hint: "Premium experiences and extra ease", visual: "$$$" },
+        ],
+    },
 ] as const;
 
 type PlannerForm = {
@@ -84,6 +93,7 @@ type PlannerForm = {
     transport_mode: "car" | "public_transport";
     trip_length: "2_3_hours" | "half_day" | "full_day";
     group_type: "solo" | "couple" | "family" | "friends";
+    budget_tier: "budget" | "mid" | "luxury";
 };
 
 function timelineItems(day: Recommendation["itinerary"]["days"][number]): TimelineItem[] {
@@ -104,8 +114,6 @@ function timelineItems(day: Recommendation["itinerary"]["days"][number]): Timeli
 export default function PlanPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { user } = useAuth();
-    const preferences = coercePreferences(user?.preferences);
     const [form, setForm] = useState<PlannerForm>({
         destination: "",
         start_date: inputDate(14),
@@ -116,10 +124,9 @@ export default function PlanPage() {
         transport_mode: "public_transport",
         trip_length: "half_day",
         group_type: "solo",
+        budget_tier: "mid",
     });
     const [stepIndex, setStepIndex] = useState(0);
-    const [showAdvanced, setShowAdvanced] = useState(false);
-    const [travelersTouched, setTravelersTouched] = useState(false);
     const [result, setResult] = useState<Recommendation | null>(null);
     const [loading, setLoading] = useState(false);
     const [refreshingItemId, setRefreshingItemId] = useState<string | null>(null);
@@ -137,6 +144,7 @@ export default function PlanPage() {
 
     const currentStep = quizSteps[stepIndex];
     const progressValue = ((stepIndex + 1) / quizSteps.length) * 100;
+    const canGenerate = stepIndex === quizSteps.length - 1;
 
     const set = <K extends keyof PlannerForm>(field: K, value: PlannerForm[K]) => {
         setForm((current) => ({ ...current, [field]: value }));
@@ -147,7 +155,7 @@ export default function PlanPage() {
             setForm((current) => ({
                 ...current,
                 group_type: value as PlannerForm["group_type"],
-                travelers: travelersTouched ? current.travelers : defaultTravelers(value),
+                travelers: defaultTravelers(value),
             }));
         } else {
             set(currentStep.key, value as never);
@@ -155,8 +163,6 @@ export default function PlanPage() {
 
         if (stepIndex < quizSteps.length - 1) {
             setStepIndex((index) => index + 1);
-        } else {
-            setShowAdvanced(true);
         }
     };
 
@@ -224,14 +230,16 @@ export default function PlanPage() {
                 </Link>
             }
         >
-            <div className="mx-auto grid max-w-5xl gap-6 xl:grid-cols-[0.82fr_1.18fr]">
-                <section className="rounded-[2.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(30,41,59,0.95))] p-6 text-white shadow-2xl shadow-slate-900/10 sm:p-8">
-                    <div className="flex items-center justify-between gap-4">
+            <div className="mx-auto max-w-5xl space-y-6">
+                <section className="rounded-[2.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(30,41,59,0.95))] p-6 text-white shadow-2xl shadow-slate-900/10 sm:p-8 lg:p-10">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <p className="text-sm font-semibold tracking-[0.2em] text-white/55 uppercase">Planner</p>
-                            <h2 className="mt-3 text-3xl font-semibold tracking-tight">Build the day one answer at a time.</h2>
+                            <h2 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
+                                Build the day one answer at a time.
+                            </h2>
                         </div>
-                        <div className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-medium text-white/75">
+                        <div className="w-fit rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-medium text-white/75">
                             {stepIndex + 1} / {quizSteps.length}
                         </div>
                     </div>
@@ -240,12 +248,12 @@ export default function PlanPage() {
                         <div className="h-full rounded-full bg-rose-300 transition-all" style={{ width: `${progressValue}%` }} />
                     </div>
 
-                    <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/6 p-6">
+                    <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/6 p-5 sm:p-7">
                         <p className="text-sm font-medium text-white/60">{currentStep.eyebrow}</p>
-                        <h3 className="mt-3 text-2xl font-semibold tracking-tight">{currentStep.title}</h3>
-                        <p className="mt-3 text-sm leading-6 text-white/70">{currentStep.description}</p>
+                        <h3 className="mt-3 text-3xl font-semibold tracking-tight">{currentStep.title}</h3>
+                        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">{currentStep.description}</p>
 
-                        <div className="mt-6 grid gap-3">
+                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
                             {currentStep.options.map((option) => {
                                 const selected = form[currentStep.key] === option.value;
                                 return (
@@ -259,7 +267,14 @@ export default function PlanPage() {
                                                 : "border-white/10 bg-white/5 text-white/88 hover:border-white/25 hover:bg-white/10"
                                         }`}
                                     >
-                                        <p className="text-base font-semibold">{option.label}</p>
+                                        <div className="flex items-center justify-between gap-4">
+                                            <p className="text-base font-semibold">{option.label}</p>
+                                            {"visual" in option && option.visual && (
+                                                <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-rose-100">
+                                                    {option.visual}
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="mt-1 text-sm text-white/60">{option.hint}</p>
                                     </button>
                                 );
@@ -267,7 +282,7 @@ export default function PlanPage() {
                         </div>
                     </div>
 
-                    <div className="mt-6 flex items-center justify-between gap-3">
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <button
                             type="button"
                             onClick={() => setStepIndex((index) => Math.max(index - 1, 0))}
@@ -278,149 +293,27 @@ export default function PlanPage() {
                         </button>
                         <button
                             type="button"
-                            onClick={() => setShowAdvanced((open) => !open)}
-                            className="rounded-full border border-white/12 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/8"
+                            onClick={handleSubmit}
+                            disabled={loading || !canGenerate}
+                            className="rounded-full bg-rose-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {showAdvanced ? "Hide advanced" : "Advanced trip details"}
+                            {loading
+                                ? "Generating itinerary..."
+                                : canGenerate
+                                  ? "Generate proposed itinerary"
+                                  : "Answer all questions to generate"}
                         </button>
                     </div>
 
-                    <div className="mt-8 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-white/8 px-4 py-2 text-sm text-white/70">
-                            {preferences.budget_tier} budget
-                        </span>
-                        <span className="rounded-full bg-white/8 px-4 py-2 text-sm text-white/70">
-                            {preferences.pace} pace
-                        </span>
-                        {preferences.travel_styles.slice(0, 3).map((style) => (
-                            <span key={style} className="rounded-full bg-rose-300/18 px-4 py-2 text-sm text-rose-100">
-                                {style}
-                            </span>
-                        ))}
-                    </div>
+                    {!result && error && (
+                        <p className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {error}
+                        </p>
+                    )}
                 </section>
 
-                <section className="rounded-[2.5rem] border border-slate-200/80 bg-white/92 p-6 shadow-xl shadow-stone-200/40 sm:p-8 xl:min-h-[75vh]">
-                    {!result ? (
-                        <>
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-sm font-medium text-slate-500">Trip builder</p>
-                                    <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-                                        Your answers become one proposed itinerary.
-                                    </h2>
-                                </div>
-                                <span className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-slate-600">
-                                    Quiz mode
-                                </span>
-                            </div>
-
-                            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                                {quizSteps.map((step) => {
-                                    const option = step.options.find((item) => item.value === form[step.key]);
-                                    return (
-                                        <div key={step.key} className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-                                            <p className="text-xs font-semibold tracking-[0.18em] text-slate-400 uppercase">{step.title}</p>
-                                            <p className="mt-2 text-base font-semibold text-slate-900">{option?.label}</p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {showAdvanced && (
-                                <div className="mt-6 rounded-[2rem] border border-slate-200 bg-stone-50/80 p-5">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500">Advanced step</p>
-                                            <h3 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
-                                                Optional trip details
-                                            </h3>
-                                        </div>
-                                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm">
-                                            Dates kept here
-                                        </span>
-                                    </div>
-
-                                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                                        <label className="text-sm font-medium text-slate-700">
-                                            Destination idea
-                                            <input
-                                                type="text"
-                                                value={form.destination}
-                                                onChange={(event) => set("destination", event.target.value)}
-                                                placeholder="Leave blank for a surprise"
-                                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                                            />
-                                        </label>
-                                        <label className="text-sm font-medium text-slate-700">
-                                            Travelers
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                value={form.travelers}
-                                                onChange={(event) => {
-                                                    setTravelersTouched(true);
-                                                    set("travelers", Number(event.target.value));
-                                                }}
-                                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
-                                            />
-                                        </label>
-                                        <label className="text-sm font-medium text-slate-700">
-                                            Start date
-                                            <input
-                                                type="date"
-                                                value={form.start_date}
-                                                onChange={(event) => set("start_date", event.target.value)}
-                                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
-                                            />
-                                        </label>
-                                        <label className="text-sm font-medium text-slate-700">
-                                            End date
-                                            <input
-                                                type="date"
-                                                value={form.end_date}
-                                                onChange={(event) => set("end_date", event.target.value)}
-                                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-400"
-                                            />
-                                        </label>
-                                    </div>
-
-                                    <label className="mt-4 block text-sm font-medium text-slate-700">
-                                        Notes
-                                        <textarea
-                                            value={form.notes}
-                                            onChange={(event) => set("notes", event.target.value)}
-                                            rows={3}
-                                            placeholder="Scenic rail route, fewer museums, kid-friendly lunch stop..."
-                                            className="mt-2 w-full rounded-[1.5rem] border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                                        />
-                                    </label>
-                                </div>
-                            )}
-
-                            {error && (
-                                <p className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                                    {error}
-                                </p>
-                            )}
-
-                            <div className="mt-8 rounded-[2rem] bg-slate-900 px-5 py-5 text-white">
-                                <p className="text-sm text-white/65">When you generate</p>
-                                <p className="mt-2 max-w-xl text-sm leading-6 text-white/78">
-                                    You will get a day-style timeline with suggested stops, placeholder transport legs, and the option to refresh just one stop if it does not fit.
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={handleSubmit}
-                                    disabled={loading}
-                                    className="mt-5 rounded-full bg-rose-400 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {loading ? "Generating itinerary..." : "Generate proposed itinerary"}
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <>
+                {result && (
+                    <section className="rounded-[2.5rem] border border-slate-200/80 bg-white/92 p-6 shadow-xl shadow-stone-200/40 sm:p-8">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">Proposed itinerary</p>
@@ -562,9 +455,8 @@ export default function PlanPage() {
                                     {loading ? "Refreshing plan..." : "Generate another version"}
                                 </button>
                             </div>
-                        </>
-                    )}
-                </section>
+                    </section>
+                )}
             </div>
         </AppShell>
     );

@@ -47,6 +47,7 @@ async def recommend(
         transport_mode=body.transport_mode,
         trip_length=body.trip_length,
         group_type=body.group_type,
+        budget_tier=body.budget_tier,
         public_transport_client=transport,
     )
     return [Recommendation(**r) for r in recs]
