@@ -344,6 +344,19 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
     assert transport.calls[0][0].latitude == 47.3701
     assert transport_items[0]["title"] == "tram 4"
     assert transport_items[0]["duration_text"] == "18 min, 0 transfers"
+    assert transport_items[0]["transport_legs"] == [
+        {
+            "mode": "tram",
+            "line": "4",
+            "departure_time": "2026-06-01T09:30:00",
+            "arrival_time": "2026-06-01T09:48:00",
+            "duration_minutes": 18,
+            "origin": "Kunsthaus",
+            "destination": "Bellevue",
+            "direction": "Bahnhof Tiefenbrunnen",
+            "notes": "",
+        }
+    ]
     assert "Kunsthaus" in transport_items[0]["notes"]
     assert (
         "_latitude" not in recommendations[0]["itinerary"]["days"][0]["activities"][0]

@@ -291,6 +291,23 @@ def _summarize_transport_route(route: TransportItinerary) -> tuple[str, str, str
     return title, duration_text, notes
 
 
+def _transport_leg_details(route: TransportItinerary) -> list[dict]:
+    return [
+        {
+            "mode": leg.mode,
+            "line": leg.line,
+            "departure_time": leg.departure_time,
+            "arrival_time": leg.arrival_time,
+            "duration_minutes": leg.duration_minutes,
+            "origin": leg.origin,
+            "destination": leg.destination,
+            "direction": leg.direction,
+            "notes": leg.notes,
+        }
+        for leg in route.legs
+    ]
+
+
 async def _enrich_public_transport_timeline(
     days: list[dict],
     transport_client: PublicTransportClient,
@@ -343,6 +360,7 @@ async def _enrich_public_transport_timeline(
             timeline_item["title"] = title
             timeline_item["duration_text"] = duration_text
             timeline_item["notes"] = notes
+            timeline_item["transport_legs"] = _transport_leg_details(route)
             if route.price is not None:
                 timeline_item["cost"] = route.price
 

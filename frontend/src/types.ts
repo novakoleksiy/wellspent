@@ -51,9 +51,22 @@ export interface TimelineItem {
     cost: number;
     duration_text?: string | null;
     transport_mode?: string | null;
+    transport_legs?: TransportLeg[];
     notes?: string | null;
     url?: string | null;
     refreshable: boolean;
+}
+
+export interface TransportLeg {
+    mode: string;
+    line?: string | null;
+    departure_time?: string | null;
+    arrival_time?: string | null;
+    duration_minutes?: number | null;
+    origin: string;
+    destination: string;
+    direction?: string | null;
+    notes: string;
 }
 
 export interface ItineraryDay {

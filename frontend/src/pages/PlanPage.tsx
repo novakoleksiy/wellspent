@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend, refreshRecommendationItem } from "../api/trips";
 import AppShell from "../components/AppShell";
 import type { Recommendation, TimelineItem } from "../types";
@@ -96,6 +96,30 @@ type PlannerForm = {
     budget_tier: "budget" | "mid" | "luxury";
 };
 
+function initialPlannerForm(destination = ""): PlannerForm {
+    return {
+        destination,
+        start_date: inputDate(14),
+        end_date: inputDate(14),
+        travelers: 1,
+        notes: "",
+        mood: "culture_history",
+        transport_mode: "public_transport",
+        trip_length: "half_day",
+        group_type: "solo",
+        budget_tier: "mid",
+    };
+}
+
+function formatTransportTime(value?: string | null): string | null {
+    if (!value) return null;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
 function timelineItems(day: Recommendation["itinerary"]["days"][number]): TimelineItem[] {
     return day.timeline_items?.length
         ? day.timeline_items
@@ -114,23 +138,13 @@ function timelineItems(day: Recommendation["itinerary"]["days"][number]): Timeli
 export default function PlanPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const [form, setForm] = useState<PlannerForm>({
-        destination: "",
-        start_date: inputDate(14),
-        end_date: inputDate(14),
-        travelers: 1,
-        notes: "",
-        mood: "culture_history",
-        transport_mode: "public_transport",
-        trip_length: "half_day",
-        group_type: "solo",
-        budget_tier: "mid",
-    });
+    const [form, setForm] = useState<PlannerForm>(() => initialPlannerForm());
     const [stepIndex, setStepIndex] = useState(0);
     const [result, setResult] = useState<Recommendation | null>(null);
     const [loading, setLoading] = useState(false);
     const [refreshingItemId, setRefreshingItemId] = useState<string | null>(null);
     const [savingTitle, setSavingTitle] = useState<string | null>(null);
+    const [expandedTransportIds, setExpandedTransportIds] = useState<Set<string>>(() => new Set());
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -160,10 +174,32 @@ export default function PlanPage() {
         } else {
             set(currentStep.key, value as never);
         }
+    };
 
+    const handleNext = () => {
         if (stepIndex < quizSteps.length - 1) {
             setStepIndex((index) => index + 1);
         }
+    };
+
+    const toggleTransportDetails = (itemId: string) => {
+        setExpandedTransportIds((current) => {
+            const next = new Set(current);
+            if (next.has(itemId)) {
+                next.delete(itemId);
+            } else {
+                next.add(itemId);
+            }
+            return next;
+        });
+    };
+
+    const handleRestartQuiz = () => {
+        setForm(initialPlannerForm(searchParams.get("destination") || ""));
+        setStepIndex(0);
+        setResult(null);
+        setExpandedTransportIds(new Set());
+        setError("");
     };
 
     const handleSubmit = async () => {
@@ -172,6 +208,7 @@ export default function PlanPage() {
         try {
             const recs = await recommend(form);
             setResult(recs[0] ?? null);
+            setExpandedTransportIds(new Set());
             if (recs.length === 0) {
                 setError("No itinerary matched that combination. Try another mood or destination.");
             }
@@ -221,14 +258,6 @@ export default function PlanPage() {
         <AppShell
             title="Plan a trip"
             description="Answer a few quick questions, then shape a day-style itinerary without leaving the planner."
-            actions={
-                <Link
-                    to="/profile"
-                    className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
-                >
-                    Open profile
-                </Link>
-            }
         >
             <div className="mx-auto max-w-5xl space-y-6">
                 <section className="rounded-[2.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(30,41,59,0.95))] p-6 text-white shadow-2xl shadow-slate-900/10 sm:p-8 lg:p-10">
@@ -283,14 +312,24 @@ export default function PlanPage() {
                     </div>
 
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <button
-                            type="button"
-                            onClick={() => setStepIndex((index) => Math.max(index - 1, 0))}
-                            disabled={stepIndex === 0}
-                            className="rounded-full border border-white/12 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            Back
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setStepIndex((index) => Math.max(index - 1, 0))}
+                                disabled={stepIndex === 0}
+                                className="rounded-full border border-white/12 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                Back
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleNext}
+                                disabled={stepIndex === quizSteps.length - 1}
+                                className="rounded-full border border-white/12 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                Next
+                            </button>
+                        </div>
                         <button
                             type="button"
                             onClick={handleSubmit}
@@ -394,44 +433,93 @@ export default function PlanPage() {
                                         </div>
 
                                         <div className="mt-6 space-y-4">
-                                            {timelineItems(day).map((item) => (
-                                                <div key={item.id} className="grid gap-4 sm:grid-cols-[82px_18px_1fr_auto] sm:items-start">
-                                                    <div className="pt-1 text-sm font-medium text-slate-500">{item.time}</div>
-                                                    <div className="relative flex h-full justify-center">
-                                                        <span className={`mt-1 h-4 w-4 rounded-full ${item.kind === "transport" ? "bg-amber-300" : "bg-rose-400"}`} />
-                                                        <span className="absolute top-5 bottom-0 w-px bg-slate-200" />
-                                                    </div>
-                                                    <div className="rounded-[1.5rem] bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70">
-                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                            <div>
-                                                                <p className="text-base font-semibold text-slate-900">{item.title}</p>
-                                                                <p className="mt-1 text-sm capitalize text-slate-500">{item.category}</p>
-                                                                {item.duration_text && (
-                                                                    <p className="mt-2 text-sm text-slate-500">{item.duration_text}</p>
-                                                                )}
-                                                                {item.notes && (
-                                                                    <p className="mt-2 text-sm text-slate-500">{item.notes}</p>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-sm font-medium text-slate-600">
-                                                                {formatMoney(item.cost, result.itinerary.currency)}
-                                                            </div>
+                                            {timelineItems(day).map((item) => {
+                                                const transportLegs = item.transport_legs ?? [];
+                                                const canExpandTransport = item.kind === "transport" && transportLegs.length > 0;
+                                                const isTransportExpanded = expandedTransportIds.has(item.id);
+
+                                                return (
+                                                    <div key={item.id} className="grid gap-4 sm:grid-cols-[82px_18px_1fr_auto] sm:items-start">
+                                                        <div className="pt-1 text-sm font-medium text-slate-500">{item.time}</div>
+                                                        <div className="relative flex h-full justify-center">
+                                                            <span className={`mt-1 h-4 w-4 rounded-full ${item.kind === "transport" ? "bg-amber-300" : "bg-rose-400"}`} />
+                                                            <span className="absolute top-5 bottom-0 w-px bg-slate-200" />
                                                         </div>
+                                                        <div className="rounded-[1.5rem] bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70">
+                                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                                <div>
+                                                                    <p className="text-base font-semibold text-slate-900">{item.title}</p>
+                                                                    <p className="mt-1 text-sm capitalize text-slate-500">{item.category}</p>
+                                                                    {item.duration_text && (
+                                                                        <p className="mt-2 text-sm text-slate-500">{item.duration_text}</p>
+                                                                    )}
+                                                                    {item.notes && (
+                                                                        <p className="mt-2 text-sm text-slate-500">{item.notes}</p>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-sm font-medium text-slate-600">
+                                                                    {formatMoney(item.cost, result.itinerary.currency)}
+                                                                </div>
+                                                            </div>
+
+                                                            {canExpandTransport && (
+                                                                <div className="mt-4 border-t border-slate-100 pt-4">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => toggleTransportDetails(item.id)}
+                                                                        className="text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+                                                                    >
+                                                                        {isTransportExpanded ? "Hide connections" : "Show connections"}
+                                                                    </button>
+
+                                                                    {isTransportExpanded && (
+                                                                        <div className="mt-4 space-y-3">
+                                                                            {transportLegs.map((leg, legIndex) => {
+                                                                                const departureTime = formatTransportTime(leg.departure_time);
+                                                                                const arrivalTime = formatTransportTime(leg.arrival_time);
+                                                                                return (
+                                                                                    <div key={`${item.id}-${legIndex}`} className="rounded-2xl bg-stone-50 px-4 py-3 ring-1 ring-slate-200/70">
+                                                                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                                                            <div>
+                                                                                                <p className="text-sm font-semibold capitalize text-slate-900">
+                                                                                                    {leg.mode}{leg.line ? ` ${leg.line}` : ""}
+                                                                                                </p>
+                                                                                                <p className="mt-1 text-sm text-slate-500">
+                                                                                                    {leg.origin} to {leg.destination}
+                                                                                                </p>
+                                                                                                {leg.direction && (
+                                                                                                    <p className="mt-1 text-xs text-slate-400">Direction: {leg.direction}</p>
+                                                                                                )}
+                                                                                                {leg.notes && <p className="mt-1 text-xs text-slate-400">{leg.notes}</p>}
+                                                                                            </div>
+                                                                                            <div className="text-sm font-medium text-slate-600">
+                                                                                                {[departureTime, arrivalTime].filter(Boolean).join(" - ")}
+                                                                                                {leg.duration_minutes ? ` · ${leg.duration_minutes} min` : ""}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {item.refreshable ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRefreshItem(item.id)}
+                                                                disabled={refreshingItemId === item.id}
+                                                                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            >
+                                                                {refreshingItemId === item.id ? "Refreshing..." : "Refresh stop"}
+                                                            </button>
+                                                        ) : (
+                                                            <div />
+                                                        )}
                                                     </div>
-                                                    {item.refreshable ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRefreshItem(item.id)}
-                                                            disabled={refreshingItemId === item.id}
-                                                            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            {refreshingItemId === item.id ? "Refreshing..." : "Refresh stop"}
-                                                        </button>
-                                                    ) : (
-                                                        <div />
-                                                    )}
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </article>
                                 ))}
@@ -448,11 +536,10 @@ export default function PlanPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={handleSubmit}
-                                    disabled={loading}
+                                    onClick={handleRestartQuiz}
                                     className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    {loading ? "Refreshing plan..." : "Generate another version"}
+                                    Restart quiz
                                 </button>
                             </div>
                     </section>

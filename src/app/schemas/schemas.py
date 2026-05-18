@@ -71,6 +71,18 @@ class RecommendRequest(BaseModel):
     budget_tier: Literal["budget", "mid", "luxury"] | None = None
 
 
+class TimelineTransportLeg(BaseModel):
+    mode: str = Field(max_length=40)
+    line: str | None = Field(default=None, max_length=80)
+    departure_time: str | None = Field(default=None, max_length=80)
+    arrival_time: str | None = Field(default=None, max_length=80)
+    duration_minutes: int | None = Field(default=None, ge=0, le=10_000)
+    origin: str = Field(max_length=255)
+    destination: str = Field(max_length=255)
+    direction: str | None = Field(default=None, max_length=255)
+    notes: str = Field(default="", max_length=500)
+
+
 class TimelineItem(BaseModel):
     id: str = Field(max_length=128)
     kind: Literal["activity", "transport"]
@@ -80,6 +92,9 @@ class TimelineItem(BaseModel):
     cost: float = Field(ge=0, le=100_000)
     duration_text: str | None = Field(default=None, max_length=120)
     transport_mode: str | None = Field(default=None, max_length=40)
+    transport_legs: list[TimelineTransportLeg] = Field(
+        default_factory=list, max_length=20
+    )
     notes: str | None = Field(default=None, max_length=500)
     url: str | None = Field(default=None, max_length=2048)
     refreshable: bool = False
