@@ -135,6 +135,80 @@ function timelineItems(day: Recommendation["itinerary"]["days"][number]): Timeli
           }));
 }
 
+function TrainLoadingPopup() {
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+            aria-label="Generating proposed itinerary"
+        >
+            <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/70 bg-white p-6 text-center shadow-2xl shadow-slate-950/25">
+                <div className="relative mx-auto mb-5 h-28 overflow-hidden rounded-[1.5rem] bg-[linear-gradient(180deg,#dbeafe_0%,#f8fafc_58%,#e7e5e4_58%,#e7e5e4_100%)]">
+                    <div className="plan-loader-cloud top-5 left-6 w-12" />
+                    <div className="plan-loader-cloud top-8 right-8 w-16" />
+                    <div className="absolute right-5 bottom-10 left-5 h-1 rounded-full bg-slate-500" />
+                    <div className="plan-loader-sleepers absolute right-4 bottom-7 left-4 h-3" />
+                    <div className="plan-loader-train absolute bottom-10 left-0 flex items-end gap-1">
+                        <div className="relative h-10 w-16 rounded-t-xl rounded-br-md rounded-bl-lg bg-slate-900 shadow-lg">
+                            <div className="absolute top-2 left-3 h-3 w-7 rounded-md bg-sky-200" />
+                            <div className="absolute -right-1 bottom-0 h-6 w-4 rounded-t-md bg-rose-300" />
+                            <div className="absolute bottom-[-7px] left-3 h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
+                            <div className="absolute right-3 bottom-[-7px] h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
+                        </div>
+                        <div className="relative h-8 w-12 rounded-lg bg-rose-300 shadow-lg">
+                            <div className="absolute top-2 left-2 h-2 w-8 rounded-full bg-rose-100" />
+                            <div className="absolute bottom-[-7px] left-2 h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
+                            <div className="absolute right-2 bottom-[-7px] h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
+                        </div>
+                    </div>
+                </div>
+                <p className="text-sm font-semibold tracking-[0.18em] text-rose-500 uppercase">All aboard</p>
+                <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Building your Swiss route</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Querying the travel APIs and stitching together your proposed itinerary.
+                </p>
+            </div>
+            <style>{`
+                .plan-loader-cloud {
+                    position: absolute;
+                    height: 10px;
+                    border-radius: 9999px;
+                    background: rgba(255, 255, 255, 0.92);
+                    box-shadow: 14px -5px 0 2px rgba(255, 255, 255, 0.78), 28px 0 0 rgba(255, 255, 255, 0.74);
+                    animation: plan-cloud-drift 5s linear infinite;
+                }
+
+                .plan-loader-sleepers {
+                    background-image: repeating-linear-gradient(90deg, rgba(71, 85, 105, 0.32) 0 8px, transparent 8px 18px);
+                    animation: plan-track-roll 0.7s linear infinite;
+                }
+
+                .plan-loader-train {
+                    animation: plan-train-ride 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+                }
+
+                @keyframes plan-train-ride {
+                    0% { transform: translateX(-120px); }
+                    45% { transform: translateX(110px); }
+                    55% { transform: translateX(120px); }
+                    100% { transform: translateX(360px); }
+                }
+
+                @keyframes plan-track-roll {
+                    from { background-position-x: 0; }
+                    to { background-position-x: 18px; }
+                }
+
+                @keyframes plan-cloud-drift {
+                    from { transform: translateX(30px); }
+                    to { transform: translateX(-60px); }
+                }
+            `}</style>
+        </div>
+    );
+}
+
 export default function PlanPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -259,6 +333,7 @@ export default function PlanPage() {
             title="Plan a trip"
             description="Answer a few quick questions, then shape a day-style itinerary without leaving the planner."
         >
+            {loading && <TrainLoadingPopup />}
             <div className="mx-auto max-w-5xl space-y-6">
                 <section className="rounded-[2.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(30,41,59,0.95))] p-6 text-white shadow-2xl shadow-slate-900/10 sm:p-8 lg:p-10">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
