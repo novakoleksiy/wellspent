@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
@@ -29,12 +29,41 @@ export default function AppShell({
 }: AppShellProps) {
   const { user, logout } = useAuth();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const initials = user?.full_name
     ?.split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && profileMenuRef.current?.contains(event.target)) {
+        return;
+      }
+
+      setIsProfileMenuOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isProfileMenuOpen]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(254,226,226,0.75),_transparent_32%),linear-gradient(180deg,#fcfbf8_0%,#f8f5ef_100%)] text-slate-900">
@@ -63,7 +92,7 @@ export default function AppShell({
             ))}
           </nav>
 
-          <div className="relative shrink-0">
+          <div ref={profileMenuRef} className="relative shrink-0">
             <button
               type="button"
               onClick={() => setIsProfileMenuOpen((open) => !open)}

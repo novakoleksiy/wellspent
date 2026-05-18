@@ -87,16 +87,13 @@ export default function HomePage() {
         </section>
 
         <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
-          <div className="flex items-center justify-between gap-4">
+          <div>
             <div>
               <p className="text-sm font-medium text-slate-500">Recent trips</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
                 Your completed trips.
               </h2>
             </div>
-            <Link to="/plan" className="text-sm font-medium text-slate-600 transition hover:text-slate-900">
-              Plan another
-            </Link>
           </div>
 
           {error && (
@@ -141,11 +138,11 @@ export default function HomePage() {
                     )}
                     <div className={heroImageUrl ? "px-5 py-5" : ""}>
                       <div className="flex items-start justify-between gap-3">
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
                           <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</p>
                         </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
                           {formatDate(trip.created_at)}
                         </span>
                       </div>
