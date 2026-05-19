@@ -82,6 +82,11 @@ class SwissTourismClient(Protocol):
         *,
         query: str | None = None,
         destination_id: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        radius_m: int | None = None,
+        bbox: tuple[float, float, float, float] | None = None,
+        top: bool | None = None,
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[AttractionRecord]: ...

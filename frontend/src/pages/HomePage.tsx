@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../hooks/useAuth";
+import { getTripHeroImageUrl } from "../tripImages";
 import type { TripOut } from "../types";
 
 const nearbyIdeas = [
@@ -86,16 +87,13 @@ export default function HomePage() {
         </section>
 
         <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
-          <div className="flex items-center justify-between gap-4">
+          <div>
             <div>
               <p className="text-sm font-medium text-slate-500">Recent trips</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
                 Your completed trips.
               </h2>
             </div>
-            <Link to="/plan" className="text-sm font-medium text-slate-600 transition hover:text-slate-900">
-              Plan another
-            </Link>
           </div>
 
           {error && (
@@ -119,30 +117,46 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {recentTrips.map((trip) => (
-                <Link
-                  key={trip.id}
-                  to={`/trips/${trip.id}`}
-                  className="rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                      <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</p>
+              {recentTrips.map((trip) => {
+                const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
+
+                return (
+                  <Link
+                    key={trip.id}
+                    to={`/trips/${trip.id}`}
+                    className={heroImageUrl
+                      ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white transition hover:border-slate-300"
+                      : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"}
+                  >
+                    {heroImageUrl && (
+                      <img
+                        src={heroImageUrl}
+                        alt={trip.destination}
+                        className="h-40 w-full object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
+                          <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</p>
+                        </div>
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                          {formatDate(trip.created_at)}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-500">
+                        {trip.description || "Saved from your recommendation flow and ready to revisit."}
+                      </p>
+                      <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
+                        <span>{trip.itinerary?.days?.length ?? 0} day{trip.itinerary?.days?.length === 1 ? "" : "s"}</span>
+                        <span className="font-medium capitalize">completed</span>
+                      </div>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
-                      {formatDate(trip.created_at)}
-                    </span>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-500">
-                    {trip.description || "Saved from your recommendation flow and ready to revisit."}
-                  </p>
-                  <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
-                    <span>{trip.itinerary?.days?.length ?? 0} day{trip.itinerary?.days?.length === 1 ? "" : "s"}</span>
-                    <span className="font-medium capitalize">completed</span>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>

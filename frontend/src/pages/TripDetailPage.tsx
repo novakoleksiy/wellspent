@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { completeTrip, getTrip, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
 import TripCompletionModal from "../components/TripCompletionModal";
+import { getTripHeroImageUrl } from "../tripImages";
 import type { TimelineItem, TripCompleteRequest, TripOut } from "../types";
 
 function formatMoney(total: number, currency: string): string {
@@ -109,6 +110,8 @@ export default function TripDetailPage() {
         }
     };
 
+    const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
+
     return (
         <AppShell
             title={trip.title}
@@ -140,8 +143,16 @@ export default function TripDetailPage() {
                 </p>
             )}
 
-            <section className="mb-6 overflow-hidden rounded-[2.25rem] bg-slate-900 text-white shadow-xl shadow-slate-900/10">
-                <div className="grid gap-6 px-6 py-7 sm:px-8 sm:py-8 lg:grid-cols-[1.15fr_0.85fr]">
+            <section className="relative mb-6 overflow-hidden rounded-[2.25rem] bg-slate-900 text-white shadow-xl shadow-slate-900/10">
+                {heroImageUrl && (
+                    <img
+                        src={heroImageUrl}
+                        alt={trip.destination}
+                        className="absolute inset-0 h-full w-full object-cover opacity-45"
+                    />
+                )}
+                {heroImageUrl && <div className="absolute inset-0 bg-slate-950/45" />}
+                <div className="relative grid gap-6 px-6 py-7 sm:px-8 sm:py-8 lg:grid-cols-[1.15fr_0.85fr]">
                     <div>
                         <p className="text-sm font-medium text-white/65">Itinerary overview</p>
                         <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">

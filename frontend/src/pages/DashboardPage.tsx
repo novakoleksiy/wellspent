@@ -4,6 +4,7 @@ import { createFolder, deleteFolder, listFolders } from "../api/folders";
 import { completeTrip, deleteTrip, listTrips, setTripFolder, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
 import TripCompletionModal from "../components/TripCompletionModal";
+import { getTripHeroImageUrl } from "../tripImages";
 import type { FolderOut, TripCompleteRequest, TripOut } from "../types";
 
 function formatDate(date: string): string {
@@ -428,48 +429,61 @@ export default function TripsPage() {
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {items.map((trip) => {
               const dayCount = trip.itinerary?.days?.length ?? 0;
+              const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
 
               return (
                 <article
                   key={trip.id}
-                  className="rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"
+                  className={heroImageUrl
+                    ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white transition hover:border-slate-300"
+                    : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                      <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</p>
+                  {heroImageUrl && (
+                    <img
+                      src={heroImageUrl}
+                      alt={trip.destination}
+                      className="h-44 w-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
+                        <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</p>
+                      </div>
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                        {formatDate(trip.created_at)}
+                      </span>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
-                      {formatDate(trip.created_at)}
-                    </span>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-500">
+                      {trip.description || "Saved from your recommendation flow and ready to revisit."}
+                    </p>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-slate-600">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Days</p>
+                        <p className="mt-2 font-medium text-slate-800">{dayCount || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Status</p>
+                        <p className="mt-2 font-medium capitalize text-slate-800">{trip.status}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Community</p>
+                        <p className="mt-2 font-medium text-slate-800">{trip.shared_at ? "Shared" : "Private"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Estimated total</p>
+                        <p className="mt-2 font-medium text-slate-800">
+                          {formatMoney(trip.itinerary?.estimated_total, trip.itinerary?.currency)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {renderTripActions(trip)}
                   </div>
-
-                  <p className="mt-4 text-sm leading-6 text-slate-500">
-                    {trip.description || "Saved from your recommendation flow and ready to revisit."}
-                  </p>
-
-                  <div className="mt-5 grid grid-cols-2 gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-slate-600">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Days</p>
-                      <p className="mt-2 font-medium text-slate-800">{dayCount || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Status</p>
-                      <p className="mt-2 font-medium capitalize text-slate-800">{trip.status}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Community</p>
-                      <p className="mt-2 font-medium text-slate-800">{trip.shared_at ? "Shared" : "Private"}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Estimated total</p>
-                      <p className="mt-2 font-medium text-slate-800">
-                        {formatMoney(trip.itinerary?.estimated_total, trip.itinerary?.currency)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {renderTripActions(trip)}
                 </article>
               );
             })}
@@ -564,39 +578,52 @@ export default function TripsPage() {
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {group.items.map((trip) => {
                     const dayCount = trip.itinerary?.days?.length ?? 0;
+                    const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
 
                     return (
                       <article
                         key={trip.id}
-                        className="rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"
+                        className={heroImageUrl
+                          ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white transition hover:border-slate-300"
+                          : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                            <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</h3>
+                        {heroImageUrl && (
+                          <img
+                            src={heroImageUrl}
+                            alt={trip.destination}
+                            className="h-44 w-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
+                              <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</h3>
+                            </div>
+                            <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                              {formatDate(trip.created_at)}
+                            </span>
                           </div>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
-                            {formatDate(trip.created_at)}
-                          </span>
+
+                          <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">
+                            {trip.description || "Saved from your recommendation flow and ready to revisit."}
+                          </p>
+
+                          <div className="mt-5 flex flex-wrap gap-2 text-sm text-slate-500">
+                            <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
+                              {dayCount || "-"} day{dayCount === 1 ? "" : "s"}
+                            </span>
+                            <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
+                              {formatMoney(trip.itinerary?.estimated_total, trip.itinerary?.currency)}
+                            </span>
+                            <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
+                              {trip.shared_at ? "Shared" : "Private"}
+                            </span>
+                          </div>
+
+                          {renderTripActions(trip)}
                         </div>
-
-                        <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">
-                          {trip.description || "Saved from your recommendation flow and ready to revisit."}
-                        </p>
-
-                        <div className="mt-5 flex flex-wrap gap-2 text-sm text-slate-500">
-                          <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
-                            {dayCount || "-"} day{dayCount === 1 ? "" : "s"}
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
-                            {formatMoney(trip.itinerary?.estimated_total, trip.itinerary?.currency)}
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
-                            {trip.shared_at ? "Shared" : "Private"}
-                          </span>
-                        </div>
-
-                        {renderTripActions(trip)}
                       </article>
                     );
                   })}

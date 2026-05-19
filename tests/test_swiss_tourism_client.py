@@ -41,14 +41,18 @@ def test_extract_geo_missing_returns_none():
 
 def test_extract_images_uses_url_then_src():
     item = {
+        "name": "Matterhorn",
+        "photo": "https://example.com/hero.jpg",
         "image": [
             {"url": "https://example.com/a.jpg", "name": "Alpine view"},
             {"src": "https://example.com/b.jpg"},
+            {"url": "https://example.com/hero.jpg"},
             {},  # no url/src — should be skipped
-        ]
+        ],
     }
     result = HttpxSwissTourismClient._extract_images(item)
     assert result == [
+        SwissImage(url="https://example.com/hero.jpg", title="Matterhorn"),
         SwissImage(url="https://example.com/a.jpg", title="Alpine view"),
         SwissImage(url="https://example.com/b.jpg", title=""),
     ]
@@ -126,7 +130,7 @@ async def test_list_destinations_passes_query(client: HttpxSwissTourismClient):
     request = respx.calls.last.request
     assert request.url.params["query"] == "alps"
     assert request.url.params["page"] == "1"  # 0-indexed
-    assert request.url.params["size"] == "5"
+    assert request.url.params["hitsPerPage"] == "5"
     assert request.url.params["lang"] == "en"
 
 
@@ -186,10 +190,11 @@ async def test_list_attractions(client: HttpxSwissTourismClient):
     payload = {
         "data": [
             {
-                "id": "chillon",
+                "identifier": "chillon",
                 "name": "Château de Chillon",
-                "description": "Medieval castle.",
+                "abstract": "Medieval castle.",
                 "category": "castle",
+                "photo": "https://img.example.com/chillon.jpg",
                 "url": "https://myswitzerland.com/chillon",
             }
         ],
@@ -205,7 +210,13 @@ async def test_list_attractions(client: HttpxSwissTourismClient):
     attr = result.data[0]
     assert isinstance(attr, AttractionRecord)
     assert attr.id == "chillon"
+    assert attr.description == "Medieval castle."
     assert attr.category == "castle"
+    assert attr.images == [
+        SwissImage(
+            url="https://img.example.com/chillon.jpg", title="Château de Chillon"
+        )
+    ]
 
 
 @pytest.mark.asyncio
@@ -218,6 +229,22 @@ async def test_list_attractions_passes_destination_id(client: HttpxSwissTourismC
     await client.list_attractions(destination_id="zurich")
 
     assert respx.calls.last.request.url.params["placeId"] == "zurich"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_attractions_passes_geo_filters(client: HttpxSwissTourismClient):
+    respx.get(f"{BASE_URL}/attractions/").mock(
+        return_value=Response(200, json={"data": [], "meta": {}})
+    )
+
+    await client.list_attractions(
+        latitude=47.3769, longitude=8.5417, radius_m=1000, top=True
+    )
+
+    params = respx.calls.last.request.url.params
+    assert params["geo.dist"] == "47.3769,8.5417,1000"
+    assert params["top"] == "true"
 
 
 # ── get_attraction ────────────────────────────────────────────────────────────

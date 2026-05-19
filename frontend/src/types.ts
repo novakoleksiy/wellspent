@@ -30,6 +30,7 @@ export interface RecommendRequest {
     transport_mode: "car" | "public_transport";
     trip_length: "2_3_hours" | "half_day" | "full_day";
     group_type: "solo" | "couple" | "family" | "friends";
+    budget_tier?: "budget" | "mid" | "luxury";
 }
 
 export interface Activity {
@@ -39,6 +40,7 @@ export interface Activity {
     category: string;
     cost: number;
     url?: string | null;
+    image_url?: string | null;
 }
 
 export interface TimelineItem {
@@ -50,9 +52,23 @@ export interface TimelineItem {
     cost: number;
     duration_text?: string | null;
     transport_mode?: string | null;
+    transport_legs?: TransportLeg[];
     notes?: string | null;
     url?: string | null;
+    image_url?: string | null;
     refreshable: boolean;
+}
+
+export interface TransportLeg {
+    mode: string;
+    line?: string | null;
+    departure_time?: string | null;
+    arrival_time?: string | null;
+    duration_minutes?: number | null;
+    origin: string;
+    destination: string;
+    direction?: string | null;
+    notes: string;
 }
 
 export interface ItineraryDay {

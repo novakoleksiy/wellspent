@@ -145,6 +145,7 @@ class RecommendationItem:
     score: float
     latitude: float | None = None
     longitude: float | None = None
+    image_url: str | None = None
 
 
 def _score_text(name: str, description: str, category: str, styles: list[str]) -> float:
@@ -218,6 +219,7 @@ def _build_day_timeline(
                 "category": activity["category"],
                 "cost": activity["cost"],
                 "url": activity.get("url"),
+                "image_url": activity.get("image_url"),
                 "refreshable": True,
             }
         )
@@ -291,6 +293,23 @@ def _summarize_transport_route(route: TransportItinerary) -> tuple[str, str, str
     return title, duration_text, notes
 
 
+def _transport_leg_details(route: TransportItinerary) -> list[dict]:
+    return [
+        {
+            "mode": leg.mode,
+            "line": leg.line,
+            "departure_time": leg.departure_time,
+            "arrival_time": leg.arrival_time,
+            "duration_minutes": leg.duration_minutes,
+            "origin": leg.origin,
+            "destination": leg.destination,
+            "direction": leg.direction,
+            "notes": leg.notes,
+        }
+        for leg in route.legs
+    ]
+
+
 async def _enrich_public_transport_timeline(
     days: list[dict],
     transport_client: PublicTransportClient,
@@ -343,6 +362,7 @@ async def _enrich_public_transport_timeline(
             timeline_item["title"] = title
             timeline_item["duration_text"] = duration_text
             timeline_item["notes"] = notes
+            timeline_item["transport_legs"] = _transport_leg_details(route)
             if route.price is not None:
                 timeline_item["cost"] = route.price
 
@@ -393,9 +413,11 @@ def _build_itinerary(
                 idx += 1
                 name, category, url = item.name, item.category, item.url
                 latitude, longitude = item.latitude, item.longitude
+                image_url = item.image_url
             else:
                 name, category, url = "Free exploration", "leisure", ""
                 latitude, longitude = None, None
+                image_url = None
 
             activity_total += slot_cost
             activities.append(
@@ -406,6 +428,7 @@ def _build_itinerary(
                     "category": category or "activity",
                     "cost": slot_cost,
                     "url": url or None,
+                    "image_url": image_url,
                     "_latitude": latitude,
                     "_longitude": longitude,
                 }
@@ -448,6 +471,7 @@ async def _collect_destination_items(
     )
 
     items: list[RecommendationItem] = []
+    fallback_image_url = dest.images[0].url if dest.images else None
     for attr in attractions_result.data:
         score = _score_text(attr.name, attr.description, attr.category, styles)
         items.append(
@@ -458,6 +482,7 @@ async def _collect_destination_items(
                 score=score,
                 latitude=attr.geo.latitude if attr.geo else None,
                 longitude=attr.geo.longitude if attr.geo else None,
+                image_url=attr.images[0].url if attr.images else fallback_image_url,
             )
         )
 
@@ -472,6 +497,7 @@ async def _collect_destination_items(
                 score=score,
                 latitude=tour.geo.latitude if tour.geo else None,
                 longitude=tour.geo.longitude if tour.geo else None,
+                image_url=tour.images[0].url if tour.images else fallback_image_url,
             )
         )
 
@@ -484,6 +510,7 @@ async def _collect_destination_items(
                 score=0.7,
                 latitude=dest.geo.latitude if dest.geo else None,
                 longitude=dest.geo.longitude if dest.geo else None,
+                image_url=fallback_image_url,
             )
         ]
 
@@ -527,10 +554,11 @@ async def recommend(
     transport_mode: Literal["car", "public_transport"] = "public_transport",
     trip_length: Literal["2_3_hours", "half_day", "full_day"] | None = None,
     group_type: Literal["solo", "couple", "family", "friends"] = "solo",
+    budget_tier: Literal["budget", "mid", "luxury"] | None = None,
     public_transport_client: PublicTransportClient | None = None,
 ) -> list[dict]:
     prefs = preferences or {}
-    budget_tier: str = prefs.get("budget_tier", "mid")
+    selected_budget_tier: str = budget_tier or prefs.get("budget_tier", "mid")
     pace: str = prefs.get("pace", "moderate")
     styles = _effective_styles(preferences, mood, group_type)
     selected_trip_length = trip_length or _PACE_TO_TRIP_LENGTH.get(pace, "half_day")
@@ -547,7 +575,7 @@ async def recommend(
             items,
             start_date,
             end_date,
-            budget_tier,
+            selected_budget_tier,
             selected_trip_length,
             group_type,
             transport_mode,
@@ -609,6 +637,7 @@ def _replace_activity_in_itinerary(
             activity["title"] = replacement.name
             activity["category"] = replacement.category or "activity"
             activity["url"] = replacement.url or None
+            activity["image_url"] = replacement.image_url
             activity["_latitude"] = replacement.latitude
             activity["_longitude"] = replacement.longitude
             replaced = True
