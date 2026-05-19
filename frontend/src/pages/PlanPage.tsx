@@ -214,6 +214,8 @@ export default function PlanPage() {
     const [searchParams] = useSearchParams();
     const [form, setForm] = useState<PlannerForm>(() => initialPlannerForm());
     const [stepIndex, setStepIndex] = useState(0);
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [travelersTouched, setTravelersTouched] = useState(false);
     const [result, setResult] = useState<Recommendation | null>(null);
     const [loading, setLoading] = useState(false);
     const [refreshingItemId, setRefreshingItemId] = useState<string | null>(null);
@@ -243,7 +245,7 @@ export default function PlanPage() {
             setForm((current) => ({
                 ...current,
                 group_type: value as PlannerForm["group_type"],
-                travelers: defaultTravelers(value),
+                travelers: travelersTouched ? current.travelers : defaultTravelers(value),
             }));
         } else {
             set(currentStep.key, value as never);
@@ -271,9 +273,16 @@ export default function PlanPage() {
     const handleRestartQuiz = () => {
         setForm(initialPlannerForm(searchParams.get("destination") || ""));
         setStepIndex(0);
+        setShowAdvanced(false);
+        setTravelersTouched(false);
         setResult(null);
         setExpandedTransportIds(new Set());
         setError("");
+    };
+
+    const updateTravelers = (value: number) => {
+        setTravelersTouched(true);
+        set("travelers", Number.isFinite(value) ? Math.max(1, value) : 1);
     };
 
     const handleSubmit = async () => {
@@ -404,6 +413,13 @@ export default function PlanPage() {
                             >
                                 Next
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowAdvanced((open) => !open)}
+                                className="rounded-full border border-white/12 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/8"
+                            >
+                                {showAdvanced ? "Hide advanced" : "Advanced trip details"}
+                            </button>
                         </div>
                         <button
                             type="button"
@@ -418,6 +434,74 @@ export default function PlanPage() {
                                   : "Answer all questions to generate"}
                         </button>
                     </div>
+
+                    {showAdvanced && (
+                        <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/6 p-5 sm:p-7">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-white/60">Advanced trip details</p>
+                                    <h3 className="mt-1 text-2xl font-semibold tracking-tight text-white">
+                                        Add specifics before generating.
+                                    </h3>
+                                </div>
+                                <span className="w-fit rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/65">
+                                    Optional
+                                </span>
+                            </div>
+
+                            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                                <label className="text-sm font-medium text-white/78">
+                                    Destination idea
+                                    <input
+                                        type="text"
+                                        value={form.destination}
+                                        onChange={(event) => set("destination", event.target.value)}
+                                        placeholder="Leave blank for a surprise"
+                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-300"
+                                    />
+                                </label>
+                                <label className="text-sm font-medium text-white/78">
+                                    Travelers
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={form.travelers}
+                                        onChange={(event) => updateTravelers(event.currentTarget.valueAsNumber)}
+                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-rose-300"
+                                    />
+                                </label>
+                                <label className="text-sm font-medium text-white/78">
+                                    Start date
+                                    <input
+                                        type="date"
+                                        value={form.start_date}
+                                        onChange={(event) => set("start_date", event.target.value)}
+                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-rose-300"
+                                    />
+                                </label>
+                                <label className="text-sm font-medium text-white/78">
+                                    End date
+                                    <input
+                                        type="date"
+                                        value={form.end_date}
+                                        onChange={(event) => set("end_date", event.target.value)}
+                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-rose-300"
+                                    />
+                                </label>
+                            </div>
+
+                            <label className="mt-4 block text-sm font-medium text-white/78">
+                                Notes
+                                <textarea
+                                    value={form.notes}
+                                    onChange={(event) => set("notes", event.target.value)}
+                                    rows={3}
+                                    placeholder="Scenic rail route, fewer museums, kid-friendly lunch stop..."
+                                    className="mt-2 w-full rounded-[1.5rem] border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-300"
+                                />
+                            </label>
+                        </div>
+                    )}
 
                     {!result && error && (
                         <p className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
