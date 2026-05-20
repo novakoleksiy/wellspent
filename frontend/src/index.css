@@ -168,9 +168,9 @@ select {
 }
 
 .ws-btn-primary {
-  background: var(--ws-ink);
-  color: var(--ws-bg) !important;
-  box-shadow: 0 14px 30px rgba(20, 19, 15, 0.12);
+  background: var(--ws-orange);
+  color: var(--ws-cream) !important;
+  box-shadow: 0 14px 30px rgba(228, 87, 46, 0.2);
 }
 
 .ws-btn-primary:hover,
@@ -190,8 +190,9 @@ select {
 }
 
 .ws-btn-accent {
-  background: var(--ws-yellow);
-  color: var(--ws-ink);
+  background: var(--ws-orange);
+  color: var(--ws-cream);
+  box-shadow: 0 14px 30px rgba(228, 87, 46, 0.2);
 }
 
 .ws-input {

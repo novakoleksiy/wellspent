@@ -125,8 +125,8 @@ export default function HomePage() {
                     key={trip.id}
                     to={`/trips/${trip.id}`}
                     className={heroImageUrl
-                      ? "overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
-                      : "rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
+                      ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
+                      : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
                   >
                     {heroImageUrl && (
                       <img
@@ -136,20 +136,20 @@ export default function HomePage() {
                         loading="lazy"
                       />
                     )}
-                    <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                    <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
-                          <p className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
+                          <p className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
                         </div>
                         <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                           {formatDate(trip.created_at)}
                         </span>
                       </div>
-                      <p className="mt-4 text-sm leading-6 text-[var(--ws-muted)]">
+                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-[var(--ws-muted)]">
                         {trip.description || "Saved from your recommendation flow and ready to revisit."}
                       </p>
-                      <div className="mt-5 flex items-center justify-between text-sm text-[var(--ws-muted)]">
+                      <div className="mt-auto flex items-center justify-between pt-5 text-sm text-[var(--ws-muted)]">
                         <span>{trip.itinerary?.days?.length ?? 0} day{trip.itinerary?.days?.length === 1 ? "" : "s"}</span>
                         <span className="font-medium capitalize">completed</span>
                       </div>

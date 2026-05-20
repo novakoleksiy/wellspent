@@ -435,8 +435,8 @@ export default function TripsPage() {
                 <article
                   key={trip.id}
                   className={heroImageUrl
-                    ? "overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
-                    : "rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
+                    ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
+                    : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
                 >
                   {heroImageUrl && (
                     <img
@@ -446,22 +446,22 @@ export default function TripsPage() {
                       loading="lazy"
                     />
                   )}
-                  <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                  <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
-                        <p className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
+                        <p className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
                       </div>
                       <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                         {formatDate(trip.created_at)}
                       </span>
                     </div>
 
-                    <p className="mt-4 text-sm leading-6 text-[var(--ws-muted)]">
+                    <p className="mb-5 mt-4 line-clamp-3 text-sm leading-6 text-[var(--ws-muted)]">
                       {trip.description || "Saved from your recommendation flow and ready to revisit."}
                     </p>
 
-                    <div className="mt-5 grid grid-cols-2 gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-[var(--ws-muted)]">
+                    <div className="mt-auto grid grid-cols-2 gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-[var(--ws-muted)]">
                       <div>
                         <p className="ws-mono text-[rgba(87,84,74,0.7)]">Days</p>
                         <p className="mt-2 font-medium text-[var(--ws-ink)]">{dayCount || "-"}</p>
@@ -584,8 +584,8 @@ export default function TripsPage() {
                       <article
                         key={trip.id}
                         className={heroImageUrl
-                          ? "overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
-                          : "rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
+                          ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
+                          : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
                       >
                         {heroImageUrl && (
                           <img
@@ -595,11 +595,11 @@ export default function TripsPage() {
                             loading="lazy"
                           />
                         )}
-                        <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                        <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
-                              <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</h3>
+                              <h3 className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</h3>
                             </div>
                             <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                               {formatDate(trip.created_at)}
@@ -610,7 +610,7 @@ export default function TripsPage() {
                             {trip.description || "Saved from your recommendation flow and ready to revisit."}
                           </p>
 
-                          <div className="mt-5 flex flex-wrap gap-2 text-sm text-[var(--ws-muted)]">
+                          <div className="mt-auto flex flex-wrap gap-2 pt-5 text-sm text-[var(--ws-muted)]">
                             <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
                               {dayCount || "-"} day{dayCount === 1 ? "" : "s"}
                             </span>
