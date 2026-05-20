@@ -54,28 +54,28 @@ export default function ExplorePage() {
             actions={
                 <Link
                     to="/plan"
-                    className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
+                    className="ws-btn-primary px-5 py-3 text-sm"
                 >
                     Plan a trip
                 </Link>
             }
         >
             <div className="space-y-6">
-                <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
+                <section className="ws-surface p-6 sm:p-7">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <p className="text-sm font-medium text-slate-500">Community Trips</p>
-                            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                            <p className="ws-mono text-[var(--ws-orange)]">Community Trips</p>
+                            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                 Latest trips shared by other members.
                             </h2>
                         </div>
-                        <span className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-slate-600">
+                        <span className="ws-pill px-4 py-2 text-sm font-medium">
                             {communityTrips.length}
                         </span>
                     </div>
 
                     {error && (
-                        <p className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        <p className="ws-error mt-5 px-4 py-3 text-sm">
                             {error}
                         </p>
                     )}
@@ -83,13 +83,13 @@ export default function ExplorePage() {
                     {loading ? (
                         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                             {Array.from({ length: 3 }).map((_, index) => (
-                                <div key={index} className="h-64 animate-pulse rounded-[1.75rem] bg-stone-100" />
+                                <div key={index} className="h-64 animate-pulse rounded-[1.75rem] bg-[var(--ws-cream)]" />
                             ))}
                         </div>
                     ) : communityTrips.length === 0 ? (
-                        <div className="mt-6 rounded-[1.75rem] border border-dashed border-slate-300 bg-stone-50/70 px-6 py-10 text-center">
-                            <p className="text-sm font-semibold tracking-[0.2em] text-slate-500 uppercase">Quiet for now</p>
-                            <p className="mt-3 text-base leading-7 text-slate-500">
+                        <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
+                            <p className="ws-mono text-[var(--ws-muted)]">Quiet for now</p>
+                            <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
                                 Shared trips from other members will appear here as soon as the community starts publishing them.
                             </p>
                         </div>
@@ -102,8 +102,8 @@ export default function ExplorePage() {
                                     <article
                                         key={trip.id}
                                         className={heroImageUrl
-                                            ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white"
-                                            : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5"}
+                                            ? "overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8]"
+                                            : "rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5"}
                                     >
                                         {heroImageUrl && (
                                             <img
@@ -116,28 +116,28 @@ export default function ExplorePage() {
                                         <div className={heroImageUrl ? "px-5 py-5" : ""}>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div>
-                                                    <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                                                    <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                                                    <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
+                                                    <p className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                                         {trip.title}
                                                     </p>
                                                 </div>
-                                                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                                                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                                                     {formatDate(trip.shared_at)}
                                                 </span>
                                             </div>
 
-                                            <p className="mt-4 text-sm leading-6 text-slate-500">
+                                            <p className="mt-4 text-sm leading-6 text-[var(--ws-muted)]">
                                                 {trip.description || "Shared from another member's saved itinerary."}
                                             </p>
 
-                                            <div className="mt-5 grid gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-slate-600 sm:grid-cols-2">
+                                            <div className="mt-5 grid gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-[var(--ws-muted)] sm:grid-cols-2">
                                                 <div>
-                                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Shared by</p>
-                                                    <p className="mt-2 font-medium text-slate-800">{trip.owner_name}</p>
+                                                    <p className="ws-mono text-[rgba(87,84,74,0.7)]">Shared by</p>
+                                                    <p className="mt-2 font-medium text-[var(--ws-ink)]">{trip.owner_name}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Days</p>
-                                                    <p className="mt-2 font-medium text-slate-800">
+                                                    <p className="ws-mono text-[rgba(87,84,74,0.7)]">Days</p>
+                                                    <p className="mt-2 font-medium text-[var(--ws-ink)]">
                                                         {trip.itinerary?.days?.length ?? 0}
                                                     </p>
                                                 </div>
@@ -146,7 +146,7 @@ export default function ExplorePage() {
                                             <button
                                                 type="button"
                                                 onClick={() => openPlan(trip.destination)}
-                                                className="mt-5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                                className="ws-btn-primary mt-5 px-4 py-2 text-sm"
                                             >
                                                 Plan your version
                                             </button>
@@ -158,15 +158,15 @@ export default function ExplorePage() {
                     )}
                 </section>
 
-                <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
+                <section className="ws-surface p-6 sm:p-7">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <p className="text-sm font-medium text-slate-500">Explore Nearby</p>
-                            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                            <p className="ws-mono text-[var(--ws-orange)]">Explore Nearby</p>
+                            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                 A few easy places to start.
                             </h2>
                         </div>
-                        <Link to="/plan" className="text-sm font-medium text-slate-600 transition hover:text-slate-900">
+                        <Link to="/plan" className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]">
                             Open planner
                         </Link>
                     </div>
@@ -175,15 +175,15 @@ export default function ExplorePage() {
                         {nearbyIdeas.map((idea) => (
                             <article
                                 key={idea.name}
-                                className="rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5"
+                                className="ws-chip-card px-5 py-5"
                             >
-                                <p className="text-sm font-medium text-slate-500">Nearby idea</p>
-                                <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{idea.name}</h3>
-                                <p className="mt-4 text-sm leading-6 text-slate-500">{idea.description}</p>
+                                <p className="ws-mono text-[var(--ws-muted)]">Nearby idea</p>
+                                <h3 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{idea.name}</h3>
+                                <p className="mt-4 text-sm leading-6 text-[var(--ws-muted)]">{idea.description}</p>
                                 <button
                                     type="button"
                                     onClick={() => openPlan(idea.name)}
-                                    className="mt-5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                    className="ws-btn-primary mt-5 px-4 py-2 text-sm"
                                 >
                                     Explore {idea.name}
                                 </button>

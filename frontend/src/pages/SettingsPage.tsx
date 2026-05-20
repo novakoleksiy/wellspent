@@ -39,28 +39,28 @@ export default function SettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="ws-btn-primary px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? "Saving..." : "Save preferences"}
         </button>
       }
     >
       <div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-        <section className="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
-          <p className="text-sm font-semibold tracking-[0.22em] text-slate-500 uppercase">
+        <section className="ws-surface p-6">
+          <p className="ws-mono text-[var(--ws-orange)]">
             Profile
           </p>
           <div className="mt-6 space-y-5">
             <div>
-              <p className="text-sm text-slate-500">Name</p>
-              <p className="mt-1 text-lg font-medium text-slate-900">{user?.full_name}</p>
+              <p className="text-sm text-[var(--ws-muted)]">Name</p>
+              <p className="mt-1 text-lg font-medium text-[var(--ws-ink)]">{user?.full_name}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">Email</p>
-              <p className="mt-1 text-lg font-medium text-slate-900">{user?.email}</p>
+              <p className="text-sm text-[var(--ws-muted)]">Email</p>
+              <p className="mt-1 text-lg font-medium text-[var(--ws-ink)]">{user?.email}</p>
             </div>
             {status && (
-              <p className="rounded-2xl bg-stone-100 px-4 py-3 text-sm text-slate-600">{status}</p>
+              <p className="rounded-2xl bg-[var(--ws-cream)] px-4 py-3 text-sm text-[var(--ws-muted)]">{status}</p>
             )}
           </div>
         </section>

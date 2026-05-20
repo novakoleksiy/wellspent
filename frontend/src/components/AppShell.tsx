@@ -17,8 +17,8 @@ const links = [
 
 function navClass(isActive: boolean): string {
   return isActive
-    ? "rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm"
-    : "rounded-full px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-white/70 hover:text-slate-900";
+    ? "rounded-full bg-[var(--ws-ink)] px-4 py-2 text-sm font-medium text-[var(--ws-bg)] shadow-sm"
+    : "rounded-full px-4 py-2 text-sm font-medium text-[var(--ws-muted)] transition hover:bg-white/70 hover:text-[var(--ws-ink)]";
 }
 
 export default function AppShell({
@@ -66,20 +66,16 @@ export default function AppShell({
   }, [isProfileMenuOpen]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(254,226,226,0.75),_transparent_32%),linear-gradient(180deg,#fcfbf8_0%,#f8f5ef_100%)] text-slate-900">
-      <header className="sticky top-0 z-30 border-b border-white/70 bg-[#fcfbf8]/85 backdrop-blur-xl">
+    <div className="ws-app-bg min-h-screen text-[var(--ws-ink)]">
+      <header className="sticky top-0 z-30 border-b border-[var(--ws-line)] bg-[rgba(244,241,234,0.88)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-4">
             <NavLink to="/" className="flex items-center gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold tracking-[0.18em] text-slate-500 uppercase">
-                  WellSpent
-                </p>
-              </div>
+              <img className="ws-logo" src="/landing/logo.png" alt="Wellspent" />
             </NavLink>
           </div>
 
-          <nav className="hidden items-center gap-2 rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-slate-200/70 md:flex">
+          <nav className="hidden items-center gap-2 rounded-full border border-[var(--ws-line)] bg-white/70 p-1 shadow-sm md:flex">
             {links.map((link) => (
               <NavLink
                 key={link.to}
@@ -96,24 +92,24 @@ export default function AppShell({
             <button
               type="button"
               onClick={() => setIsProfileMenuOpen((open) => !open)}
-              className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-3 py-2 text-left shadow-sm transition hover:border-slate-300"
+              className="flex items-center gap-3 rounded-full border border-[var(--ws-line)] bg-white/85 px-3 py-2 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)]"
               aria-expanded={isProfileMenuOpen}
               aria-haspopup="menu"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-semibold text-white shadow-lg shadow-slate-900/15">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--ws-orange)] text-sm font-semibold text-[var(--ws-cream)] shadow-lg shadow-orange-950/15">
                 {initials || "WS"}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900">{user?.full_name}</p>
+                <p className="truncate text-sm font-medium text-[var(--ws-ink)]">{user?.full_name}</p>
               </div>
             </button>
 
             {isProfileMenuOpen && (
-              <div className="absolute right-0 top-full z-40 mt-3 w-60 rounded-3xl border border-slate-200 bg-white/95 p-2 shadow-xl shadow-stone-200/60 backdrop-blur">
+              <div className="absolute right-0 top-full z-40 mt-3 w-60 rounded-3xl border border-[var(--ws-line)] bg-[#fffdf8]/95 p-2 shadow-xl shadow-stone-300/50 backdrop-blur">
                 <NavLink
                   to="/settings"
                   onClick={() => setIsProfileMenuOpen(false)}
-                  className="block rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                  className="block rounded-2xl px-4 py-3 text-sm font-medium text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)]"
                 >
                   My Profile
                 </NavLink>
@@ -123,7 +119,7 @@ export default function AppShell({
                     setIsProfileMenuOpen(false);
                     logout();
                   }}
-                  className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                  className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)]"
                 >
                   Sign out
                 </button>
@@ -136,11 +132,11 @@ export default function AppShell({
       <main className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
         <section className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="ws-display text-3xl sm:text-4xl">
               {title}
             </h1>
             {description && (
-              <p className="mt-3 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
+              <p className="mt-3 max-w-xl text-base leading-7 text-[var(--ws-muted)] sm:text-lg">
                 {description}
               </p>
             )}
@@ -152,7 +148,7 @@ export default function AppShell({
         {children}
       </main>
 
-      <nav className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-md items-center justify-between rounded-full border border-slate-200/80 bg-white/95 p-2 shadow-xl shadow-stone-200/60 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-md items-center justify-between rounded-full border border-[var(--ws-line)] bg-[#fffdf8]/95 p-2 shadow-xl shadow-stone-300/50 backdrop-blur md:hidden">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -160,8 +156,8 @@ export default function AppShell({
             end={link.to === "/"}
             className={({ isActive }) =>
               isActive
-                ? "flex-1 rounded-full bg-slate-900 px-3 py-3 text-center text-sm font-semibold text-white"
-                : "flex-1 rounded-full px-3 py-3 text-center text-sm font-medium text-slate-500 transition hover:text-slate-900"
+                ? "flex-1 rounded-full bg-[var(--ws-ink)] px-3 py-3 text-center text-sm font-semibold text-[var(--ws-bg)]"
+                : "flex-1 rounded-full px-3 py-3 text-center text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
             }
           >
             {link.label}

@@ -39,8 +39,8 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-5">
-      <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
-      <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+      <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{title}</h2>
+      <p className="mt-1 text-sm leading-6 text-[var(--ws-muted)]">{description}</p>
     </div>
   );
 }
@@ -60,13 +60,13 @@ function CardOption({
       className={[
         "rounded-3xl border p-5 text-left transition",
         selected
-          ? "border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:shadow-sm",
+          ? "border-[var(--ws-ink)] bg-[var(--ws-ink)] text-[var(--ws-bg)] shadow-lg shadow-stone-900/10"
+          : "border-[var(--ws-line)] bg-[#fffdf8] text-[var(--ws-ink)] hover:border-[rgba(20,19,15,0.24)] hover:shadow-sm",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
       ].join(" ")}
     >
       <p className="text-base font-semibold">{label}</p>
-      <p className={selected ? "mt-2 text-sm text-slate-300" : "mt-2 text-sm text-slate-500"}>
+      <p className={selected ? "mt-2 text-sm text-white/72" : "mt-2 text-sm text-[var(--ws-muted)]"}>
         {description}
       </p>
     </button>
@@ -87,8 +87,8 @@ function ChipOption({
       className={[
         "rounded-full border px-4 py-2 text-sm font-medium transition",
         selected
-          ? "border-rose-300 bg-rose-100 text-rose-900"
-          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900",
+          ? "border-[var(--ws-orange)] bg-[var(--ws-cream)] text-[var(--ws-orange)]"
+          : "border-[var(--ws-line)] bg-[#fffdf8] text-[var(--ws-muted)] hover:border-[rgba(20,19,15,0.24)] hover:text-[var(--ws-ink)]",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
       ].join(" ")}
     >
@@ -122,7 +122,7 @@ export default function PreferencesForm({
   return (
     <div className="space-y-8">
       {sections.includes("basics") && (
-        <section className="rounded-[2rem] border border-slate-200/80 bg-[#fffdf9] p-6 shadow-sm sm:p-8">
+        <section className="ws-surface-flat p-6 shadow-sm sm:p-8">
           <SectionHeader
             title="Travel rhythm"
             description="Tell us how you like to spend and how full you want your days to feel."
@@ -130,7 +130,7 @@ export default function PreferencesForm({
 
           <div className="space-y-6">
             <div>
-              <p className="mb-3 text-sm font-medium text-slate-700">Budget level</p>
+              <p className="mb-3 text-sm font-medium text-[var(--ws-ink-soft)]">Budget level</p>
               <div className="grid gap-3 lg:grid-cols-3">
                 {budgetOptions.map((option) => (
                   <CardOption
@@ -146,7 +146,7 @@ export default function PreferencesForm({
             </div>
 
             <div>
-              <p className="mb-3 text-sm font-medium text-slate-700">Trip pace</p>
+              <p className="mb-3 text-sm font-medium text-[var(--ws-ink-soft)]">Trip pace</p>
               <div className="grid gap-3 lg:grid-cols-3">
                 {paceOptions.map((option) => (
                   <CardOption
@@ -165,7 +165,7 @@ export default function PreferencesForm({
       )}
 
       {sections.includes("styles") && (
-        <section className="rounded-[2rem] border border-slate-200/80 bg-[#fffdf9] p-6 shadow-sm sm:p-8">
+        <section className="ws-surface-flat p-6 shadow-sm sm:p-8">
           <SectionHeader
             title="Style and stay"
             description="Pick the trip styles and stay types that should shape your recommendations."
@@ -173,7 +173,7 @@ export default function PreferencesForm({
 
           <div className="space-y-6">
             <div>
-              <p className="mb-3 text-sm font-medium text-slate-700">Travel styles</p>
+              <p className="mb-3 text-sm font-medium text-[var(--ws-ink-soft)]">Travel styles</p>
               <div className="flex flex-wrap gap-3">
                 {travelStyleOptions.map((option) => (
                   <ChipOption
@@ -185,13 +185,13 @@ export default function PreferencesForm({
                   />
                 ))}
               </div>
-              <p className="mt-3 text-sm text-slate-500">
+              <p className="mt-3 text-sm text-[var(--ws-muted)]">
                 Select at least one. We use these to rank recommendations.
               </p>
             </div>
 
             <div>
-              <p className="mb-3 text-sm font-medium text-slate-700">Accommodation types</p>
+              <p className="mb-3 text-sm font-medium text-[var(--ws-ink-soft)]">Accommodation types</p>
               <div className="flex flex-wrap gap-3">
                 {accommodationOptions.map((option) => (
                   <ChipOption
@@ -209,13 +209,13 @@ export default function PreferencesForm({
       )}
 
       {sections.includes("notes") && (
-        <section className="rounded-[2rem] border border-slate-200/80 bg-[#fffdf9] p-6 shadow-sm sm:p-8">
+        <section className="ws-surface-flat p-6 shadow-sm sm:p-8">
           <SectionHeader
             title="A little more context"
             description="Optional notes help capture the kind of trip you are in the mood for."
           />
 
-          <label className="block text-sm font-medium text-slate-700" htmlFor="preference-notes">
+          <label className="block text-sm font-medium text-[var(--ws-ink-soft)]" htmlFor="preference-notes">
             Notes
           </label>
           <textarea
@@ -225,7 +225,7 @@ export default function PreferencesForm({
             onChange={(event) => update("notes", event.target.value)}
             disabled={disabled}
             placeholder="Spa weekend, scenic train rides, low-key food spots, family-friendly pace..."
-            className="mt-3 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+            className="ws-input mt-3 w-full rounded-3xl px-4 py-3 text-sm transition"
           />
         </section>
       )}
