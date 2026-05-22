@@ -52,7 +52,7 @@ export default function TripDetailPage() {
     if (loading) {
         return (
             <AppShell title="Trip details" description="Loading your saved itinerary.">
-                <div className="h-72 animate-pulse rounded-[2rem] bg-white/70 shadow-sm" />
+                <div className="h-72 animate-pulse rounded-[2rem] bg-[#fffdf8]/70 shadow-sm" />
             </AppShell>
         );
     }
@@ -60,7 +60,7 @@ export default function TripDetailPage() {
     if (!trip) {
         return (
             <AppShell title="Trip details" description="We could not find this saved trip.">
-                <div className="rounded-[2rem] border border-rose-200 bg-rose-50 px-6 py-8 text-rose-700">
+                <div className="rounded-[2rem] border border-[rgba(228,87,46,0.24)] bg-[var(--ws-cream)] px-6 py-8 text-[var(--ws-orange)]">
                     {error || "Trip not found."}
                 </div>
             </AppShell>
@@ -123,14 +123,14 @@ export default function TripDetailPage() {
                             type="button"
                             onClick={() => setIsCompletionOpen(true)}
                             disabled={completing}
-                            className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-full bg-[var(--ws-green)] px-5 py-3 text-sm font-semibold text-[var(--ws-green-tint)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {completing ? "Completing..." : "Complete Trip"}
                         </button>
                     )}
                     <Link
                         to="/"
-                        className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                        className="ws-btn-secondary px-5 py-3 text-sm"
                     >
                         Back to homepage
                     </Link>
@@ -138,12 +138,12 @@ export default function TripDetailPage() {
             }
         >
             {error && (
-                <p className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <p className="mb-6 rounded-2xl border border-[rgba(228,87,46,0.24)] bg-[var(--ws-cream)] px-4 py-3 text-sm text-[var(--ws-orange)]">
                     {error}
                 </p>
             )}
 
-            <section className="relative mb-6 overflow-hidden rounded-[2.25rem] bg-slate-900 text-white shadow-xl shadow-slate-900/10">
+            <section className="relative mb-6 overflow-hidden rounded-[2.25rem] bg-[var(--ws-ink)] text-white shadow-xl shadow-stone-900/10">
                 {heroImageUrl && (
                     <img
                         src={heroImageUrl}
@@ -151,11 +151,11 @@ export default function TripDetailPage() {
                         className="absolute inset-0 h-full w-full object-cover opacity-45"
                     />
                 )}
-                {heroImageUrl && <div className="absolute inset-0 bg-slate-950/45" />}
+                {heroImageUrl && <div className="absolute inset-0 bg-[rgba(20,19,15,0.48)]" />}
                 <div className="relative grid gap-6 px-6 py-7 sm:px-8 sm:py-8 lg:grid-cols-[1.15fr_0.85fr]">
                     <div>
-                        <p className="text-sm font-medium text-white/65">Itinerary overview</p>
-                        <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+                        <p className="ws-mono text-white/65">Itinerary overview</p>
+                        <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
                             {trip.destination}
                         </h2>
                         <p className="mt-4 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
@@ -181,7 +181,7 @@ export default function TripDetailPage() {
                                     type="button"
                                     onClick={handleShareToggle}
                                     disabled={sharing}
-                                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="rounded-full bg-[var(--ws-yellow)] px-4 py-2 text-sm font-semibold text-[var(--ws-ink)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {sharing
                                         ? trip.shared_at
@@ -203,12 +203,12 @@ export default function TripDetailPage() {
                     {trip.itinerary?.days?.map((day) => (
                         <article
                             key={day.day}
-                            className="rounded-[2rem] border border-slate-200/80 bg-white/92 p-6 shadow-sm"
+                            className="ws-surface p-6"
                         >
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-slate-500">Day {day.day}</p>
-                                    <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                                    <p className="text-sm font-medium text-[var(--ws-muted)]">Day {day.day}</p>
+                                    <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                         {new Date(day.date).toLocaleDateString(undefined, {
                                             weekday: "long",
                                             month: "long",
@@ -216,25 +216,25 @@ export default function TripDetailPage() {
                                         })}
                                     </h2>
                                 </div>
-                                <p className="text-sm text-slate-400">{day.activities.length} planned stop{day.activities.length === 1 ? "" : "s"}</p>
+                                <p className="text-sm text-[rgba(87,84,74,0.8)]">{day.activities.length} planned stop{day.activities.length === 1 ? "" : "s"}</p>
                             </div>
 
                             <div className="mt-6 space-y-3">
                                 {timelineForDay(day).map((item, index) => (
                                     <div
                                         key={`${day.day}-${item.time}-${item.title}-${index}`}
-                                        className="grid gap-4 rounded-[1.5rem] border border-stone-200 bg-stone-50 px-4 py-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
+                                        className="grid gap-4 rounded-[1.5rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.5)] px-4 py-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
                                     >
-                                        <div className="text-sm font-medium text-slate-500">{item.time}</div>
+                                        <div className="text-sm font-medium text-[var(--ws-muted)]">{item.time}</div>
                                         <div>
-                                            <p className="text-base font-semibold text-slate-900">{item.title}</p>
-                                            <p className="mt-1 text-sm text-slate-500 capitalize">{item.category}</p>
+                                            <p className="text-base font-semibold text-[var(--ws-ink)]">{item.title}</p>
+                                            <p className="mt-1 text-sm text-[var(--ws-muted)] capitalize">{item.category}</p>
                                             {item.duration_text && (
-                                                <p className="mt-1 text-sm text-slate-500">{item.duration_text}</p>
+                                                <p className="mt-1 text-sm text-[var(--ws-muted)]">{item.duration_text}</p>
                                             )}
-                                            {item.notes && <p className="mt-1 text-sm text-slate-500">{item.notes}</p>}
+                                            {item.notes && <p className="mt-1 text-sm text-[var(--ws-muted)]">{item.notes}</p>}
                                         </div>
-                                        <div className="text-sm font-medium text-slate-600">
+                                        <div className="text-sm font-medium text-[var(--ws-muted)]">
                                             {formatMoney(item.cost, trip.itinerary?.currency || "CHF")}
                                         </div>
                                     </div>
@@ -244,40 +244,40 @@ export default function TripDetailPage() {
                     ))}
                 </section>
 
-                <aside className="space-y-5">
-                    <div className="rounded-[2rem] border border-slate-200/80 bg-white/92 p-6 shadow-sm xl:sticky xl:top-28">
-                        <p className="text-sm font-semibold tracking-[0.2em] text-slate-400 uppercase">
+                <aside className="space-y-5 xl:sticky xl:top-28 xl:self-start">
+                    <div className="ws-surface p-6">
+                        <p className="ws-mono text-[var(--ws-orange)]">
                             Trip summary
                         </p>
                         <div className="mt-6 space-y-5">
                             <div>
-                                <p className="text-sm text-slate-500">Destination</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900">{trip.destination}</p>
+                                <p className="text-sm text-[var(--ws-muted)]">Destination</p>
+                                <p className="mt-1 text-lg font-semibold text-[var(--ws-ink)]">{trip.destination}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-slate-500">Status</p>
-                                <p className="mt-1 text-lg font-semibold capitalize text-slate-900">{trip.status}</p>
+                                <p className="text-sm text-[var(--ws-muted)]">Status</p>
+                                <p className="mt-1 text-lg font-semibold capitalize text-[var(--ws-ink)]">{trip.status}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-slate-500">Saved on</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <p className="text-sm text-[var(--ws-muted)]">Saved on</p>
+                                <p className="mt-1 text-lg font-semibold text-[var(--ws-ink)]">
                                     {new Date(trip.created_at).toLocaleDateString()}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-sm text-slate-500">Days planned</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900">{trip.itinerary?.days?.length ?? 0}</p>
+                                <p className="text-sm text-[var(--ws-muted)]">Days planned</p>
+                                <p className="mt-1 text-lg font-semibold text-[var(--ws-ink)]">{trip.itinerary?.days?.length ?? 0}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-slate-500">Community</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900">
+                                <p className="text-sm text-[var(--ws-muted)]">Community</p>
+                                <p className="mt-1 text-lg font-semibold text-[var(--ws-ink)]">
                                     {trip.shared_at ? "Shared" : "Private"}
                                 </p>
                             </div>
                             {trip.itinerary && (
                                 <div>
-                                    <p className="text-sm text-slate-500">Estimated total</p>
-                                    <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                                    <p className="text-sm text-[var(--ws-muted)]">Estimated total</p>
+                                    <p className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                         {formatMoney(trip.itinerary.estimated_total, trip.itinerary.currency)}
                                     </p>
                                 </div>
@@ -285,14 +285,14 @@ export default function TripDetailPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-[2rem] border border-slate-200/80 bg-white/92 p-6 shadow-sm">
-                        <p className="text-sm font-medium text-slate-500">Next move</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                    <div className="ws-surface p-6">
+                        <p className="ws-mono text-[var(--ws-muted)]">Next move</p>
+                        <p className="mt-2 text-sm leading-6 text-[var(--ws-muted)]">
                             Want a different destination, timing, or pace? Start a new planning run without losing this saved version.
                         </p>
                         <Link
                             to="/plan"
-                            className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
+                            className="ws-btn-primary mt-5 px-5 py-3 text-sm"
                         >
                             Plan another trip
                         </Link>

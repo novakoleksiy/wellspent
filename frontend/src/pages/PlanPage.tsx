@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend, refreshRecommendationItem } from "../api/trips";
 import AppShell from "../components/AppShell";
@@ -138,34 +138,34 @@ function timelineItems(day: Recommendation["itinerary"]["days"][number]): Timeli
 function TrainLoadingPopup() {
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,19,15,0.38)] px-4 backdrop-blur-sm"
             role="status"
             aria-live="polite"
             aria-label="Generating proposed itinerary"
         >
-            <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/70 bg-white p-6 text-center shadow-2xl shadow-slate-950/25">
-                <div className="relative mx-auto mb-5 h-28 overflow-hidden rounded-[1.5rem] bg-[linear-gradient(180deg,#dbeafe_0%,#f8fafc_58%,#e7e5e4_58%,#e7e5e4_100%)]">
+            <div className="w-full max-w-sm overflow-hidden rounded-[2rem] border border-[var(--ws-line)] bg-[#fffdf8] p-6 text-center shadow-2xl shadow-stone-950/25">
+                <div className="relative mx-auto mb-5 h-28 overflow-hidden rounded-[1.5rem] bg-[linear-gradient(180deg,#e7ecff_0%,#fffdf8_58%,#e9dfcf_58%,#e9dfcf_100%)]">
                     <div className="plan-loader-cloud top-5 left-6 w-12" />
                     <div className="plan-loader-cloud top-8 right-8 w-16" />
-                    <div className="absolute right-5 bottom-10 left-5 h-1 rounded-full bg-slate-500" />
+                    <div className="absolute right-5 bottom-10 left-5 h-1 rounded-full bg-[var(--ws-muted)]" />
                     <div className="plan-loader-sleepers absolute right-4 bottom-7 left-4 h-3" />
                     <div className="plan-loader-train absolute bottom-10 left-0 flex items-end gap-1">
-                        <div className="relative h-10 w-16 rounded-t-xl rounded-br-md rounded-bl-lg bg-slate-900 shadow-lg">
-                            <div className="absolute top-2 left-3 h-3 w-7 rounded-md bg-sky-200" />
-                            <div className="absolute -right-1 bottom-0 h-6 w-4 rounded-t-md bg-rose-300" />
-                            <div className="absolute bottom-[-7px] left-3 h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
-                            <div className="absolute right-3 bottom-[-7px] h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
+                        <div className="relative h-10 w-16 rounded-t-xl rounded-br-md rounded-bl-lg bg-[var(--ws-ink)] shadow-lg">
+                            <div className="absolute top-2 left-3 h-3 w-7 rounded-md bg-[var(--ws-navy-tint)]" />
+                            <div className="absolute -right-1 bottom-0 h-6 w-4 rounded-t-md bg-[var(--ws-orange)]" />
+                            <div className="absolute bottom-[-7px] left-3 h-3 w-3 rounded-full border-2 border-white bg-[var(--ws-muted)]" />
+                            <div className="absolute right-3 bottom-[-7px] h-3 w-3 rounded-full border-2 border-white bg-[var(--ws-muted)]" />
                         </div>
-                        <div className="relative h-8 w-12 rounded-lg bg-rose-300 shadow-lg">
-                            <div className="absolute top-2 left-2 h-2 w-8 rounded-full bg-rose-100" />
-                            <div className="absolute bottom-[-7px] left-2 h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
-                            <div className="absolute right-2 bottom-[-7px] h-3 w-3 rounded-full border-2 border-white bg-slate-700" />
+                        <div className="relative h-8 w-12 rounded-lg bg-[var(--ws-yellow)] shadow-lg">
+                            <div className="absolute top-2 left-2 h-2 w-8 rounded-full bg-white/60" />
+                            <div className="absolute bottom-[-7px] left-2 h-3 w-3 rounded-full border-2 border-white bg-[var(--ws-muted)]" />
+                            <div className="absolute right-2 bottom-[-7px] h-3 w-3 rounded-full border-2 border-white bg-[var(--ws-muted)]" />
                         </div>
                     </div>
                 </div>
-                <p className="text-sm font-semibold tracking-[0.18em] text-rose-500 uppercase">All aboard</p>
-                <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Building your Swiss route</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
+                <p className="ws-mono text-[var(--ws-orange)]">All aboard</p>
+                <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">Building your Swiss route</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--ws-muted)]">
                     Querying the travel APIs and stitching together your proposed itinerary.
                 </p>
             </div>
@@ -222,6 +222,8 @@ export default function PlanPage() {
     const [savingTitle, setSavingTitle] = useState<string | null>(null);
     const [expandedTransportIds, setExpandedTransportIds] = useState<Set<string>>(() => new Set());
     const [error, setError] = useState("");
+    const resultSectionRef = useRef<HTMLElement | null>(null);
+    const shouldScrollToResultRef = useRef(false);
 
     useEffect(() => {
         const nextDestination = searchParams.get("destination") || "";
@@ -231,6 +233,13 @@ export default function PlanPage() {
                 : { ...current, destination: nextDestination },
         );
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!result || loading || !shouldScrollToResultRef.current) return;
+
+        resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        shouldScrollToResultRef.current = false;
+    }, [result, loading]);
 
     const currentStep = quizSteps[stepIndex];
     const progressValue = ((stepIndex + 1) / quizSteps.length) * 100;
@@ -277,6 +286,7 @@ export default function PlanPage() {
         setTravelersTouched(false);
         setResult(null);
         setExpandedTransportIds(new Set());
+        shouldScrollToResultRef.current = false;
         setError("");
     };
 
@@ -288,14 +298,17 @@ export default function PlanPage() {
     const handleSubmit = async () => {
         setError("");
         setLoading(true);
+        shouldScrollToResultRef.current = true;
         try {
             const recs = await recommend(form);
             setResult(recs[0] ?? null);
             setExpandedTransportIds(new Set());
             if (recs.length === 0) {
+                shouldScrollToResultRef.current = false;
                 setError("No itinerary matched that combination. Try another mood or destination.");
             }
         } catch (err: unknown) {
+            shouldScrollToResultRef.current = false;
             setError(err instanceof Error ? err.message : "Failed to get recommendations");
         } finally {
             setLoading(false);
@@ -344,12 +357,12 @@ export default function PlanPage() {
         >
             {loading && <TrainLoadingPopup />}
             <div className="mx-auto max-w-5xl space-y-6">
-                <section className="rounded-[2.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(30,41,59,0.95))] p-6 text-white shadow-2xl shadow-slate-900/10 sm:p-8 lg:p-10">
+                <section className="ws-surface-dark p-6 shadow-2xl shadow-stone-900/10 sm:p-8 lg:p-10">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <p className="text-sm font-semibold tracking-[0.2em] text-white/55 uppercase">Planner</p>
-                            <h2 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-                                Build the day one answer at a time.
+                            <p className="ws-mono text-white/55">Planner</p>
+                            <h2 className="mt-3 max-w-3xl text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">
+                                Build the day <span className="ws-serif-italic text-[var(--ws-yellow)]">one answer</span> at a time.
                             </h2>
                         </div>
                         <div className="w-fit rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-medium text-white/75">
@@ -358,7 +371,7 @@ export default function PlanPage() {
                     </div>
 
                     <div className="mt-8 h-2 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full rounded-full bg-rose-300 transition-all" style={{ width: `${progressValue}%` }} />
+                        <div className="h-full rounded-full bg-[var(--ws-yellow)] transition-all" style={{ width: `${progressValue}%` }} />
                     </div>
 
                     <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/6 p-5 sm:p-7">
@@ -376,14 +389,14 @@ export default function PlanPage() {
                                         onClick={() => selectOption(option.value)}
                                         className={`rounded-[1.75rem] border px-5 py-4 text-left transition ${
                                             selected
-                                                ? "border-rose-300 bg-rose-300/16 text-white"
+                                                ? "border-[var(--ws-yellow)] bg-[rgba(255,235,105,0.14)] text-white"
                                                 : "border-white/10 bg-white/5 text-white/88 hover:border-white/25 hover:bg-white/10"
                                         }`}
                                     >
                                         <div className="flex items-center justify-between gap-4">
                                             <p className="text-base font-semibold">{option.label}</p>
                                             {"visual" in option && option.visual && (
-                                                <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-rose-100">
+                                                    <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-[var(--ws-yellow)]">
                                                     {option.visual}
                                                 </span>
                                             )}
@@ -425,7 +438,7 @@ export default function PlanPage() {
                             type="button"
                             onClick={handleSubmit}
                             disabled={loading || !canGenerate}
-                            className="rounded-full bg-rose-300 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="ws-btn-accent px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {loading
                                 ? "Generating itinerary..."
@@ -457,7 +470,7 @@ export default function PlanPage() {
                                         value={form.destination}
                                         onChange={(event) => set("destination", event.target.value)}
                                         placeholder="Leave blank for a surprise"
-                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-300"
+                                        className="ws-input mt-2 w-full rounded-2xl px-4 py-3 transition"
                                     />
                                 </label>
                                 <label className="text-sm font-medium text-white/78">
@@ -467,7 +480,7 @@ export default function PlanPage() {
                                         min={1}
                                         value={form.travelers}
                                         onChange={(event) => updateTravelers(event.currentTarget.valueAsNumber)}
-                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-rose-300"
+                                        className="ws-input mt-2 w-full rounded-2xl px-4 py-3 transition"
                                     />
                                 </label>
                                 <label className="text-sm font-medium text-white/78">
@@ -476,7 +489,7 @@ export default function PlanPage() {
                                         type="date"
                                         value={form.start_date}
                                         onChange={(event) => set("start_date", event.target.value)}
-                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-rose-300"
+                                        className="ws-input mt-2 w-full rounded-2xl px-4 py-3 transition"
                                     />
                                 </label>
                                 <label className="text-sm font-medium text-white/78">
@@ -485,7 +498,7 @@ export default function PlanPage() {
                                         type="date"
                                         value={form.end_date}
                                         onChange={(event) => set("end_date", event.target.value)}
-                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-rose-300"
+                                        className="ws-input mt-2 w-full rounded-2xl px-4 py-3 transition"
                                     />
                                 </label>
                             </div>
@@ -497,37 +510,37 @@ export default function PlanPage() {
                                     onChange={(event) => set("notes", event.target.value)}
                                     rows={3}
                                     placeholder="Scenic rail route, fewer museums, kid-friendly lunch stop..."
-                                    className="mt-2 w-full rounded-[1.5rem] border border-white/10 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-300"
+                                    className="ws-input mt-2 w-full rounded-[1.5rem] px-4 py-3 transition"
                                 />
                             </label>
                         </div>
                     )}
 
                     {!result && error && (
-                        <p className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        <p className="ws-error mt-6 px-4 py-3 text-sm">
                             {error}
                         </p>
                     )}
                 </section>
 
                 {result && (
-                    <section className="rounded-[2.5rem] border border-slate-200/80 bg-white/92 p-6 shadow-xl shadow-stone-200/40 sm:p-8">
+                    <section ref={resultSectionRef} className="ws-surface scroll-mt-6 p-6 sm:p-8">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-slate-500">Proposed itinerary</p>
-                                    <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                                    <p className="ws-mono text-[var(--ws-orange)]">Proposed itinerary</p>
+                                    <h2 className="ws-display mt-2 text-3xl">
                                         {result.destination}
                                     </h2>
-                                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{result.description}</p>
+                                    <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--ws-muted)]">{result.description}</p>
                                 </div>
                                 <div className="flex flex-col items-start gap-2 sm:items-end">
-                                    <span className="rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-800">
+                                    <span className="rounded-full bg-[var(--ws-green-tint)] px-4 py-2 text-sm font-medium text-[var(--ws-green)]">
                                         {Math.round(result.match_score * 100)}% match
                                     </span>
                                     <button
                                         type="button"
                                         onClick={() => setResult(null)}
-                                        className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
+                                        className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
                                     >
                                         Change answers
                                     </button>
@@ -538,7 +551,7 @@ export default function PlanPage() {
                                 {result.highlights.map((highlight) => (
                                     <span
                                         key={highlight}
-                                        className="rounded-full bg-rose-100 px-3 py-1.5 text-xs font-medium text-rose-900"
+                                        className="rounded-full bg-[var(--ws-cream)] px-3 py-1.5 text-xs font-medium text-[var(--ws-orange)]"
                                     >
                                         {highlight}
                                     </span>
@@ -546,27 +559,27 @@ export default function PlanPage() {
                             </div>
 
                             {error && (
-                                <p className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                <p className="ws-error mt-5 px-4 py-3 text-sm">
                                     {error}
                                 </p>
                             )}
 
                             <div className="mt-6 grid gap-4 md:grid-cols-3">
-                                <div className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-                                    <p className="text-sm text-slate-500">Estimated total</p>
-                                    <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                                <div className="ws-chip-card px-4 py-4">
+                                    <p className="text-sm text-[var(--ws-muted)]">Estimated total</p>
+                                    <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                         {formatMoney(result.itinerary.estimated_total, result.itinerary.currency)}
                                     </p>
                                 </div>
-                                <div className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-                                    <p className="text-sm text-slate-500">Days planned</p>
-                                    <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                                <div className="ws-chip-card ws-chip-card-yellow px-4 py-4">
+                                    <p className="text-sm text-[var(--ws-muted)]">Days planned</p>
+                                    <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                         {result.itinerary.days.length}
                                     </p>
                                 </div>
-                                <div className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-                                    <p className="text-sm text-slate-500">Group size</p>
-                                    <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                                <div className="ws-chip-card ws-chip-card-green-soft px-4 py-4">
+                                    <p className="text-sm text-[var(--ws-muted)]">Group size</p>
+                                    <p className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                         {form.travelers}
                                     </p>
                                 </div>
@@ -574,11 +587,11 @@ export default function PlanPage() {
 
                             <div className="mt-8 space-y-8">
                                 {result.itinerary.days.map((day) => (
-                                    <article key={day.day} className="rounded-[2rem] border border-slate-200 bg-stone-50/75 p-5">
+                                    <article key={day.day} className="rounded-[2rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.48)] p-5">
                                         <div className="flex items-end justify-between gap-4">
                                             <div>
-                                                <p className="text-sm font-medium text-slate-500">Day {day.day}</p>
-                                                <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+                                                <p className="text-sm font-medium text-[var(--ws-muted)]">Day {day.day}</p>
+                                                <h3 className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                                     {new Date(day.date).toLocaleDateString(undefined, {
                                                         weekday: "long",
                                                         month: "long",
@@ -586,7 +599,7 @@ export default function PlanPage() {
                                                     })}
                                                 </h3>
                                             </div>
-                                            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm">
+                                            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                                                 Timeline view
                                             </span>
                                         </div>
@@ -599,12 +612,12 @@ export default function PlanPage() {
 
                                                 return (
                                                     <div key={item.id} className="grid gap-4 sm:grid-cols-[82px_18px_1fr_auto] sm:items-start">
-                                                        <div className="pt-1 text-sm font-medium text-slate-500">{item.time}</div>
+                                                        <div className="pt-1 text-sm font-medium text-[var(--ws-muted)]">{item.time}</div>
                                                         <div className="relative flex h-full justify-center">
-                                                            <span className={`mt-1 h-4 w-4 rounded-full ${item.kind === "transport" ? "bg-amber-300" : "bg-rose-400"}`} />
-                                                            <span className="absolute top-5 bottom-0 w-px bg-slate-200" />
+                                                            <span className={`mt-1 h-4 w-4 rounded-full ${item.kind === "transport" ? "bg-[var(--ws-yellow)]" : "bg-[var(--ws-orange)]"}`} />
+                                                            <span className="absolute top-5 bottom-0 w-px bg-[var(--ws-line)]" />
                                                         </div>
-                                                        <div className="rounded-[1.5rem] bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70">
+                                                        <div className="rounded-[1.5rem] bg-[#fffdf8] px-4 py-4 shadow-sm ring-1 ring-[var(--ws-line)]">
                                                             {item.kind === "activity" && item.image_url && (
                                                                 <img
                                                                     src={item.image_url}
@@ -615,26 +628,26 @@ export default function PlanPage() {
                                                             )}
                                                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                                 <div>
-                                                                    <p className="text-base font-semibold text-slate-900">{item.title}</p>
-                                                                    <p className="mt-1 text-sm capitalize text-slate-500">{item.category}</p>
+                                                                    <p className="text-base font-semibold text-[var(--ws-ink)]">{item.title}</p>
+                                                                    <p className="mt-1 text-sm capitalize text-[var(--ws-muted)]">{item.category}</p>
                                                                     {item.duration_text && (
-                                                                        <p className="mt-2 text-sm text-slate-500">{item.duration_text}</p>
+                                                                        <p className="mt-2 text-sm text-[var(--ws-muted)]">{item.duration_text}</p>
                                                                     )}
                                                                     {item.notes && (
-                                                                        <p className="mt-2 text-sm text-slate-500">{item.notes}</p>
+                                                                        <p className="mt-2 text-sm text-[var(--ws-muted)]">{item.notes}</p>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-sm font-medium text-slate-600">
+                                                                <div className="text-sm font-medium text-[var(--ws-muted)]">
                                                                     {formatMoney(item.cost, result.itinerary.currency)}
                                                                 </div>
                                                             </div>
 
                                                             {canExpandTransport && (
-                                                                <div className="mt-4 border-t border-slate-100 pt-4">
+                                                                <div className="mt-4 border-t border-[var(--ws-line-soft)] pt-4">
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => toggleTransportDetails(item.id)}
-                                                                        className="text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+                                                                        className="text-sm font-semibold text-[var(--ws-ink-soft)] transition hover:text-[var(--ws-ink)]"
                                                                     >
                                                                         {isTransportExpanded ? "Hide connections" : "Show connections"}
                                                                     </button>
@@ -645,21 +658,21 @@ export default function PlanPage() {
                                                                                 const departureTime = formatTransportTime(leg.departure_time);
                                                                                 const arrivalTime = formatTransportTime(leg.arrival_time);
                                                                                 return (
-                                                                                    <div key={`${item.id}-${legIndex}`} className="rounded-2xl bg-stone-50 px-4 py-3 ring-1 ring-slate-200/70">
+                                                                                        <div key={`${item.id}-${legIndex}`} className="rounded-2xl bg-[rgba(255,244,239,0.55)] px-4 py-3 ring-1 ring-[var(--ws-line)]">
                                                                                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                                                                             <div>
-                                                                                                <p className="text-sm font-semibold capitalize text-slate-900">
+                                                                                                    <p className="text-sm font-semibold capitalize text-[var(--ws-ink)]">
                                                                                                     {leg.mode}{leg.line ? ` ${leg.line}` : ""}
                                                                                                 </p>
-                                                                                                <p className="mt-1 text-sm text-slate-500">
+                                                                                                    <p className="mt-1 text-sm text-[var(--ws-muted)]">
                                                                                                     {leg.origin} to {leg.destination}
                                                                                                 </p>
                                                                                                 {leg.direction && (
-                                                                                                    <p className="mt-1 text-xs text-slate-400">Direction: {leg.direction}</p>
+                                                                                                    <p className="mt-1 text-xs text-[rgba(87,84,74,0.7)]">Direction: {leg.direction}</p>
                                                                                                 )}
-                                                                                                {leg.notes && <p className="mt-1 text-xs text-slate-400">{leg.notes}</p>}
+                                                                                                {leg.notes && <p className="mt-1 text-xs text-[rgba(87,84,74,0.7)]">{leg.notes}</p>}
                                                                                             </div>
-                                                                                            <div className="text-sm font-medium text-slate-600">
+                                                                                            <div className="text-sm font-medium text-[var(--ws-muted)]">
                                                                                                 {[departureTime, arrivalTime].filter(Boolean).join(" - ")}
                                                                                                 {leg.duration_minutes ? ` · ${leg.duration_minutes} min` : ""}
                                                                                             </div>
@@ -677,7 +690,7 @@ export default function PlanPage() {
                                                                 type="button"
                                                                 onClick={() => handleRefreshItem(item.id)}
                                                                 disabled={refreshingItemId === item.id}
-                                                                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="ws-btn-secondary px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                                             >
                                                                 {refreshingItemId === item.id ? "Refreshing..." : "Refresh stop"}
                                                             </button>
@@ -697,14 +710,14 @@ export default function PlanPage() {
                                     type="button"
                                     onClick={handleSave}
                                     disabled={savingTitle === result.title}
-                                    className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="ws-btn-primary px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {savingTitle === result.title ? "Saving trip..." : "Save this itinerary"}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={handleRestartQuiz}
-                                    className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="ws-btn-secondary px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     Restart quiz
                                 </button>

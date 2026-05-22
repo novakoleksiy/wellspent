@@ -86,26 +86,26 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(254,226,226,0.9),_transparent_30%),linear-gradient(180deg,#fcfbf8_0%,#f5efe4_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <div className="ws-app-bg min-h-screen px-4 py-6 text-[var(--ws-ink)] sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl items-center justify-between pb-6">
         <div>
-          <p className="text-sm font-semibold tracking-[0.24em] text-slate-500 uppercase">WellSpent</p>
-          <p className="mt-1 text-sm text-slate-500">A tailored planner for your next Swiss escape.</p>
+          <img className="ws-logo" src="/landing/logo.png" alt="Wellspent" />
+          <p className="mt-2 text-sm text-[var(--ws-muted)]">A tailored planner for your next Swiss escape.</p>
         </div>
 
         <button
           onClick={logout}
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+          className="ws-btn-secondary px-4 py-2 text-sm"
         >
           Sign out
         </button>
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="rounded-[2.5rem] bg-slate-900 px-6 py-8 text-white shadow-2xl shadow-slate-900/15 sm:px-8 sm:py-10">
-          <p className="text-sm font-medium text-white/70">Welcome{user?.full_name ? `, ${user.full_name}` : ""}</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Let&apos;s tune your travel profile before we plan the first trip.
+        <section className="ws-surface-dark px-6 py-8 shadow-2xl shadow-stone-900/15 sm:px-8 sm:py-10">
+          <p className="ws-mono text-white/70">Welcome{user?.full_name ? `, ${user.full_name}` : ""}</p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">
+            Let&apos;s tune your <span className="ws-serif-italic text-[var(--ws-yellow)]">travel profile</span> before we plan the first trip.
           </h1>
           <p className="mt-4 max-w-lg text-base leading-7 text-white/75">
             Your preferences shape every itinerary we generate. This only takes a minute and keeps the recommendations feeling personal from the start.
@@ -131,9 +131,9 @@ export default function OnboardingPage() {
                       className={[
                         "flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold",
                         isComplete
-                          ? "bg-emerald-400 text-slate-900"
+                          ? "bg-[var(--ws-yellow)] text-[var(--ws-ink)]"
                           : isActive
-                            ? "bg-white text-slate-900"
+                            ? "bg-white text-[var(--ws-ink)]"
                             : "bg-white/10 text-white/70",
                       ].join(" ")}
                     >
@@ -159,19 +159,19 @@ export default function OnboardingPage() {
           </div>
         </section>
 
-        <section className="rounded-[2.5rem] border border-white/60 bg-[#fcfbf8]/90 p-6 shadow-xl shadow-stone-200/50 backdrop-blur sm:p-8">
+        <section className="ws-surface p-6 backdrop-blur sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-rose-600">Step {step + 1} of {steps.length}</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+              <p className="ws-mono text-[var(--ws-orange)]">Step {step + 1} of {steps.length}</p>
+              <h2 className="ws-display mt-2 text-3xl">
                 {activeStep.title}
               </h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--ws-muted)]">
                 {activeStep.description}
               </p>
             </div>
 
-            <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500 sm:block">
+            <div className="ws-pill hidden px-4 py-2 text-sm sm:block">
               Personalized setup
             </div>
           </div>
@@ -186,14 +186,14 @@ export default function OnboardingPage() {
             disabled={saving}
           />
 
-          {error && <p className="mt-5 text-sm text-rose-600">{error}</p>}
+          {error && <p className="mt-5 text-sm text-[var(--ws-orange)]">{error}</p>}
 
           <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => setStep((current) => Math.max(0, current - 1))}
               disabled={step === 0 || saving}
-              className="rounded-full border border-slate-200 px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="ws-btn-secondary px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               Back
             </button>
@@ -202,7 +202,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={handleContinue}
               disabled={saving}
-              className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="ws-btn-primary px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving
                 ? "Saving..."

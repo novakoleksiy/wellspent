@@ -106,7 +106,6 @@ export default function TripsPage() {
 
     return trip.folder_id === selectedFolderId;
   });
-  const totalActiveTrips = trips.filter((trip) => trip.status !== "completed").length;
   const activeTrips = visibleTrips.filter((trip) => trip.status !== "completed");
   const pastTrips = visibleTrips.filter((trip) => trip.status === "completed");
   const pastArchiveTrips = pastTrips
@@ -141,7 +140,6 @@ export default function TripsPage() {
   }, []);
   const totalPastDays = pastTrips.reduce((total, trip) => total + (trip.itinerary?.days?.length ?? 0), 0);
   const sharedPastTrips = pastTrips.filter((trip) => trip.shared_at).length;
-  const itinerariesCount = trips.filter((trip) => trip.itinerary?.days?.length).length;
   const unfiledTripsCount = trips.filter((trip) => (trip.folder_id ?? null) === null).length;
   const selectedFolder = typeof selectedFolderId === "number"
     ? folders.find((folder) => folder.id === selectedFolderId)
@@ -297,14 +295,14 @@ export default function TripsPage() {
 
   function renderTripActions(trip: TripOut) {
     const isOpen = openTripActionsId === trip.id;
-    const menuItemClass = "flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60";
-    const dangerItemClass = "flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60";
+    const menuItemClass = "flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)] disabled:cursor-not-allowed disabled:opacity-60";
+    const dangerItemClass = "flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--ws-orange)] transition hover:bg-[var(--ws-cream)] disabled:cursor-not-allowed disabled:opacity-60";
 
     return (
       <div className="mt-5 flex items-center gap-3">
         <Link
           to={`/trips/${trip.id}`}
-          className="inline-flex flex-1 justify-center rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold !text-white transition hover:bg-slate-800"
+          className="ws-btn-primary flex-1 px-4 py-2.5 text-sm"
         >
           View itinerary
         </Link>
@@ -314,15 +312,15 @@ export default function TripsPage() {
             aria-label={`Trip actions for ${trip.title}`}
             aria-expanded={isOpen}
             onClick={() => setOpenTripActionsId((current) => (current === trip.id ? null : trip.id))}
-            className="inline-flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-semibold leading-none text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+            className="inline-flex size-10 items-center justify-center rounded-full border border-[var(--ws-line)] bg-[#fffdf8] text-lg font-semibold leading-none text-[var(--ws-muted)] shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:text-[var(--ws-ink)]"
           >
             ⋯
           </button>
 
           {isOpen && (
-            <div className="absolute right-0 bottom-12 z-20 w-64 rounded-[1.5rem] border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+            <div className="absolute right-0 bottom-12 z-20 w-64 rounded-[1.5rem] border border-[var(--ws-line)] bg-[#fffdf8] p-2 shadow-xl shadow-stone-900/10">
               <div className="px-3 py-2">
-                <p className="text-xs font-semibold tracking-[0.16em] text-slate-400 uppercase">Move to folder</p>
+                <p className="ws-mono text-[rgba(87,84,74,0.7)]">Move to folder</p>
               </div>
               <button
                 type="button"
@@ -334,7 +332,7 @@ export default function TripsPage() {
                 className={menuItemClass}
               >
                 <span>No folder</span>
-                {(trip.folder_id ?? null) === null && <span className="text-xs text-slate-400">Current</span>}
+                {(trip.folder_id ?? null) === null && <span className="text-xs text-[rgba(87,84,74,0.65)]">Current</span>}
               </button>
               {folders.map((folder) => (
                 <button
@@ -348,11 +346,11 @@ export default function TripsPage() {
                   className={menuItemClass}
                 >
                   <span>{folder.name}</span>
-                  {trip.folder_id === folder.id && <span className="text-xs text-slate-400">Current</span>}
+                  {trip.folder_id === folder.id && <span className="text-xs text-[rgba(87,84,74,0.65)]">Current</span>}
                 </button>
               ))}
 
-              <div className="my-2 h-px bg-slate-100" />
+              <div className="my-2 h-px bg-[var(--ws-line-soft)]" />
 
               {trip.status !== "completed" && (
                 <button
@@ -362,7 +360,7 @@ export default function TripsPage() {
                     openCompleteTrip(trip);
                   }}
                   disabled={completingId === trip.id}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--ws-green)] transition hover:bg-[var(--ws-green-tint)] hover:text-[var(--ws-green)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {completingId === trip.id ? "Completing..." : "Complete trip"}
                 </button>
@@ -387,7 +385,7 @@ export default function TripsPage() {
                 </button>
               )}
 
-              <div className="my-2 h-px bg-slate-100" />
+              <div className="my-2 h-px bg-[var(--ws-line-soft)]" />
 
               <button
                 type="button"
@@ -409,21 +407,21 @@ export default function TripsPage() {
 
   function renderTripSection(label: string, title: string, items: TripOut[], emptyLabel: string) {
     return (
-      <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
+      <section className="ws-surface p-6 sm:p-7">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-slate-500">{label}</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
+            <p className="ws-mono text-[var(--ws-muted)]">{label}</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{title}</h2>
           </div>
-          <span className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-slate-600">
+          <span className="ws-pill px-4 py-2 text-sm font-medium">
             {items.length}
           </span>
         </div>
 
         {items.length === 0 ? (
-          <div className="mt-6 rounded-[1.75rem] border border-dashed border-slate-300 bg-stone-50/70 px-6 py-10 text-center">
-            <p className="text-sm font-semibold tracking-[0.2em] text-slate-500 uppercase">Nothing here yet</p>
-            <p className="mt-3 text-base leading-7 text-slate-500">{emptyLabel}</p>
+          <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
+            <p className="ws-mono text-[var(--ws-muted)]">Nothing here yet</p>
+            <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">{emptyLabel}</p>
           </div>
         ) : (
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -435,8 +433,8 @@ export default function TripsPage() {
                 <article
                   key={trip.id}
                   className={heroImageUrl
-                    ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white transition hover:border-slate-300"
-                    : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"}
+                    ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
+                    : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
                 >
                   {heroImageUrl && (
                     <img
@@ -446,37 +444,37 @@ export default function TripsPage() {
                       loading="lazy"
                     />
                   )}
-                  <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                  <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                        <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</p>
+                        <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
+                        <p className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
                       </div>
-                      <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                         {formatDate(trip.created_at)}
                       </span>
                     </div>
 
-                    <p className="mt-4 text-sm leading-6 text-slate-500">
+                    <p className="mb-5 mt-4 line-clamp-3 text-sm leading-6 text-[var(--ws-muted)]">
                       {trip.description || "Saved from your recommendation flow and ready to revisit."}
                     </p>
 
-                    <div className="mt-5 grid grid-cols-2 gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-slate-600">
+                    <div className="mt-auto grid grid-cols-2 gap-3 rounded-[1.5rem] bg-white/80 p-4 text-sm text-[var(--ws-muted)]">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Days</p>
-                        <p className="mt-2 font-medium text-slate-800">{dayCount || "-"}</p>
+                        <p className="ws-mono text-[rgba(87,84,74,0.7)]">Days</p>
+                        <p className="mt-2 font-medium text-[var(--ws-ink)]">{dayCount || "-"}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Status</p>
-                        <p className="mt-2 font-medium capitalize text-slate-800">{trip.status}</p>
+                        <p className="ws-mono text-[rgba(87,84,74,0.7)]">Status</p>
+                        <p className="mt-2 font-medium capitalize text-[var(--ws-ink)]">{trip.status}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Community</p>
-                        <p className="mt-2 font-medium text-slate-800">{trip.shared_at ? "Shared" : "Private"}</p>
+                        <p className="ws-mono text-[rgba(87,84,74,0.7)]">Community</p>
+                        <p className="mt-2 font-medium text-[var(--ws-ink)]">{trip.shared_at ? "Shared" : "Private"}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Estimated total</p>
-                        <p className="mt-2 font-medium text-slate-800">
+                        <p className="ws-mono text-[rgba(87,84,74,0.7)]">Estimated total</p>
+                        <p className="mt-2 font-medium text-[var(--ws-ink)]">
                           {formatMoney(trip.itinerary?.estimated_total, trip.itinerary?.currency)}
                         </p>
                       </div>
@@ -495,27 +493,27 @@ export default function TripsPage() {
 
   function renderPastArchive() {
     return (
-      <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
+      <section className="ws-surface p-6 sm:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500">{selectedTripsLabel}</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Past Trips Archive</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            <p className="ws-mono text-[var(--ws-muted)]">{selectedTripsLabel}</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">Past Trips Archive</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--ws-muted)]">
               Revisit completed itineraries, share the ones worth recommending, and use past plans as a shortcut for your next trip.
             </p>
           </div>
           <div className="grid min-w-full gap-3 sm:grid-cols-3 lg:min-w-[360px]">
-            <div className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-              <p className="text-xs font-medium tracking-[0.16em] text-slate-400 uppercase">Completed</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{pastTrips.length}</p>
+            <div className="ws-chip-card px-4 py-4">
+              <p className="ws-mono text-[rgba(87,84,74,0.7)]">Completed</p>
+              <p className="mt-2 text-2xl font-semibold text-[var(--ws-ink)]">{pastTrips.length}</p>
             </div>
-            <div className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-              <p className="text-xs font-medium tracking-[0.16em] text-slate-400 uppercase">Trip days</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{totalPastDays}</p>
+            <div className="ws-chip-card ws-chip-card-yellow px-4 py-4">
+              <p className="ws-mono text-[rgba(87,84,74,0.7)]">Trip days</p>
+              <p className="mt-2 text-2xl font-semibold text-[var(--ws-ink)]">{totalPastDays}</p>
             </div>
-            <div className="rounded-[1.5rem] bg-stone-50 px-4 py-4">
-              <p className="text-xs font-medium tracking-[0.16em] text-slate-400 uppercase">Shared</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{sharedPastTrips}</p>
+            <div className="ws-chip-card ws-chip-card-green-soft px-4 py-4">
+              <p className="ws-mono text-[rgba(87,84,74,0.7)]">Shared</p>
+              <p className="mt-2 text-2xl font-semibold text-[var(--ws-ink)]">{sharedPastTrips}</p>
             </div>
           </div>
         </div>
@@ -528,14 +526,14 @@ export default function TripsPage() {
             value={pastSearch}
             onChange={(event) => setPastSearch(event.target.value)}
             placeholder="Search destination, title, or notes"
-            className="min-w-0 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+            className="ws-input min-w-0 rounded-full px-5 py-3 text-sm transition"
           />
           <label className="sr-only" htmlFor="past-trip-sharing">Filter by sharing</label>
           <select
             id="past-trip-sharing"
             value={pastSharedFilter}
             onChange={(event) => setPastSharedFilter(event.target.value as "all" | "shared" | "private")}
-            className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 outline-none transition focus:border-slate-400"
+            className="ws-input rounded-full px-5 py-3 text-sm font-medium transition"
           >
             <option value="all">All visibility</option>
             <option value="shared">Shared only</option>
@@ -546,7 +544,7 @@ export default function TripsPage() {
             id="past-trip-sort"
             value={pastSort}
             onChange={(event) => setPastSort(event.target.value as "recent" | "oldest")}
-            className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 outline-none transition focus:border-slate-400"
+            className="ws-input rounded-full px-5 py-3 text-sm font-medium transition"
           >
             <option value="recent">Most recent</option>
             <option value="oldest">Oldest first</option>
@@ -554,16 +552,16 @@ export default function TripsPage() {
         </div>
 
         {pastTrips.length === 0 ? (
-          <div className="mt-6 rounded-[1.75rem] border border-dashed border-slate-300 bg-stone-50/70 px-6 py-10 text-center">
-            <p className="text-sm font-semibold tracking-[0.2em] text-slate-500 uppercase">No completed trips yet</p>
-            <p className="mt-3 text-base leading-7 text-slate-500">
+          <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
+            <p className="ws-mono text-[var(--ws-muted)]">No completed trips yet</p>
+            <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
               Mark a trip as complete to start building your archive of repeatable itineraries.
             </p>
           </div>
         ) : pastArchiveTrips.length === 0 ? (
-          <div className="mt-6 rounded-[1.75rem] border border-dashed border-slate-300 bg-stone-50/70 px-6 py-10 text-center">
-            <p className="text-sm font-semibold tracking-[0.2em] text-slate-500 uppercase">No matches</p>
-            <p className="mt-3 text-base leading-7 text-slate-500">
+          <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
+            <p className="ws-mono text-[var(--ws-muted)]">No matches</p>
+            <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
               Try a different search term or visibility filter.
             </p>
           </div>
@@ -572,8 +570,8 @@ export default function TripsPage() {
             {pastArchiveGroups.map((group) => (
               <div key={group.label}>
                 <div className="mb-4 flex items-center gap-4">
-                  <h3 className="text-sm font-semibold tracking-[0.18em] text-slate-400 uppercase">{group.label}</h3>
-                  <div className="h-px flex-1 bg-slate-200" />
+                  <h3 className="ws-mono text-[rgba(87,84,74,0.7)]">{group.label}</h3>
+                  <div className="h-px flex-1 bg-[var(--ws-line)]" />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {group.items.map((trip) => {
@@ -584,8 +582,8 @@ export default function TripsPage() {
                       <article
                         key={trip.id}
                         className={heroImageUrl
-                          ? "overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white transition hover:border-slate-300"
-                          : "rounded-[1.75rem] border border-slate-200/80 bg-stone-50 px-5 py-5 transition hover:border-slate-300 hover:bg-white"}
+                          ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
+                          : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
                       >
                         {heroImageUrl && (
                           <img
@@ -595,22 +593,22 @@ export default function TripsPage() {
                             loading="lazy"
                           />
                         )}
-                        <div className={heroImageUrl ? "px-5 py-5" : ""}>
+                        <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-slate-500">{trip.destination}</p>
-                              <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">{trip.title}</h3>
+                              <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
+                              <h3 className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</h3>
                             </div>
-                            <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                            <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
                               {formatDate(trip.created_at)}
                             </span>
                           </div>
 
-                          <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-500">
+                          <p className="mt-4 line-clamp-2 text-sm leading-6 text-[var(--ws-muted)]">
                             {trip.description || "Saved from your recommendation flow and ready to revisit."}
                           </p>
 
-                          <div className="mt-5 flex flex-wrap gap-2 text-sm text-slate-500">
+                          <div className="mt-auto flex flex-wrap gap-2 pt-5 text-sm text-[var(--ws-muted)]">
                             <span className="rounded-full bg-white px-3 py-1.5 font-medium shadow-sm">
                               {dayCount || "-"} day{dayCount === 1 ? "" : "s"}
                             </span>
@@ -640,122 +638,103 @@ export default function TripsPage() {
     <AppShell
       title="My Trips"
       actions={
-        <>
-          <button
-            type="button"
-            onClick={() => setIsCreateFolderOpen((open) => !open)}
-            className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
-          >
-            Create Folder
-          </button>
-          <Link
-            to="/plan"
-            className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
-          >
-            Plan a trip
-          </Link>
-        </>
+        <Link
+          to="/plan"
+          className="ws-btn-primary px-5 py-3 text-sm"
+        >
+          Plan a trip
+        </Link>
       }
     >
-      <div className="space-y-6">
-        {isCreateFolderOpen && (
-          <form
-            onSubmit={handleCreateFolder}
-            className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-5 shadow-sm sm:p-6"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-              <div className="flex-1">
-                <label className="text-sm font-medium text-slate-600" htmlFor="folder-name">
-                  Folder name
-                </label>
-                <input
-                  id="folder-name"
-                  value={folderName}
-                  onChange={(event) => setFolderName(event.target.value)}
-                  placeholder="Weekend escapes"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium text-slate-600" htmlFor="folder-description">
-                  Description <span className="text-slate-400">optional</span>
-                </label>
-                <input
-                  id="folder-description"
-                  value={folderDescription}
-                  onChange={(event) => setFolderDescription(event.target.value)}
-                  placeholder="Ideas for quick train trips"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateFolderOpen(false)}
-                  className="rounded-full px-5 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingFolder}
-                  className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {creatingFolder ? "Creating..." : "Create"}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Total trips</p>
-            <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">{trips.length}</p>
-          </div>
-          <div className="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Active trips</p>
-            <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">{totalActiveTrips}</p>
-          </div>
-          <div className="rounded-[2rem] border border-slate-200/80 bg-slate-900 p-6 text-white shadow-lg shadow-slate-900/10">
-            <p className="text-sm text-white/70">Saved itineraries</p>
-            <p className="mt-3 text-4xl font-semibold tracking-tight text-white">{itinerariesCount}</p>
-            <p className="mt-2 text-sm leading-6 text-white/70">
-              Keep drafts in motion and hold onto the trips worth repeating.
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-slate-200/80 bg-white/90 p-6 shadow-sm sm:p-7">
+      <div className="space-y-4">
+        <section className="ws-surface p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Folders</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+              <p className="ws-mono text-[var(--ws-muted)]">Folders</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                 Filter active and past trips by collection.
               </h2>
             </div>
-            <p className="text-sm font-medium text-slate-500">Showing {selectedTripsLabel}</p>
+            <div className="sm:self-end">
+              <button
+                type="button"
+                onClick={() => setIsCreateFolderOpen((open) => !open)}
+                className="ws-btn-secondary px-5 py-3 text-sm"
+              >
+                New folder
+              </button>
+            </div>
           </div>
 
+          {isCreateFolderOpen && (
+            <form
+              onSubmit={handleCreateFolder}
+              className="mt-4 rounded-[1.5rem] border border-[var(--ws-line)] bg-[#fffdf8] p-4"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-[var(--ws-muted)]" htmlFor="folder-name">
+                    Folder name
+                  </label>
+                  <input
+                    id="folder-name"
+                    value={folderName}
+                    onChange={(event) => setFolderName(event.target.value)}
+                    placeholder="Weekend escapes"
+                    className="ws-input mt-2 w-full rounded-2xl px-4 py-3 text-sm transition"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-[var(--ws-muted)]" htmlFor="folder-description">
+                    Description <span className="text-[rgba(87,84,74,0.65)]">optional</span>
+                  </label>
+                  <input
+                    id="folder-description"
+                    value={folderDescription}
+                    onChange={(event) => setFolderDescription(event.target.value)}
+                    placeholder="Ideas for quick train trips"
+                    className="ws-input mt-2 w-full rounded-2xl px-4 py-3 text-sm transition"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateFolderOpen(false)}
+                    className="rounded-full px-5 py-3 text-sm font-semibold text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingFolder}
+                    className="ws-btn-primary px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {creatingFolder ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
           {loading ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="h-36 animate-pulse rounded-[2rem] bg-stone-100" />
-              <div className="h-36 animate-pulse rounded-[2rem] bg-stone-100" />
-              <div className="h-36 animate-pulse rounded-[2rem] bg-stone-100" />
-              <div className="h-36 animate-pulse rounded-[2rem] bg-stone-100" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
             </div>
           ) : (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <button
                 type="button"
                 onClick={() => setSelectedFolderId("all")}
                 className={selectedFolderId === "all"
-                  ? "rounded-[2rem] border border-slate-900 bg-slate-900 p-6 text-left text-white shadow-lg shadow-slate-900/10"
-                  : "rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 text-left shadow-sm transition hover:border-slate-300 hover:bg-white"}
+                  ? "ws-surface-dark p-4 text-left shadow-lg shadow-stone-900/10"
+                  : "ws-surface-flat p-4 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
               >
-                <p className={selectedFolderId === "all" ? "text-sm text-white/70" : "text-sm text-slate-500"}>All collections</p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight">{trips.length}</p>
-                <p className={selectedFolderId === "all" ? "mt-2 text-sm text-white/70" : "mt-2 text-sm text-slate-500"}>
+                <p className={selectedFolderId === "all" ? "text-sm text-white/70" : "text-sm text-[var(--ws-muted)]"}>All collections</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight">{trips.length}</p>
+                <p className={selectedFolderId === "all" ? "mt-1 text-sm text-white/70" : "mt-1 text-sm text-[var(--ws-muted)]"}>
                   Every active and past trip.
                 </p>
               </button>
@@ -764,12 +743,12 @@ export default function TripsPage() {
                 type="button"
                 onClick={() => setSelectedFolderId("unfiled")}
                 className={selectedFolderId === "unfiled"
-                  ? "rounded-[2rem] border border-slate-900 bg-slate-900 p-6 text-left text-white shadow-lg shadow-slate-900/10"
-                  : "rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 text-left shadow-sm transition hover:border-slate-300 hover:bg-white"}
+                  ? "ws-surface-dark p-4 text-left shadow-lg shadow-stone-900/10"
+                  : "ws-surface-flat p-4 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
               >
-                <p className={selectedFolderId === "unfiled" ? "text-sm text-white/70" : "text-sm text-slate-500"}>Unfiled</p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight">{unfiledTripsCount}</p>
-                <p className={selectedFolderId === "unfiled" ? "mt-2 text-sm text-white/70" : "mt-2 text-sm text-slate-500"}>
+                <p className={selectedFolderId === "unfiled" ? "text-sm text-white/70" : "text-sm text-[var(--ws-muted)]"}>Unfiled</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight">{unfiledTripsCount}</p>
+                <p className={selectedFolderId === "unfiled" ? "mt-1 text-sm text-white/70" : "mt-1 text-sm text-[var(--ws-muted)]"}>
                   Trips waiting for a collection.
                 </p>
               </button>
@@ -784,8 +763,8 @@ export default function TripsPage() {
                   <article
                     key={folder.id}
                     className={selected
-                      ? "rounded-[2rem] border border-slate-900 bg-slate-900 p-6 text-white shadow-lg shadow-slate-900/10"
-                      : "rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-sm transition hover:border-slate-300 hover:bg-white"}
+                      ? "ws-surface-dark p-4 shadow-lg shadow-stone-900/10"
+                      : "ws-surface-flat p-4 shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
                   >
                     <button
                       type="button"
@@ -794,17 +773,17 @@ export default function TripsPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className={selected ? "text-sm text-white/70" : "text-sm text-slate-500"}>Folder</p>
-                          <h3 className="mt-3 text-2xl font-semibold tracking-tight">{folder.name}</h3>
+                          <p className={selected ? "text-sm text-white/70" : "text-sm text-[var(--ws-muted)]"}>Folder</p>
+                          <h3 className="mt-2 text-xl font-semibold tracking-tight">{folder.name}</h3>
                         </div>
                         <span className={selected
                           ? "rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white"
-                          : "rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-slate-500"}
+                          : "rounded-full bg-[var(--ws-cream)] px-3 py-1 text-xs font-medium text-[var(--ws-muted)]"}
                         >
                           {folderTrips.length}
                         </span>
                       </div>
-                      <div className={selected ? "mt-4 flex gap-4 text-sm text-white/70" : "mt-4 flex gap-4 text-sm text-slate-500"}>
+                      <div className={selected ? "mt-3 flex gap-4 text-sm text-white/70" : "mt-3 flex gap-4 text-sm text-[var(--ws-muted)]"}>
                         <span>{activeCount} active</span>
                         <span>{pastCount} past</span>
                       </div>
@@ -814,8 +793,8 @@ export default function TripsPage() {
                       onClick={() => handleDeleteFolder(folder)}
                       disabled={deletingFolderId === folder.id}
                       className={selected
-                        ? "mt-5 text-sm font-semibold text-rose-100 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        : "mt-5 text-sm font-semibold text-rose-600 transition hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"}
+                        ? "mt-4 text-sm font-semibold text-[var(--ws-yellow)] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        : "mt-4 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)] disabled:cursor-not-allowed disabled:opacity-60"}
                     >
                       {deletingFolderId === folder.id ? "Deleting..." : "Delete"}
                     </button>
@@ -826,13 +805,13 @@ export default function TripsPage() {
           )}
         </section>
 
-        <nav className="grid gap-2 rounded-[2rem] border border-slate-200/80 bg-white/90 p-2 shadow-sm sm:grid-cols-2">
+        <nav className="grid gap-2 rounded-[2rem] border border-[var(--ws-line)] bg-[#fffdf8]/90 p-2 shadow-sm sm:grid-cols-2">
           <button
             type="button"
             onClick={() => setActiveView("active")}
             className={activeView === "active"
-              ? "rounded-[1.5rem] bg-slate-900 px-5 py-3 text-left text-sm font-semibold text-white"
-              : "rounded-[1.5rem] px-5 py-3 text-left text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-900"}
+              ? "rounded-[1.5rem] bg-[var(--ws-ink)] px-5 py-3 text-left text-sm font-semibold text-[var(--ws-bg)]"
+              : "rounded-[1.5rem] px-5 py-3 text-left text-sm font-semibold text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)]"}
           >
             Active Trips <span className="ml-2 opacity-70">{activeTrips.length}</span>
           </button>
@@ -840,15 +819,15 @@ export default function TripsPage() {
             type="button"
             onClick={() => setActiveView("past")}
             className={activeView === "past"
-              ? "rounded-[1.5rem] bg-slate-900 px-5 py-3 text-left text-sm font-semibold text-white"
-              : "rounded-[1.5rem] px-5 py-3 text-left text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-900"}
+              ? "rounded-[1.5rem] bg-[var(--ws-ink)] px-5 py-3 text-left text-sm font-semibold text-[var(--ws-bg)]"
+              : "rounded-[1.5rem] px-5 py-3 text-left text-sm font-semibold text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)]"}
           >
             Past Trips <span className="ml-2 opacity-70">{pastTrips.length}</span>
           </button>
         </nav>
 
         {error && (
-          <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <p className="rounded-2xl border border-[rgba(228,87,46,0.24)] bg-[var(--ws-cream)] px-4 py-3 text-sm text-[var(--ws-orange)]">
             {error}
           </p>
         )}
@@ -859,17 +838,17 @@ export default function TripsPage() {
             <div className="h-80 animate-pulse rounded-[2rem] bg-white/70 shadow-sm" />
           </div>
         ) : trips.length === 0 ? (
-          <section className="rounded-[2.5rem] border border-dashed border-slate-300 bg-white/60 px-6 py-14 text-center shadow-sm sm:px-10">
-            <p className="text-sm font-semibold tracking-[0.22em] text-slate-500 uppercase">Ready to start</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">
+          <section className="rounded-[2.5rem] border border-dashed border-[var(--ws-line)] bg-[#fffdf8]/60 px-6 py-14 text-center shadow-sm sm:px-10">
+            <p className="ws-mono text-[var(--ws-muted)]">Ready to start</p>
+            <h2 className="ws-display mt-4 text-3xl">
               Your trip history will build from here.
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-500">
+            <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[var(--ws-muted)]">
               Generate a tailored itinerary, save the one that fits best, and come back to it anytime.
             </p>
             <Link
               to="/plan"
-              className="mt-8 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800"
+              className="ws-btn-primary mt-8 px-6 py-3 text-sm"
             >
               Plan your first trip
             </Link>
