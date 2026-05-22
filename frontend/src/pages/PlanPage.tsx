@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend, refreshRecommendationItem } from "../api/trips";
 import AppShell from "../components/AppShell";
@@ -222,6 +222,8 @@ export default function PlanPage() {
     const [savingTitle, setSavingTitle] = useState<string | null>(null);
     const [expandedTransportIds, setExpandedTransportIds] = useState<Set<string>>(() => new Set());
     const [error, setError] = useState("");
+    const resultSectionRef = useRef<HTMLElement | null>(null);
+    const shouldScrollToResultRef = useRef(false);
 
     useEffect(() => {
         const nextDestination = searchParams.get("destination") || "";
@@ -231,6 +233,13 @@ export default function PlanPage() {
                 : { ...current, destination: nextDestination },
         );
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!result || loading || !shouldScrollToResultRef.current) return;
+
+        resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        shouldScrollToResultRef.current = false;
+    }, [result, loading]);
 
     const currentStep = quizSteps[stepIndex];
     const progressValue = ((stepIndex + 1) / quizSteps.length) * 100;
@@ -277,6 +286,7 @@ export default function PlanPage() {
         setTravelersTouched(false);
         setResult(null);
         setExpandedTransportIds(new Set());
+        shouldScrollToResultRef.current = false;
         setError("");
     };
 
@@ -288,14 +298,17 @@ export default function PlanPage() {
     const handleSubmit = async () => {
         setError("");
         setLoading(true);
+        shouldScrollToResultRef.current = true;
         try {
             const recs = await recommend(form);
             setResult(recs[0] ?? null);
             setExpandedTransportIds(new Set());
             if (recs.length === 0) {
+                shouldScrollToResultRef.current = false;
                 setError("No itinerary matched that combination. Try another mood or destination.");
             }
         } catch (err: unknown) {
+            shouldScrollToResultRef.current = false;
             setError(err instanceof Error ? err.message : "Failed to get recommendations");
         } finally {
             setLoading(false);
@@ -511,7 +524,7 @@ export default function PlanPage() {
                 </section>
 
                 {result && (
-                    <section className="ws-surface p-6 sm:p-8">
+                    <section ref={resultSectionRef} className="ws-surface scroll-mt-6 p-6 sm:p-8">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                     <p className="ws-mono text-[var(--ws-orange)]">Proposed itinerary</p>

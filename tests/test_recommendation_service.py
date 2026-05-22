@@ -247,7 +247,15 @@ async def test_recommend_scores_destinations_and_builds_itinerary():
     assert recommendations[0]["match_score"] >= recommendations[1]["match_score"]
     assert len(recommendations[0]["itinerary"]["days"]) == 2
     assert len(recommendations[0]["itinerary"]["days"][0]["activities"]) == 4
-    assert recommendations[0]["itinerary"]["estimated_total"] == 660.0
+    activity_costs = [
+        activity["cost"]
+        for day in recommendations[0]["itinerary"]["days"]
+        for activity in day["activities"]
+    ]
+    assert all(15 <= cost <= 30 for cost in activity_costs)
+    assert recommendations[0]["itinerary"]["estimated_total"] == round(
+        sum(activity_costs), 2
+    )
     assert recommendations[0]["highlights"]
 
 
@@ -313,6 +321,7 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
         TransportItinerary(
             duration_minutes=18,
             transfers=0,
+            price=120.0,
             legs=[
                 TransportLeg(
                     mode="tram",
@@ -344,6 +353,7 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
     assert transport.calls[0][0].latitude == 47.3701
     assert transport_items[0]["title"] == "tram 4"
     assert transport_items[0]["duration_text"] == "18 min, 0 transfers"
+    assert 15 <= transport_items[0]["cost"] <= 30
     assert transport_items[0]["transport_legs"] == [
         {
             "mode": "tram",

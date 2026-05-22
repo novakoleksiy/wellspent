@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
@@ -100,13 +101,6 @@ _GROUP_TO_STYLES: dict[str, list[str]] = {
     "friends": ["adventure", "foodie"],
 }
 
-_GROUP_ACTIVITY_COST_MULTIPLIER: dict[str, float] = {
-    "solo": 1.0,
-    "couple": 0.95,
-    "family": 0.85,
-    "friends": 1.05,
-}
-
 _TRIP_LENGTH_SLOTS: dict[str, list[str]] = {
     "2_3_hours": ["10:00", "12:00"],
     "half_day": ["09:30", "12:30", "15:30"],
@@ -127,11 +121,8 @@ _TRANSPORT_LABELS: dict[str, tuple[str, str]] = {
     ),
 }
 
-_COSTS: dict[str, dict[str, float]] = {
-    "budget": {"activity": 15.0, "meals_per_day": 35.0, "hotel_per_night": 70.0},
-    "mid": {"activity": 45.0, "meals_per_day": 70.0, "hotel_per_night": 170.0},
-    "luxury": {"activity": 130.0, "meals_per_day": 180.0, "hotel_per_night": 450.0},
-}
+_DEMO_PRICE_MIN_CHF = 15.0
+_DEMO_PRICE_MAX_CHF = 30.0
 
 logger = logging.getLogger(__name__)
 _PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS = 8.0
@@ -189,14 +180,31 @@ def _effective_styles(
     return unique_styles
 
 
-def _activity_cost(costs: dict[str, float], group_type: str, travelers: int) -> float:
-    multiplier = _GROUP_ACTIVITY_COST_MULTIPLIER.get(group_type, 1.0)
-    return round(costs["activity"] * multiplier * max(travelers, 1), 2)
+def _demo_price(*seed_parts: object) -> float:
+    seed = "|".join(str(part) for part in seed_parts)
+    return round(
+        random.Random(seed).uniform(_DEMO_PRICE_MIN_CHF, _DEMO_PRICE_MAX_CHF),
+        2,
+    )
 
 
-def _transport_cost(transport_mode: str, travelers: int) -> float:
-    per_traveler = 18.0 if transport_mode == "car" else 12.0
-    return round(per_traveler * max(travelers, 1), 2)
+def _activity_cost(
+    budget_tier: str,
+    group_type: str,
+    travelers: int,
+    *seed_parts: object,
+) -> float:
+    return _demo_price(
+        "activity", budget_tier, group_type, max(travelers, 1), *seed_parts
+    )
+
+
+def _transport_cost(
+    transport_mode: str,
+    travelers: int,
+    *seed_parts: object,
+) -> float:
+    return _demo_price("transport", transport_mode, max(travelers, 1), *seed_parts)
 
 
 def _build_day_timeline(
@@ -227,6 +235,7 @@ def _build_day_timeline(
         if index == len(activity_entries) - 1:
             continue
 
+        next_activity = activity_entries[index + 1]
         timeline_items.append(
             {
                 "id": f"transport-{day_num}-{index}",
@@ -234,7 +243,14 @@ def _build_day_timeline(
                 "time": activity["time"],
                 "title": transport_title,
                 "category": "transport",
-                "cost": _transport_cost(transport_mode, travelers),
+                "cost": _transport_cost(
+                    transport_mode,
+                    travelers,
+                    day_num,
+                    index,
+                    activity["title"],
+                    next_activity["title"],
+                ),
                 "duration_text": transport_note,
                 "transport_mode": transport_mode,
                 "notes": "Placeholder routing for v1. Live transport data will plug in later.",
@@ -363,8 +379,14 @@ async def _enrich_public_transport_timeline(
             timeline_item["duration_text"] = duration_text
             timeline_item["notes"] = notes
             timeline_item["transport_legs"] = _transport_leg_details(route)
-            if route.price is not None:
-                timeline_item["cost"] = route.price
+            timeline_item["cost"] = _transport_cost(
+                "public_transport",
+                travelers,
+                day.get("day", 1),
+                timeline_item.get("id"),
+                title,
+                duration_text,
+            )
 
 
 def _remove_internal_activity_fields(days: list[dict]) -> None:
@@ -372,6 +394,24 @@ def _remove_internal_activity_fields(days: list[dict]) -> None:
         for activity in day.get("activities", []):
             activity.pop("_latitude", None)
             activity.pop("_longitude", None)
+
+
+def _recalculate_estimated_total(
+    days: list[dict], include_transport_costs: bool
+) -> float:
+    total = sum(
+        activity.get("cost") or 0.0
+        for day in days
+        for activity in day.get("activities", [])
+    )
+    if include_transport_costs:
+        total += sum(
+            item.get("cost") or 0.0
+            for day in days
+            for item in day.get("timeline_items", [])
+            if item.get("kind") == "transport"
+        )
+    return round(total, 2)
 
 
 def _build_itinerary(
@@ -387,8 +427,6 @@ def _build_itinerary(
 ) -> tuple[list[dict], float]:
     num_days = max((end_date - start_date).days, 1)
     times = _TRIP_LENGTH_SLOTS.get(trip_length, _TRIP_LENGTH_SLOTS["half_day"])
-    costs = _COSTS.get(budget_tier, _COSTS["mid"])
-    slot_cost = _activity_cost(costs, group_type, travelers)
 
     sorted_items = sorted(items, key=lambda item: item.score, reverse=True)
     needed = num_days * len(times)
@@ -419,14 +457,23 @@ def _build_itinerary(
                 latitude, longitude = None, None
                 image_url = None
 
-            activity_total += slot_cost
+            activity_cost = _activity_cost(
+                budget_tier,
+                group_type,
+                travelers,
+                day_num + 1,
+                slot_index,
+                name,
+                category,
+            )
+            activity_total += activity_cost
             activities.append(
                 {
                     "id": f"activity-{day_num + 1}-{slot_index}",
                     "time": time,
                     "title": name,
                     "category": category or "activity",
-                    "cost": slot_cost,
+                    "cost": activity_cost,
                     "url": url or None,
                     "image_url": image_url,
                     "_latitude": latitude,
@@ -434,28 +481,25 @@ def _build_itinerary(
                 }
             )
 
-        day_transport_total = (
-            max(len(activities) - 1, 0) * _transport_cost(transport_mode, travelers)
-            if include_transport_costs
-            else 0.0
+        timeline_items = _build_day_timeline(
+            day_num + 1, activities, transport_mode, travelers
         )
+        day_transport_total = 0.0
+        if include_transport_costs:
+            day_transport_total = sum(
+                item["cost"] for item in timeline_items if item["kind"] == "transport"
+            )
         transport_total += day_transport_total
         days.append(
             {
                 "day": day_num + 1,
                 "date": current.isoformat(),
                 "activities": activities,
-                "timeline_items": _build_day_timeline(
-                    day_num + 1, activities, transport_mode, travelers
-                ),
+                "timeline_items": timeline_items,
             }
         )
 
-    meals_total = costs["meals_per_day"] * num_days * max(travelers, 1)
-    hotel_total = costs["hotel_per_night"] * num_days * max(travelers, 1)
-    estimated_total = round(
-        activity_total + meals_total + hotel_total + transport_total, 2
-    )
+    estimated_total = round(activity_total + transport_total, 2)
 
     return days, estimated_total
 
@@ -571,6 +615,7 @@ async def recommend(
 
     for dest in top_dests:
         items = await _collect_destination_items(client, dest, styles)
+        include_transport_costs = trip_length is not None
         days, estimated_total = _build_itinerary(
             items,
             start_date,
@@ -580,11 +625,14 @@ async def recommend(
             group_type,
             transport_mode,
             travelers,
-            trip_length is not None,
+            include_transport_costs,
         )
         if transport_mode == "public_transport" and public_transport_client is not None:
             await _enrich_public_transport_timeline(
                 days, public_transport_client, travelers
+            )
+            estimated_total = _recalculate_estimated_total(
+                days, include_transport_costs
             )
         _remove_internal_activity_fields(days)
 
@@ -622,6 +670,7 @@ def _replace_activity_in_itinerary(
     replacement: RecommendationItem,
     transport_mode: str,
     travelers: int,
+    group_type: str,
 ) -> dict:
     next_itinerary = {
         **itinerary,
@@ -636,6 +685,14 @@ def _replace_activity_in_itinerary(
                 continue
             activity["title"] = replacement.name
             activity["category"] = replacement.category or "activity"
+            activity["cost"] = _activity_cost(
+                "demo-refresh",
+                group_type,
+                travelers,
+                item_id,
+                replacement.name,
+                replacement.category,
+            )
             activity["url"] = replacement.url or None
             activity["image_url"] = replacement.image_url
             activity["_latitude"] = replacement.latitude
@@ -706,7 +763,7 @@ async def refresh_recommendation_item(
 
     next_itinerary = (
         _replace_activity_in_itinerary(
-            itinerary, item_id, replacement, transport_mode, travelers
+            itinerary, item_id, replacement, transport_mode, travelers, group_type
         )
         if replacement is not None
         else itinerary
@@ -716,6 +773,9 @@ async def refresh_recommendation_item(
             next_itinerary.get("days", []), public_transport_client, travelers
         )
     _remove_internal_activity_fields(next_itinerary.get("days", []))
+    next_itinerary["estimated_total"] = _recalculate_estimated_total(
+        next_itinerary.get("days", []), trip_length is not None
+    )
 
     top3 = sorted(items, key=lambda item: item.score, reverse=True)[:3]
     return {
