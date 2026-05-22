@@ -130,7 +130,7 @@ export default function AppShell({
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 pb-28 sm:px-6 sm:pb-8 lg:px-8">
-        <section className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <section className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="ws-display text-3xl sm:text-4xl">
               {title}

@@ -106,7 +106,6 @@ export default function TripsPage() {
 
     return trip.folder_id === selectedFolderId;
   });
-  const totalActiveTrips = trips.filter((trip) => trip.status !== "completed").length;
   const activeTrips = visibleTrips.filter((trip) => trip.status !== "completed");
   const pastTrips = visibleTrips.filter((trip) => trip.status === "completed");
   const pastArchiveTrips = pastTrips
@@ -141,7 +140,6 @@ export default function TripsPage() {
   }, []);
   const totalPastDays = pastTrips.reduce((total, trip) => total + (trip.itinerary?.days?.length ?? 0), 0);
   const sharedPastTrips = pastTrips.filter((trip) => trip.shared_at).length;
-  const itinerariesCount = trips.filter((trip) => trip.itinerary?.days?.length).length;
   const unfiledTripsCount = trips.filter((trip) => (trip.folder_id ?? null) === null).length;
   const selectedFolder = typeof selectedFolderId === "number"
     ? folders.find((folder) => folder.id === selectedFolderId)
@@ -640,122 +638,103 @@ export default function TripsPage() {
     <AppShell
       title="My Trips"
       actions={
-        <>
-          <button
-            type="button"
-            onClick={() => setIsCreateFolderOpen((open) => !open)}
-            className="ws-btn-secondary px-5 py-3 text-sm"
-          >
-            Create Folder
-          </button>
-          <Link
-            to="/plan"
-            className="ws-btn-primary px-5 py-3 text-sm"
-          >
-            Plan a trip
-          </Link>
-        </>
+        <Link
+          to="/plan"
+          className="ws-btn-primary px-5 py-3 text-sm"
+        >
+          Plan a trip
+        </Link>
       }
     >
-      <div className="space-y-6">
-        {isCreateFolderOpen && (
-          <form
-            onSubmit={handleCreateFolder}
-            className="ws-surface p-5 sm:p-6"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-              <div className="flex-1">
-                <label className="text-sm font-medium text-[var(--ws-muted)]" htmlFor="folder-name">
-                  Folder name
-                </label>
-                <input
-                  id="folder-name"
-                  value={folderName}
-                  onChange={(event) => setFolderName(event.target.value)}
-                  placeholder="Weekend escapes"
-                  className="ws-input mt-2 w-full rounded-2xl px-4 py-3 text-sm transition"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium text-[var(--ws-muted)]" htmlFor="folder-description">
-                  Description <span className="text-[rgba(87,84,74,0.65)]">optional</span>
-                </label>
-                <input
-                  id="folder-description"
-                  value={folderDescription}
-                  onChange={(event) => setFolderDescription(event.target.value)}
-                  placeholder="Ideas for quick train trips"
-                  className="ws-input mt-2 w-full rounded-2xl px-4 py-3 text-sm transition"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateFolderOpen(false)}
-                  className="rounded-full px-5 py-3 text-sm font-semibold text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingFolder}
-                  className="ws-btn-primary px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {creatingFolder ? "Creating..." : "Create"}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
-
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="ws-surface-flat p-6 shadow-sm">
-            <p className="ws-mono text-[var(--ws-muted)]">Total trips</p>
-            <p className="mt-3 text-4xl font-semibold tracking-[-0.03em] text-[var(--ws-ink)]">{trips.length}</p>
-          </div>
-          <div className="ws-surface-flat p-6 shadow-sm">
-            <p className="ws-mono text-[var(--ws-muted)]">Active trips</p>
-            <p className="mt-3 text-4xl font-semibold tracking-[-0.03em] text-[var(--ws-ink)]">{totalActiveTrips}</p>
-          </div>
-          <div className="ws-surface-orange p-6 shadow-lg shadow-orange-950/10">
-            <p className="ws-mono text-white/80">Saved itineraries</p>
-            <p className="mt-3 text-4xl font-semibold tracking-[-0.03em] text-white">{itinerariesCount}</p>
-            <p className="mt-2 text-sm leading-6 text-white/70">
-              Keep drafts in motion and hold onto the trips worth repeating.
-            </p>
-          </div>
-        </section>
-
-        <section className="ws-surface p-6 sm:p-7">
+      <div className="space-y-4">
+        <section className="ws-surface p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="ws-mono text-[var(--ws-muted)]">Folders</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                 Filter active and past trips by collection.
               </h2>
             </div>
-            <p className="text-sm font-medium text-[var(--ws-muted)]">Showing {selectedTripsLabel}</p>
+            <div className="sm:self-end">
+              <button
+                type="button"
+                onClick={() => setIsCreateFolderOpen((open) => !open)}
+                className="ws-btn-secondary px-5 py-3 text-sm"
+              >
+                New folder
+              </button>
+            </div>
           </div>
 
+          {isCreateFolderOpen && (
+            <form
+              onSubmit={handleCreateFolder}
+              className="mt-4 rounded-[1.5rem] border border-[var(--ws-line)] bg-[#fffdf8] p-4"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-[var(--ws-muted)]" htmlFor="folder-name">
+                    Folder name
+                  </label>
+                  <input
+                    id="folder-name"
+                    value={folderName}
+                    onChange={(event) => setFolderName(event.target.value)}
+                    placeholder="Weekend escapes"
+                    className="ws-input mt-2 w-full rounded-2xl px-4 py-3 text-sm transition"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-[var(--ws-muted)]" htmlFor="folder-description">
+                    Description <span className="text-[rgba(87,84,74,0.65)]">optional</span>
+                  </label>
+                  <input
+                    id="folder-description"
+                    value={folderDescription}
+                    onChange={(event) => setFolderDescription(event.target.value)}
+                    placeholder="Ideas for quick train trips"
+                    className="ws-input mt-2 w-full rounded-2xl px-4 py-3 text-sm transition"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateFolderOpen(false)}
+                    className="rounded-full px-5 py-3 text-sm font-semibold text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingFolder}
+                    className="ws-btn-primary px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {creatingFolder ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
           {loading ? (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="h-36 animate-pulse rounded-[2rem] bg-[var(--ws-cream)]" />
-              <div className="h-36 animate-pulse rounded-[2rem] bg-[var(--ws-cream)]" />
-              <div className="h-36 animate-pulse rounded-[2rem] bg-[var(--ws-cream)]" />
-              <div className="h-36 animate-pulse rounded-[2rem] bg-[var(--ws-cream)]" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
+              <div className="h-28 animate-pulse rounded-[1.5rem] bg-[var(--ws-cream)]" />
             </div>
           ) : (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <button
                 type="button"
                 onClick={() => setSelectedFolderId("all")}
                 className={selectedFolderId === "all"
-                  ? "ws-surface-dark p-6 text-left shadow-lg shadow-stone-900/10"
-                  : "ws-surface-flat p-6 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
+                  ? "ws-surface-dark p-4 text-left shadow-lg shadow-stone-900/10"
+                  : "ws-surface-flat p-4 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
               >
                 <p className={selectedFolderId === "all" ? "text-sm text-white/70" : "text-sm text-[var(--ws-muted)]"}>All collections</p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight">{trips.length}</p>
-                <p className={selectedFolderId === "all" ? "mt-2 text-sm text-white/70" : "mt-2 text-sm text-[var(--ws-muted)]"}>
+                <p className="mt-2 text-3xl font-semibold tracking-tight">{trips.length}</p>
+                <p className={selectedFolderId === "all" ? "mt-1 text-sm text-white/70" : "mt-1 text-sm text-[var(--ws-muted)]"}>
                   Every active and past trip.
                 </p>
               </button>
@@ -764,12 +743,12 @@ export default function TripsPage() {
                 type="button"
                 onClick={() => setSelectedFolderId("unfiled")}
                 className={selectedFolderId === "unfiled"
-                  ? "ws-surface-dark p-6 text-left shadow-lg shadow-stone-900/10"
-                  : "ws-surface-flat p-6 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
+                  ? "ws-surface-dark p-4 text-left shadow-lg shadow-stone-900/10"
+                  : "ws-surface-flat p-4 text-left shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
               >
                 <p className={selectedFolderId === "unfiled" ? "text-sm text-white/70" : "text-sm text-[var(--ws-muted)]"}>Unfiled</p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight">{unfiledTripsCount}</p>
-                <p className={selectedFolderId === "unfiled" ? "mt-2 text-sm text-white/70" : "mt-2 text-sm text-[var(--ws-muted)]"}>
+                <p className="mt-2 text-3xl font-semibold tracking-tight">{unfiledTripsCount}</p>
+                <p className={selectedFolderId === "unfiled" ? "mt-1 text-sm text-white/70" : "mt-1 text-sm text-[var(--ws-muted)]"}>
                   Trips waiting for a collection.
                 </p>
               </button>
@@ -784,8 +763,8 @@ export default function TripsPage() {
                   <article
                     key={folder.id}
                     className={selected
-                      ? "ws-surface-dark p-6 shadow-lg shadow-stone-900/10"
-                      : "ws-surface-flat p-6 shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
+                      ? "ws-surface-dark p-4 shadow-lg shadow-stone-900/10"
+                      : "ws-surface-flat p-4 shadow-sm transition hover:border-[rgba(20,19,15,0.24)] hover:bg-white"}
                   >
                     <button
                       type="button"
@@ -795,7 +774,7 @@ export default function TripsPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className={selected ? "text-sm text-white/70" : "text-sm text-[var(--ws-muted)]"}>Folder</p>
-                          <h3 className="mt-3 text-2xl font-semibold tracking-tight">{folder.name}</h3>
+                          <h3 className="mt-2 text-xl font-semibold tracking-tight">{folder.name}</h3>
                         </div>
                         <span className={selected
                           ? "rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white"
@@ -804,7 +783,7 @@ export default function TripsPage() {
                           {folderTrips.length}
                         </span>
                       </div>
-                      <div className={selected ? "mt-4 flex gap-4 text-sm text-white/70" : "mt-4 flex gap-4 text-sm text-[var(--ws-muted)]"}>
+                      <div className={selected ? "mt-3 flex gap-4 text-sm text-white/70" : "mt-3 flex gap-4 text-sm text-[var(--ws-muted)]"}>
                         <span>{activeCount} active</span>
                         <span>{pastCount} past</span>
                       </div>
@@ -814,8 +793,8 @@ export default function TripsPage() {
                       onClick={() => handleDeleteFolder(folder)}
                       disabled={deletingFolderId === folder.id}
                       className={selected
-                        ? "mt-5 text-sm font-semibold text-[var(--ws-yellow)] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        : "mt-5 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)] disabled:cursor-not-allowed disabled:opacity-60"}
+                        ? "mt-4 text-sm font-semibold text-[var(--ws-yellow)] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        : "mt-4 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)] disabled:cursor-not-allowed disabled:opacity-60"}
                     >
                       {deletingFolderId === folder.id ? "Deleting..." : "Delete"}
                     </button>
