@@ -17,7 +17,7 @@ const links = [
 
 function navClass(isActive: boolean): string {
   return isActive
-    ? "rounded-full bg-[rgba(255,235,105,0.72)] px-4 py-2 text-sm font-semibold text-[var(--ws-ink)] shadow-sm"
+    ? "rounded-full bg-[var(--ws-orange)] px-4 py-2 text-sm font-semibold !text-white shadow-sm"
     : "rounded-full px-4 py-2 text-sm font-medium text-[var(--ws-muted)] transition hover:bg-white/70 hover:text-[var(--ws-ink)]";
 }
 
@@ -96,7 +96,7 @@ export default function AppShell({
               aria-expanded={isProfileMenuOpen}
               aria-haspopup="menu"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--ws-yellow)] text-sm font-semibold text-[var(--ws-ink)] shadow-lg shadow-yellow-950/15">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--ws-orange)] text-sm font-semibold text-white shadow-lg shadow-orange-950/15">
                 {initials || "WS"}
               </div>
               <div className="min-w-0">
@@ -156,7 +156,7 @@ export default function AppShell({
             end={link.to === "/"}
             className={({ isActive }) =>
               isActive
-                ? "flex-1 rounded-full bg-[rgba(255,235,105,0.72)] px-3 py-3 text-center text-sm font-semibold text-[var(--ws-ink)]"
+                ? "flex-1 rounded-full bg-[var(--ws-orange)] px-3 py-3 text-center text-sm font-semibold !text-white"
                 : "flex-1 rounded-full px-3 py-3 text-center text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
             }
           >

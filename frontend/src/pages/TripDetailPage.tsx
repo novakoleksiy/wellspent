@@ -244,8 +244,8 @@ export default function TripDetailPage() {
                     ))}
                 </section>
 
-                <aside className="space-y-5">
-                    <div className="ws-surface p-6 xl:sticky xl:top-28">
+                <aside className="space-y-5 xl:sticky xl:top-28 xl:self-start">
+                    <div className="ws-surface p-6">
                         <p className="ws-mono text-[var(--ws-orange)]">
                             Trip summary
                         </p>
