@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Backend** — `uv` is the primary tool for running and managing the backend:
 ```bash
 uv sync --group dev                        # Install dependencies
-uv run uvicorn src.app.main:app --reload   # Run dev server
+uv run uvicorn --app-dir src app.main:app --reload   # Run dev server
 uv run ruff check .                        # Lint + import sorting
 uv run ruff check --fix .                  # Apply safe lint fixes
 uv run ruff format .                       # Format Python files

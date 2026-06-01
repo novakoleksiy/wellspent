@@ -24,7 +24,7 @@ Use checked-in config and nearby code as the source of truth. This file only cov
 
 - Start Postgres: `docker-compose up -d postgres`
 - Install backend deps: `uv sync --group dev`
-- Run backend: `uv run uvicorn src.app.main:app --reload`
+- Run backend: `uv run uvicorn --app-dir src app.main:app --reload`
 - Install frontend deps: `npm install`
 - Run frontend: `npm run dev`
 

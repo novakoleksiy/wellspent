@@ -7,10 +7,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.adapters.ojp_transport_client import OjpTransportAuthError
-from app.adapters.swiss_tourism_client import SwissTourismAuthError
+from app.adapters.swiss_tourism_client import (
+    HttpxSwissTourismClient,
+    SwissTourismAuthError,
+)
 from app.core.config import settings
 from app.core.db import engine
 from app.models.user import Base
+from app.services.recommendation_facets import refresh_attraction_facets
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +76,13 @@ async def lifespan(app: FastAPI):
             )
         )
     logger.info("Database tables ready.")
+    if settings.my_swiss_tourism_api:
+        logger.info("Refreshing Swiss Tourism attraction facets...")
+        await refresh_attraction_facets(
+            HttpxSwissTourismClient(api_key=settings.my_swiss_tourism_api)
+        )
+    else:
+        logger.info("Skipping Swiss Tourism attraction facet refresh: API key missing.")
     yield
     await engine.dispose()
 

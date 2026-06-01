@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
 
 from app.ports.swiss_tourism import (
     AttractionRecord,
     DestinationRecord,
+    FacetRecord,
+    FacetSnapshotRecord,
+    FacetValueRecord,
     GeoCoordinates,
     PageMeta,
     PaginatedResult,
@@ -77,6 +82,36 @@ class HttpxSwissTourismClient:
             total_pages=page.get("totalPages", 0),
         )
 
+    def _parse_facet_snapshot(self, meta: dict) -> FacetSnapshotRecord:
+        facets = meta.get("facets") or {}
+        translations = meta.get("facetsTranslation") or {}
+        records: list[FacetRecord] = []
+
+        for facet_name, values in sorted(facets.items()):
+            facet_translation = translations.get(facet_name) or {}
+            value_translations = facet_translation.get("values") or {}
+            records.append(
+                FacetRecord(
+                    name=facet_name,
+                    title=facet_translation.get("title"),
+                    values=[
+                        FacetValueRecord(
+                            name=value_name,
+                            title=value_translations.get(value_name),
+                            count=count,
+                        )
+                        for value_name, count in sorted(values.items())
+                    ],
+                )
+            )
+
+        return FacetSnapshotRecord(
+            object_type="attractions",
+            language=meta.get("language", self._language),
+            fetched_at=datetime.now(UTC),
+            facets=records,
+        )
+
     # ── destinations ─────────────────────────────────────
 
     async def list_destinations(
@@ -143,6 +178,9 @@ class HttpxSwissTourismClient:
         *,
         query: str | None = None,
         destination_id: str | None = None,
+        facets: list[str] | None = None,
+        facet_filter: str | None = None,
+        facets_translate: bool | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
         radius_m: int | None = None,
@@ -160,6 +198,12 @@ class HttpxSwissTourismClient:
             params["query"] = query
         if destination_id:
             params["placeId"] = destination_id
+        if facets:
+            params["facets"] = ",".join(facets)
+        if facet_filter:
+            params["facet.filter"] = facet_filter
+        if facets_translate is not None:
+            params["facets.translate"] = str(facets_translate).lower()
         if bbox:
             params["geo.bbox"] = ",".join(str(value) for value in bbox)
         elif latitude is not None and longitude is not None:
@@ -200,6 +244,25 @@ class HttpxSwissTourismClient:
         if not data:
             return None
         return self._to_attraction(data)
+
+    async def get_attraction_facets(self) -> FacetSnapshotRecord:
+        params = {
+            **self._base_params(),
+            "page": "0",
+            "hitsPerPage": "1",
+            "facets": "*",
+            "facets.translate": "true",
+        }
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{BASE_URL}/attractions/",
+                headers=self._headers(),
+                params=params,
+            )
+            self._raise_for_status(resp)
+
+        return self._parse_facet_snapshot(resp.json().get("meta", {}))
 
     def _to_attraction(self, item: dict) -> AttractionRecord:
         return AttractionRecord(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Protocol
 
 
@@ -59,6 +60,28 @@ class PageMeta:
 
 
 @dataclass
+class FacetValueRecord:
+    name: str
+    count: int
+    title: str | None = None
+
+
+@dataclass
+class FacetRecord:
+    name: str
+    title: str | None = None
+    values: list[FacetValueRecord] = field(default_factory=list)
+
+
+@dataclass
+class FacetSnapshotRecord:
+    object_type: str
+    language: str
+    fetched_at: datetime
+    facets: list[FacetRecord] = field(default_factory=list)
+
+
+@dataclass
 class PaginatedResult[T]:
     data: list[T]
     meta: PageMeta
@@ -82,6 +105,9 @@ class SwissTourismClient(Protocol):
         *,
         query: str | None = None,
         destination_id: str | None = None,
+        facets: list[str] | None = None,
+        facet_filter: str | None = None,
+        facets_translate: bool | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
         radius_m: int | None = None,
@@ -92,6 +118,8 @@ class SwissTourismClient(Protocol):
     ) -> PaginatedResult[AttractionRecord]: ...
 
     async def get_attraction(self, attraction_id: str) -> AttractionRecord | None: ...
+
+    async def get_attraction_facets(self) -> FacetSnapshotRecord: ...
 
     async def list_tours(
         self,

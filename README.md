@@ -23,7 +23,7 @@ uv sync --group dev
 4. Run the backend:
 
 ```bash
-uv run uvicorn src.app.main:app --reload
+uv run uvicorn --app-dir src app.main:app --reload
 ```
 
 The backend creates tables automatically on startup for a fresh MVP database.

@@ -283,6 +283,25 @@ class AttractionListOut(BaseModel):
     pagination: PaginationOut
 
 
+class FacetValueOut(BaseModel):
+    name: str
+    count: int
+    title: str | None = None
+
+
+class FacetOut(BaseModel):
+    name: str
+    title: str | None = None
+    values: list[FacetValueOut] = Field(default_factory=list)
+
+
+class FacetSnapshotOut(BaseModel):
+    object_type: str
+    language: str
+    fetched_at: datetime
+    facets: list[FacetOut] = Field(default_factory=list)
+
+
 class TourOut(BaseModel):
     id: str
     name: str

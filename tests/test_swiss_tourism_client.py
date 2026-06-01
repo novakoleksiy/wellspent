@@ -247,6 +247,72 @@ async def test_list_attractions_passes_geo_filters(client: HttpxSwissTourismClie
     assert params["top"] == "true"
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_attractions_passes_facet_filter(client: HttpxSwissTourismClient):
+    respx.get(f"{BASE_URL}/attractions/").mock(
+        return_value=Response(200, json={"data": [], "meta": {}})
+    )
+
+    await client.list_attractions(facet_filter="experiencetype:nature")
+
+    assert respx.calls.last.request.url.params["facet.filter"] == (
+        "experiencetype:nature"
+    )
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_attractions_passes_facets(client: HttpxSwissTourismClient):
+    respx.get(f"{BASE_URL}/attractions/").mock(
+        return_value=Response(200, json={"data": [], "meta": {}})
+    )
+
+    await client.list_attractions(
+        facets=["seasons", "experiencetype"], facets_translate=True
+    )
+
+    params = respx.calls.last.request.url.params
+    assert params["facets"] == "seasons,experiencetype"
+    assert params["facets.translate"] == "true"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_attraction_facets_returns_snapshot(client: HttpxSwissTourismClient):
+    payload = {
+        "meta": {
+            "language": "en",
+            "facets": {
+                "experiencetype": {"nature": 3, "culture": 2},
+                "seasons": {"winter": 4},
+            },
+            "facetsTranslation": {
+                "experiencetype": {
+                    "title": "Experience Type",
+                    "values": {"nature": "Nature", "culture": "Culture"},
+                },
+                "seasons": {"values": {"winter": "Winter"}},
+            },
+        }
+    }
+    respx.get(f"{BASE_URL}/attractions/").mock(return_value=Response(200, json=payload))
+
+    result = await client.get_attraction_facets()
+
+    params = respx.calls.last.request.url.params
+    assert params["facets"] == "*"
+    assert params["facets.translate"] == "true"
+    assert params["hitsPerPage"] == "1"
+    assert result.object_type == "attractions"
+    assert result.language == "en"
+    assert result.facets[0].name == "experiencetype"
+    assert result.facets[0].title == "Experience Type"
+    assert result.facets[0].values[1].name == "nature"
+    assert result.facets[0].values[1].title == "Nature"
+    assert result.facets[0].values[1].count == 3
+
+
 # ── get_attraction ────────────────────────────────────────────────────────────
 
 
