@@ -39,6 +39,7 @@ class FakeSwissClient:
         self.attraction_geo_calls: list[
             tuple[float | None, float | None, int | None]
         ] = []
+        self.tour_queries: list[str | None] = []
 
     async def list_destinations(
         self,
@@ -113,6 +114,7 @@ class FakeSwissClient:
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[TourRecord]:
+        self.tour_queries.append(query)
         if query in self.failing_tour_queries:
             raise RuntimeError("upstream rate limited")
         tours = self.tours_by_query.get(query or "", [])
@@ -275,7 +277,12 @@ async def test_recommend_prioritizes_typed_destination_over_style_match():
 
 
 @pytest.mark.asyncio
-async def test_recommend_scores_destinations_and_builds_itinerary():
+async def test_recommend_scores_destinations_and_builds_itinerary(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        recommendation_service.random, "choice", lambda choices: "Zermatt"
+    )
     client = FakeSwissClient(
         destinations=[
             _destination(
@@ -331,11 +338,18 @@ async def test_recommend_scores_destinations_and_builds_itinerary():
         budget_tier="budget",
     )
 
-    assert len(recommendations) == 2
+    assert len(recommendations) == 1
     assert recommendations[0]["destination"] == "Zermatt"
-    assert recommendations[0]["match_score"] >= recommendations[1]["match_score"]
-    assert len(recommendations[0]["itinerary"]["days"]) == 2
+    assert client.destination_queries == ["Zermatt"]
+    assert client.tour_queries == []
+    assert len(recommendations[0]["itinerary"]["days"]) == 1
     assert len(recommendations[0]["itinerary"]["days"][0]["activities"]) == 4
+    titles = {
+        activity["title"]
+        for day in recommendations[0]["itinerary"]["days"]
+        for activity in day["activities"]
+    }
+    assert "Alpine Loop (4h)" not in titles
     activity_costs = [
         activity["cost"]
         for day in recommendations[0]["itinerary"]["days"]

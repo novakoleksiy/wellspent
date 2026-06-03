@@ -49,10 +49,13 @@ async def list_destinations(
     user: CurrentUser,
     client: SwissTourism,
     query: str | None = None,
+    language: str = "en",
     page: int = 1,
     page_size: int = 10,
 ):
-    result = await client.list_destinations(query=query, page=page, page_size=page_size)
+    result = await client.list_destinations(
+        query=query, language=language, page=page, page_size=page_size
+    )
     return DestinationListOut(
         data=[_destination_out(d) for d in result.data],
         pagination=_pagination_out(result.meta),

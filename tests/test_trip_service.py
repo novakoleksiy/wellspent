@@ -40,13 +40,13 @@ class FakeTripRepo:
         return None
 
     async def list_shared(
-        self, *, viewer_user_id: int, limit: int = 6
+        self, *, viewer_user_id: int, limit: int | None = None
     ) -> list[CommunityTripRecord]:
         shared_trips = [
-            trip
-            for trip in self.trips.values()
-            if trip.user_id != viewer_user_id and trip.shared_at is not None
+            trip for trip in self.trips.values() if trip.shared_at is not None
         ]
+        if limit is not None:
+            shared_trips = shared_trips[:limit]
         return [
             CommunityTripRecord(
                 id=trip.id,
@@ -58,7 +58,7 @@ class FakeTripRepo:
                 shared_at=trip.shared_at,
                 owner_name=f"User {trip.user_id}",
             )
-            for trip in shared_trips[:limit]
+            for trip in shared_trips
         ]
 
     async def set_shared(
@@ -233,7 +233,7 @@ async def test_complete_trip_raises_when_trip_missing():
 
 
 @pytest.mark.asyncio
-async def test_list_shared_trips_returns_only_other_users_shared_trips():
+async def test_list_shared_trips_returns_all_shared_trips():
     shared_trip = replace(
         _trip_record(trip_id=2, user_id=2),
         shared_at=datetime.now(timezone.utc),
@@ -246,4 +246,4 @@ async def test_list_shared_trips_returns_only_other_users_shared_trips():
 
     trips = await trip_service.list_shared_trips(repo, 1)
 
-    assert [trip.id for trip in trips] == [2]
+    assert [trip.id for trip in trips] == [2, 3]

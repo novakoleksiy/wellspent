@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { listDestinations } from "../api/swissTourism";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../hooks/useAuth";
 import { getTripHeroImageUrl } from "../tripImages";
-import type { TripOut } from "../types";
+import type { DestinationOut, TripOut } from "../types";
 
 const nearbyIdeas = [
   {
@@ -34,6 +35,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [destination, setDestination] = useState("");
+  const [destinationOptions, setDestinationOptions] = useState<DestinationOut[]>([]);
+  const [destinationSearchLoading, setDestinationSearchLoading] = useState(false);
+  const [destinationSearchError, setDestinationSearchError] = useState("");
+  const [destinationFocused, setDestinationFocused] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,11 +52,64 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const query = destination.trim();
+    if (query.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const timeoutId = window.setTimeout(() => {
+      listDestinations({ query, pageSize: 5, signal: controller.signal })
+        .then((result) => {
+          if (!controller.signal.aborted) {
+            setDestinationOptions(result.data);
+          }
+        })
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          if (!controller.signal.aborted) {
+            setDestinationOptions([]);
+            setDestinationSearchError("Destination search is unavailable right now.");
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setDestinationSearchLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [destination]);
+
   const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 4);
 
   function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
     navigate(query ? `/plan?destination=${encodeURIComponent(query)}` : "/plan");
+  }
+
+  function chooseDestination(option: DestinationOut) {
+    setDestination(option.name);
+    setDestinationFocused(false);
+    openPlan(option.name);
+  }
+
+  function handleDestinationChange(value: string) {
+    setDestination(value);
+    setDestinationSearchError("");
+
+    if (value.trim().length < 2) {
+      setDestinationOptions([]);
+      setDestinationSearchLoading(false);
+    } else {
+      setDestinationSearchLoading(true);
+    }
   }
 
   function handlePlanSubmit(event: FormEvent<HTMLFormElement>) {
@@ -69,14 +127,45 @@ export default function HomePage() {
             <label className="sr-only" htmlFor="trip-destination">
               Plan a new trip
             </label>
-            <input
-              id="trip-destination"
-              type="search"
-              value={destination}
-              onChange={(event) => setDestination(event.target.value)}
-              placeholder="Plan a new trip"
-              className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-[var(--ws-yellow)] focus:outline-none focus:ring-2 focus:ring-[rgba(255,235,105,0.25)]"
-            />
+            <div className="relative min-w-0 flex-1">
+              <input
+                id="trip-destination"
+                type="search"
+                value={destination}
+                onChange={(event) => handleDestinationChange(event.target.value)}
+                onFocus={() => setDestinationFocused(true)}
+                onBlur={() => setDestinationFocused(false)}
+                placeholder="Plan a new trip"
+                autoComplete="off"
+                className="w-full rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-[var(--ws-yellow)] focus:outline-none focus:ring-2 focus:ring-[rgba(255,235,105,0.25)]"
+              />
+              {destinationFocused && destination.trim().length >= 2 && (
+                <div className="absolute top-[calc(100%+0.5rem)] right-0 left-0 z-20 overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#fffdf8] text-[var(--ws-ink)] shadow-2xl shadow-stone-950/25">
+                  {destinationSearchLoading ? (
+                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">Searching Swiss destinations...</p>
+                  ) : destinationSearchError ? (
+                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">{destinationSearchError}</p>
+                  ) : destinationOptions.length > 0 ? (
+                    destinationOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => chooseDestination(option)}
+                          className="block w-full px-4 py-3 text-left transition hover:bg-[var(--ws-cream)]"
+                        >
+                          <span className="block text-sm font-semibold">{option.name}</span>
+                          {option.category && (
+                            <span className="mt-0.5 block text-xs capitalize text-[var(--ws-muted)]">{option.category}</span>
+                          )}
+                        </button>
+                    ))
+                  ) : (
+                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">No matching destinations found.</p>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               className="ws-btn-accent px-6 py-3 text-sm"

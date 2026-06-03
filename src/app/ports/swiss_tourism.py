@@ -92,6 +92,7 @@ class SwissTourismClient(Protocol):
         self,
         *,
         query: str | None = None,
+        language: str | None = None,
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[DestinationRecord]: ...

@@ -86,7 +86,8 @@ async def test_list_destinations(client: HttpxSwissTourismClient):
             {
                 "identifier": "zurich",
                 "name": "Zurich",
-                "category": "city",
+                "category": "staedte",
+                "categoryName": {"en": "City", "de": "Städte"},
                 "description": "The largest city.",
                 "geo": {"latitude": "47.3769", "longitude": "8.5417"},
                 "image": [
@@ -110,7 +111,7 @@ async def test_list_destinations(client: HttpxSwissTourismClient):
     assert isinstance(dest, DestinationRecord)
     assert dest.id == "zurich"
     assert dest.name == "Zurich"
-    assert dest.category == "city"
+    assert dest.category == "City"
     assert dest.geo == GeoCoordinates(latitude=47.3769, longitude=8.5417)
     assert dest.images == [
         SwissImage(url="https://img.example.com/zurich.jpg", title="Zurich")
@@ -132,6 +133,46 @@ async def test_list_destinations_passes_query(client: HttpxSwissTourismClient):
     assert request.url.params["page"] == "1"  # 0-indexed
     assert request.url.params["hitsPerPage"] == "5"
     assert request.url.params["lang"] == "en"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_destinations_allows_language_override(
+    client: HttpxSwissTourismClient,
+):
+    respx.get(f"{BASE_URL}/destinations/").mock(
+        return_value=Response(200, json={"data": [], "meta": {}})
+    )
+
+    await client.list_destinations(query="zurich", language="fr")
+
+    request = respx.calls.last.request
+    assert request.url.params["lang"] == "fr"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_destinations_does_not_expose_raw_category_ids(
+    client: HttpxSwissTourismClient,
+):
+    payload = {
+        "data": [
+            {
+                "identifier": "zurich",
+                "name": "Zurich",
+                "category": "staedte",
+                "description": "The largest city.",
+            }
+        ],
+        "meta": {},
+    }
+    respx.get(f"{BASE_URL}/destinations/").mock(
+        return_value=Response(200, json=payload)
+    )
+
+    result = await client.list_destinations()
+
+    assert result.data[0].category is None
 
 
 @pytest.mark.asyncio

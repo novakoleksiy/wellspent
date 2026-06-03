@@ -19,6 +19,15 @@ from app.ports.swiss_tourism import (
 
 BASE_URL = "https://opendata.myswitzerland.io/v1"
 
+_DESTINATION_CATEGORY_LABEL_KEYS = (
+    "categoryName",
+    "categoryLabel",
+    "categoryTitle",
+    "categoryText",
+    "categoryTranslation",
+    "categoryTranslated",
+)
+
 
 class SwissTourismAuthError(Exception):
     """Raised when the upstream Swiss Tourism API rejects our credentials."""
@@ -34,8 +43,12 @@ class HttpxSwissTourismClient:
     def _headers(self) -> dict[str, str]:
         return {"x-api-key": self._api_key}
 
-    def _base_params(self) -> dict[str, str]:
-        return {"lang": self._language, "striphtml": "true", "expand": "true"}
+    def _base_params(self, language: str | None = None) -> dict[str, str]:
+        return {
+            "lang": language or self._language,
+            "striphtml": "true",
+            "expand": "true",
+        }
 
     @staticmethod
     def _raise_for_status(resp: httpx.Response) -> None:
@@ -71,6 +84,37 @@ class HttpxSwissTourismClient:
                 images.append(SwissImage(url=url, title=img.get("name", "")))
                 seen_urls.add(url)
         return images
+
+    @staticmethod
+    def _localized_text(value: object, language: str = "en") -> str | None:
+        if isinstance(value, str):
+            return value.strip() or None
+        if isinstance(value, dict):
+            preferred = value.get(language)
+            if preferred:
+                return HttpxSwissTourismClient._localized_text(preferred, language)
+            for key in ("name", "title", "label", "value"):
+                if value.get(key):
+                    return HttpxSwissTourismClient._localized_text(value[key], language)
+        if isinstance(value, list):
+            for item in value:
+                text = HttpxSwissTourismClient._localized_text(item, language)
+                if text:
+                    return text
+        return None
+
+    @staticmethod
+    def _extract_destination_category(item: dict, language: str = "en") -> str | None:
+        for key in _DESTINATION_CATEGORY_LABEL_KEYS:
+            text = HttpxSwissTourismClient._localized_text(item.get(key), language)
+            if text:
+                return text
+
+        category = item.get("category")
+        if isinstance(category, str):
+            # Plain category strings are taxonomy IDs, not localized display labels.
+            return None
+        return HttpxSwissTourismClient._localized_text(category, language)
 
     @staticmethod
     def _parse_page_meta(meta: dict) -> PageMeta:
@@ -118,11 +162,12 @@ class HttpxSwissTourismClient:
         self,
         *,
         query: str | None = None,
+        language: str | None = None,
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[DestinationRecord]:
         params = {
-            **self._base_params(),
+            **self._base_params(language),
             "page": str(page - 1),
             "hitsPerPage": str(page_size),
         }
@@ -164,7 +209,7 @@ class HttpxSwissTourismClient:
         return DestinationRecord(
             id=item.get("identifier", ""),
             name=item.get("name", ""),
-            category=item.get("category"),
+            category=self._extract_destination_category(item),
             description=item.get("description") or item.get("abstract", ""),
             geo=self._extract_geo(item),
             images=self._extract_images(item),

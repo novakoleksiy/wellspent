@@ -66,7 +66,7 @@ export default function ExplorePage() {
                         <div>
                             <p className="ws-mono text-[var(--ws-orange)]">Community Trips</p>
                             <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                                Latest trips shared by other members.
+                                Latest trips shared by the community.
                             </h2>
                         </div>
                         <span className="ws-pill px-4 py-2 text-sm font-medium">
@@ -90,7 +90,7 @@ export default function ExplorePage() {
                         <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
                             <p className="ws-mono text-[var(--ws-muted)]">Quiet for now</p>
                             <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
-                                Shared trips from other members will appear here as soon as the community starts publishing them.
+                                Shared trips will appear here as soon as the community starts publishing them.
                             </p>
                         </div>
                     ) : (

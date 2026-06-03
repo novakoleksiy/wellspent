@@ -159,3 +159,35 @@ export interface CommunityTripOut {
     shared_at: string;
     owner_name: string;
 }
+
+export interface GeoOut {
+    latitude: number;
+    longitude: number;
+}
+
+export interface ImageOut {
+    url: string;
+    title: string;
+}
+
+export interface PaginationOut {
+    page_number: number;
+    page_size: number;
+    total_elements: number;
+    total_pages: number;
+}
+
+export interface DestinationOut {
+    id: string;
+    name: string;
+    category?: string | null;
+    description: string;
+    geo?: GeoOut | null;
+    images: ImageOut[];
+    url: string;
+}
+
+export interface DestinationListOut {
+    data: DestinationOut[];
+    pagination: PaginationOut;
+}

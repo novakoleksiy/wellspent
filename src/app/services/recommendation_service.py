@@ -16,7 +16,6 @@ from app.ports.swiss_tourism import (
     FacetSnapshotRecord,
     FacetValueRecord,
     SwissTourismClient,
-    TourRecord,
 )
 from app.ports.transport import (
     PublicTransportClient,
@@ -190,6 +189,19 @@ _TRIP_LENGTH_SLOTS: dict[str, list[str]] = {
     "half_day": ["09:30", "12:30", "15:30"],
     "full_day": ["09:00", "11:30", "14:00", "16:30"],
 }
+
+_SURPRISE_SWISS_DESTINATIONS: list[str] = [
+    "Zurich",
+    "Geneva",
+    "Lucerne",
+    "Interlaken",
+    "Zermatt",
+    "Bern",
+    "Lausanne",
+    "Lugano",
+    "Basel",
+    "St. Moritz",
+]
 
 _TRANSPORT_LABELS: dict[str, tuple[str, str]] = {
     "car": ("Drive to next stop", "Approx. 25 min by car"),
@@ -740,7 +752,7 @@ def _build_itinerary(
     include_transport_costs: bool,
     destination_name: str = "the area",
 ) -> tuple[list[dict], float]:
-    num_days = max((end_date - start_date).days, 1)
+    num_days = 1
     times = _TRIP_LENGTH_SLOTS.get(trip_length, _TRIP_LENGTH_SLOTS["half_day"])
 
     needed = num_days * len(times)
@@ -830,9 +842,8 @@ async def _collect_destination_items(
     facet_filters: list[str],
     season_filter: str | None = None,
 ) -> list[RecommendationItem]:
-    (attraction_records, facet_rank_by_id), tour_records = await asyncio.gather(
-        _list_matching_attractions(client, dest, facet_filters, season_filter),
-        _list_destination_tours(client, dest.name),
+    attraction_records, facet_rank_by_id = await _list_matching_attractions(
+        client, dest, facet_filters, season_filter
     )
 
     items: list[RecommendationItem] = []
@@ -850,22 +861,6 @@ async def _collect_destination_items(
                 longitude=attr.geo.longitude if attr.geo else None,
                 image_url=attr.images[0].url if attr.images else fallback_image_url,
                 description=_clean_description(attr.description),
-            )
-        )
-
-    for tour in tour_records:
-        score = _score_text(tour.name, tour.description, "tour", styles)
-        label = tour.name + (f" ({tour.duration})" if tour.duration else "")
-        items.append(
-            RecommendationItem(
-                name=label,
-                category="tour",
-                url=tour.url,
-                score=score,
-                latitude=tour.geo.latitude if tour.geo else None,
-                longitude=tour.geo.longitude if tour.geo else None,
-                image_url=tour.images[0].url if tour.images else fallback_image_url,
-                description=_clean_description(tour.description),
             )
         )
 
@@ -975,34 +970,23 @@ async def _list_matching_attractions(
     return _scope_attractions_to_destination(dest, attractions_result.data), {}
 
 
-async def _list_destination_tours(
-    client: SwissTourismClient,
-    destination_name: str,
-) -> list[TourRecord]:
-    try:
-        tours_result = await client.list_tours(
-            query=destination_name, page=1, page_size=10
-        )
-    except Exception:
-        logger.warning(
-            "Failed to fetch Swiss Tourism tours for destination %s",
-            destination_name,
-            exc_info=True,
-        )
-        return []
-    return tours_result.data
-
-
 async def _pick_destinations(
     client: SwissTourismClient,
     destination: str | None,
     styles: list[str],
 ) -> list[DestinationRecord]:
-    destination_query = destination.strip() if destination else None
+    destination_query = destination.strip() if destination else ""
+    if not destination_query:
+        destination_query = random.choice(_SURPRISE_SWISS_DESTINATIONS)
+
     dest_result = await client.list_destinations(
         query=destination_query, page=1, page_size=6
     )
     destinations = dest_result.data
+
+    if not destinations and destination_query in _SURPRISE_SWISS_DESTINATIONS:
+        dest_result = await client.list_destinations(query=None, page=1, page_size=6)
+        destinations = dest_result.data
 
     if not destinations:
         return []
@@ -1010,17 +994,14 @@ async def _pick_destinations(
     def _dest_score(dest: DestinationRecord) -> float:
         return _score_text(dest.name, dest.description, dest.category or "", styles)
 
-    if destination_query:
-        return sorted(
-            destinations,
-            key=lambda dest: (
-                _destination_query_score(dest, destination_query),
-                _dest_score(dest),
-            ),
-            reverse=True,
-        )[:1]
-
-    return sorted(destinations, key=_dest_score, reverse=True)[:4]
+    return sorted(
+        destinations,
+        key=lambda dest: (
+            _destination_query_score(dest, destination_query),
+            _dest_score(dest),
+        ),
+        reverse=True,
+    )[:1]
 
 
 def _destination_query_score(dest: DestinationRecord, query: str) -> int:

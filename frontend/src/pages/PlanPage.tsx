@@ -97,10 +97,12 @@ type PlannerForm = {
 };
 
 function initialPlannerForm(destination = ""): PlannerForm {
+    const startDate = inputDate(1);
+
     return {
         destination,
-        start_date: inputDate(14),
-        end_date: inputDate(14),
+        start_date: startDate,
+        end_date: startDate,
         travelers: 1,
         notes: "",
         mood: "culture_history",
@@ -301,7 +303,7 @@ export default function PlanPage() {
         setLoading(true);
         shouldScrollToResultRef.current = true;
         try {
-            const recs = await recommend(form);
+            const recs = await recommend({ ...form, end_date: form.start_date });
             setResult(recs[0] ?? null);
             setExpandedTransportIds(new Set());
             if (recs.length === 0) {
@@ -324,6 +326,7 @@ export default function PlanPage() {
             const next = await refreshRecommendationItem({
                 ...form,
                 destination: result.destination,
+                end_date: form.start_date,
                 itinerary: result.itinerary,
                 item_id: itemId,
             });
@@ -489,16 +492,13 @@ export default function PlanPage() {
                                     <input
                                         type="date"
                                         value={form.start_date}
-                                        onChange={(event) => set("start_date", event.target.value)}
-                                        className="ws-input mt-2 w-full rounded-2xl px-4 py-3 transition"
-                                    />
-                                </label>
-                                <label className="text-sm font-medium text-white/78">
-                                    End date
-                                    <input
-                                        type="date"
-                                        value={form.end_date}
-                                        onChange={(event) => set("end_date", event.target.value)}
+                                        onChange={(event) => {
+                                            setForm((current) => ({
+                                                ...current,
+                                                start_date: event.target.value,
+                                                end_date: event.target.value,
+                                            }));
+                                        }}
                                         className="ws-input mt-2 w-full rounded-2xl px-4 py-3 transition"
                                     />
                                 </label>
