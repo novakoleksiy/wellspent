@@ -20,6 +20,7 @@ from app.ports.swiss_tourism import (
 from app.ports.transport import (
     PublicTransportClient,
     TransportItinerary,
+    TransportLeg,
     TransportPlace,
 )
 from app.services.recommendation_facets import get_attraction_facets_snapshot
@@ -216,8 +217,17 @@ _DEMO_PRICE_MAX_CHF = 30.0
 
 logger = logging.getLogger(__name__)
 _PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS = 8.0
+_MAX_PUBLIC_TRANSPORT_LEGS = 20
+_CAR_ROUTE_DISTANCE_MULTIPLIER = 1.3
+_CAR_AVERAGE_SPEED_KMH = 35.0
+_CAR_MIN_DURATION_MINUTES = 5
+_CAR_DURATION_ROUNDING_MINUTES = 5
 _MAX_ATTRACTION_FACET_FILTERS = 3
-_DESTINATION_ATTRACTION_RADIUS_M = 75_000
+_DESTINATION_ATTRACTION_RADIUS_M = 30_000
+_ATTRACTION_FETCH_PAGE_SIZE = 50
+_MAX_ATTRACTION_FETCH_PAGES = 3
+_ATTRACTION_TEXT_SCORE_WEIGHT = 0.55
+_ATTRACTION_PROXIMITY_SCORE_WEIGHT = 0.45
 _WORD_RE = re.compile(r"[a-z0-9]+")
 _DESCRIPTION_MAX_CHARS = 220
 
@@ -236,10 +246,17 @@ class RecommendationItem:
     category: str
     url: str
     score: float
+    distance_m: float | None = None
     latitude: float | None = None
     longitude: float | None = None
     image_url: str | None = None
     description: str | None = None
+
+
+@dataclass
+class AttractionMatchSignals:
+    facet_rank: int | None = None
+    season_match: bool = False
 
 
 def _clean_description(text: str | None) -> str | None:
@@ -369,13 +386,6 @@ def _season_facet_filter(value: date) -> str | None:
     return None
 
 
-def _combine_facet_filters(season_filter: str | None, style_filter: str | None) -> str:
-    """AND a season constraint with a style facet filter into one ``facet.filter``."""
-    if season_filter and style_filter:
-        return f"{season_filter},{style_filter}"
-    return season_filter or style_filter or ""
-
-
 def _ranked_filters_for_style(snapshot: FacetSnapshotRecord, style: str) -> list[str]:
     candidates: list[tuple[int, int, str]] = []
     for facet in snapshot.facets:
@@ -462,6 +472,31 @@ def _scope_attractions_to_destination(
     return scoped
 
 
+def _attraction_distance_m(
+    dest: DestinationRecord, attraction: AttractionRecord
+) -> float | None:
+    if dest.geo is None or attraction.geo is None:
+        return None
+    return _distance_meters(
+        dest.geo.latitude,
+        dest.geo.longitude,
+        attraction.geo.latitude,
+        attraction.geo.longitude,
+    )
+
+
+def _proximity_blended_score(base_score: float, distance_m: float | None) -> float:
+    if distance_m is None:
+        return base_score
+
+    proximity_score = 1.0 - min(distance_m / _DESTINATION_ATTRACTION_RADIUS_M, 1.0)
+    return round(
+        base_score * _ATTRACTION_TEXT_SCORE_WEIGHT
+        + proximity_score * _ATTRACTION_PROXIMITY_SCORE_WEIGHT,
+        3,
+    )
+
+
 def _demo_price(*seed_parts: object) -> float:
     seed = "|".join(str(part) for part in seed_parts)
     return round(
@@ -487,6 +522,43 @@ def _transport_cost(
     *seed_parts: object,
 ) -> float:
     return _demo_price("transport", transport_mode, max(travelers, 1), *seed_parts)
+
+
+def _car_route_estimate(activity: dict, next_activity: dict) -> tuple[str, str]:
+    origin_latitude = activity.get("_latitude")
+    origin_longitude = activity.get("_longitude")
+    target_latitude = next_activity.get("_latitude")
+    target_longitude = next_activity.get("_longitude")
+    if (
+        origin_latitude is None
+        or origin_longitude is None
+        or target_latitude is None
+        or target_longitude is None
+    ):
+        return _TRANSPORT_LABELS["car"][
+            1
+        ], "Estimated car route unavailable without stop coordinates."
+
+    direct_distance_km = (
+        _distance_meters(
+            origin_latitude,
+            origin_longitude,
+            target_latitude,
+            target_longitude,
+        )
+        / 1000
+    )
+    route_distance_km = direct_distance_km * _CAR_ROUTE_DISTANCE_MULTIPLIER
+    raw_minutes = route_distance_km / _CAR_AVERAGE_SPEED_KMH * 60
+    rounded_minutes = max(
+        _CAR_MIN_DURATION_MINUTES,
+        math.ceil(raw_minutes / _CAR_DURATION_ROUNDING_MINUTES)
+        * _CAR_DURATION_ROUNDING_MINUTES,
+    )
+    return (
+        f"Approx. {rounded_minutes} min by car",
+        f"Estimated from about {route_distance_km:.1f} km between stops.",
+    )
 
 
 def _build_day_timeline(
@@ -519,6 +591,10 @@ def _build_day_timeline(
             continue
 
         next_activity = activity_entries[index + 1]
+        duration_text = transport_note
+        notes = "Placeholder routing for v1. Live transport data will plug in later."
+        if transport_mode == "car":
+            duration_text, notes = _car_route_estimate(activity, next_activity)
         timeline_items.append(
             {
                 "id": f"transport-{day_num}-{index}",
@@ -534,9 +610,9 @@ def _build_day_timeline(
                     activity["title"],
                     next_activity["title"],
                 ),
-                "duration_text": transport_note,
+                "duration_text": duration_text,
                 "transport_mode": transport_mode,
-                "notes": "Placeholder routing for v1. Live transport data will plug in later.",
+                "notes": notes,
                 "refreshable": False,
             }
         )
@@ -593,6 +669,7 @@ def _summarize_transport_route(route: TransportItinerary) -> tuple[str, str, str
 
 
 def _transport_leg_details(route: TransportItinerary) -> list[dict]:
+    legs = _important_transport_legs(route.legs)
     return [
         {
             "mode": leg.mode,
@@ -605,8 +682,30 @@ def _transport_leg_details(route: TransportItinerary) -> list[dict]:
             "direction": leg.direction,
             "notes": leg.notes,
         }
-        for leg in route.legs
+        for leg in legs
     ]
+
+
+def _important_transport_legs(legs: list[TransportLeg]) -> list[TransportLeg]:
+    """Return user-facing route legs: transit legs plus only edge walks."""
+    if not legs:
+        return []
+
+    edge_walk_indices: list[int] = []
+    if legs[0].mode == "walk":
+        edge_walk_indices.append(0)
+    if len(legs) > 1 and legs[-1].mode == "walk":
+        edge_walk_indices.append(len(legs) - 1)
+
+    public_indices = [index for index, leg in enumerate(legs) if leg.mode != "walk"]
+    important_indices = sorted({*edge_walk_indices, *public_indices})
+    if len(important_indices) <= _MAX_PUBLIC_TRANSPORT_LEGS:
+        return [legs[index] for index in important_indices]
+
+    edge_walk_set = set(edge_walk_indices)
+    public_slots = _MAX_PUBLIC_TRANSPORT_LEGS - len(edge_walk_set)
+    capped_indices = sorted({*edge_walk_set, *public_indices[:public_slots]})
+    return [legs[index] for index in capped_indices]
 
 
 async def _enrich_public_transport_timeline(
@@ -842,21 +941,25 @@ async def _collect_destination_items(
     facet_filters: list[str],
     season_filter: str | None = None,
 ) -> list[RecommendationItem]:
-    attraction_records, facet_rank_by_id = await _list_matching_attractions(
+    attraction_records, signals_by_id = await _list_matching_attractions(
         client, dest, facet_filters, season_filter
     )
 
     items: list[RecommendationItem] = []
     fallback_image_url = dest.images[0].url if dest.images else None
     for attr in attraction_records:
+        distance_m = _attraction_distance_m(dest, attr)
+        signals = signals_by_id.get(attr.id, AttractionMatchSignals())
         text_score = _score_text(attr.name, attr.description, attr.category, styles)
-        score = _facet_blended_score(text_score, facet_rank_by_id.get(attr.id))
+        base_score = _quiz_blended_score(text_score, signals)
+        score = _proximity_blended_score(base_score, distance_m)
         items.append(
             RecommendationItem(
                 name=attr.name,
                 category=attr.category or "attraction",
                 url=attr.url,
                 score=score,
+                distance_m=distance_m,
                 latitude=attr.geo.latitude if attr.geo else None,
                 longitude=attr.geo.longitude if attr.geo else None,
                 image_url=attr.images[0].url if attr.images else fallback_image_url,
@@ -881,6 +984,13 @@ async def _collect_destination_items(
     return items
 
 
+def _quiz_blended_score(text_score: float, signals: AttractionMatchSignals) -> float:
+    score = _facet_blended_score(text_score, signals.facet_rank)
+    if signals.season_match:
+        score = min(1.0, score + 0.04)
+    return round(score, 3)
+
+
 def _facet_blended_score(text_score: float, facet_rank: int | None) -> float:
     """Blend the keyword text score with the facet match priority.
 
@@ -900,15 +1010,13 @@ async def _list_matching_attractions(
     dest: DestinationRecord,
     facet_filters: list[str],
     season_filter: str | None = None,
-) -> tuple[list[AttractionRecord], dict[str, int]]:
-    """Fetch attractions, blending results from every facet filter.
+) -> tuple[list[AttractionRecord], dict[str, AttractionMatchSignals]]:
+    """Fetch broad destination candidates and use facets only as ranking signals.
 
-    When a ``season_filter`` is supplied it is ANDed into every query (including the
-    fallback) so results stay season-appropriate. Returns the merged attractions plus
-    a map of attraction id -> facet rank (the 0-based index of the filter that first
-    sourced it, 0 = highest priority), so the itinerary mixes experience types instead
-    of all coming from one facet. Falls back to a season-only (or unfiltered) query
-    only when no style facet filter yields anything.
+    The unfiltered destination query is the primary candidate pool, so sparse or
+    overly narrow style/season facets do not starve the itinerary. Facet-filtered
+    queries are still issued as soft signals: matching attractions get score boosts,
+    and facet-only hits can supplement the pool when the broad query misses them.
     """
     geo_filters = (
         {
@@ -920,14 +1028,19 @@ async def _list_matching_attractions(
         else {}
     )
 
-    async def _fetch(facet_filter: str) -> list[AttractionRecord]:
+    async def _fetch_page(
+        facet_filter: str | None,
+        *,
+        page: int = 1,
+        page_size: int = _ATTRACTION_FETCH_PAGE_SIZE,
+    ) -> tuple[list[AttractionRecord], int]:
         try:
             result = await client.list_attractions(
                 destination_id=dest.id,
-                facet_filter=facet_filter or None,
+                facet_filter=facet_filter,
                 **geo_filters,
-                page=1,
-                page_size=10,
+                page=page,
+                page_size=page_size,
             )
         except Exception:
             logger.warning(
@@ -935,39 +1048,68 @@ async def _list_matching_attractions(
                 facet_filter,
                 exc_info=True,
             )
-            return []
-        return _scope_attractions_to_destination(dest, result.data)
+            return [], 0
+        return _scope_attractions_to_destination(
+            dest, result.data
+        ), result.meta.total_pages
 
-    if facet_filters:
-        combined = [_combine_facet_filters(season_filter, ff) for ff in facet_filters]
-        results = await asyncio.gather(*[_fetch(ff) for ff in combined])
-        merged: list[AttractionRecord] = []
-        facet_rank_by_id: dict[str, int] = {}
-        for rank, attractions in enumerate(results):
+    async def _fetch_broad_candidates() -> list[AttractionRecord]:
+        candidates: list[AttractionRecord] = []
+        for page in range(1, _MAX_ATTRACTION_FETCH_PAGES + 1):
+            attractions, total_pages = await _fetch_page(None, page=page)
+            candidates.extend(attractions)
+            if total_pages <= page:
+                break
+        return candidates
+
+    def _add_attractions(
+        by_id: dict[str, AttractionRecord], attractions: list[AttractionRecord]
+    ) -> None:
+        for attraction in attractions:
+            if not attraction.id or attraction.id in by_id:
+                continue
+            by_id[attraction.id] = attraction
+
+    candidates_by_id: dict[str, AttractionRecord] = {}
+    signals_by_id: dict[str, AttractionMatchSignals] = {}
+    broad_candidates = await _fetch_broad_candidates()
+    _add_attractions(candidates_by_id, broad_candidates)
+
+    signal_filters = [*facet_filters]
+    if season_filter:
+        signal_filters.append(season_filter)
+
+    if signal_filters:
+        signal_results = await asyncio.gather(
+            *[
+                _fetch_page(facet_filter, page_size=20)
+                for facet_filter in signal_filters
+            ]
+        )
+        for rank, (attractions, _) in enumerate(signal_results):
+            facet_filter = signal_filters[rank]
+            _add_attractions(candidates_by_id, attractions)
             for attraction in attractions:
-                if attraction.id in facet_rank_by_id:
+                if not attraction.id:
                     continue
-                facet_rank_by_id[attraction.id] = rank
-                merged.append(attraction)
-        if merged:
-            return merged, facet_rank_by_id
+                signals = signals_by_id.setdefault(
+                    attraction.id, AttractionMatchSignals()
+                )
+                if facet_filter == season_filter:
+                    signals.season_match = True
+                    continue
+                if signals.facet_rank is None or rank < signals.facet_rank:
+                    signals.facet_rank = rank
 
-    try:
-        attractions_result = await client.list_attractions(
-            destination_id=dest.id,
-            facet_filter=season_filter or None,
-            **geo_filters,
-            page=1,
-            page_size=20,
-        )
-    except Exception:
-        logger.warning(
-            "Failed to fetch Swiss Tourism attractions for destination %s",
-            dest.id,
-            exc_info=True,
-        )
-        return [], {}
-    return _scope_attractions_to_destination(dest, attractions_result.data), {}
+    logger.debug(
+        "Attraction candidates for %s: broad=%s total=%s facet_signals=%s season_signals=%s",
+        dest.id,
+        len(broad_candidates),
+        len(candidates_by_id),
+        sum(1 for signals in signals_by_id.values() if signals.facet_rank is not None),
+        sum(1 for signals in signals_by_id.values() if signals.season_match),
+    )
+    return list(candidates_by_id.values()), signals_by_id
 
 
 async def _pick_destinations(
