@@ -2,17 +2,28 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import random
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
-from app.ports.swiss_tourism import DestinationRecord, SwissTourismClient
+from app.ports.swiss_tourism import (
+    AttractionRecord,
+    DestinationRecord,
+    FacetRecord,
+    FacetSnapshotRecord,
+    FacetValueRecord,
+    SwissTourismClient,
+    TourRecord,
+)
 from app.ports.transport import (
     PublicTransportClient,
     TransportItinerary,
     TransportPlace,
 )
+from app.services.recommendation_facets import get_attraction_facets_snapshot
 
 _STYLE_KEYWORDS: dict[str, list[str]] = {
     "adventure": [
@@ -101,16 +112,83 @@ _GROUP_TO_STYLES: dict[str, list[str]] = {
     "friends": ["adventure", "foodie"],
 }
 
+_STYLE_FACET_TERMS: dict[str, list[str]] = {
+    "adventure": [
+        "adventure",
+        "active",
+        "outdoor",
+        "nature",
+        "mountain",
+        "hiking",
+        "hike",
+        "trail",
+        "climbing",
+        "ski",
+        "snow",
+        "sport",
+        "bike",
+        "cycling",
+    ],
+    "cultural": [
+        "culture",
+        "cultural",
+        "museum",
+        "history",
+        "historic",
+        "heritage",
+        "art",
+        "architecture",
+        "castle",
+        "monument",
+        "old town",
+        "sightseeing",
+    ],
+    "relaxation": [
+        "relax",
+        "relaxation",
+        "wellness",
+        "spa",
+        "thermal",
+        "nature",
+        "lake",
+        "water",
+        "scenic",
+        "panorama",
+        "viewpoint",
+        "garden",
+        "park",
+    ],
+    "foodie": [
+        "food",
+        "culinary",
+        "gastronomy",
+        "restaurant",
+        "wine",
+        "cheese",
+        "chocolate",
+        "market",
+        "taste",
+        "gourmet",
+    ],
+    "family": [
+        "family",
+        "children",
+        "child",
+        "kids",
+        "kid",
+        "zoo",
+        "animal",
+        "playground",
+        "theme park",
+        "park",
+        "fun",
+    ],
+}
+
 _TRIP_LENGTH_SLOTS: dict[str, list[str]] = {
     "2_3_hours": ["10:00", "12:00"],
     "half_day": ["09:30", "12:30", "15:30"],
     "full_day": ["09:00", "11:30", "14:00", "16:30"],
-}
-
-_PACE_TO_TRIP_LENGTH: dict[str, str] = {
-    "relaxed": "2_3_hours",
-    "moderate": "half_day",
-    "packed": "full_day",
 }
 
 _TRANSPORT_LABELS: dict[str, tuple[str, str]] = {
@@ -126,6 +204,18 @@ _DEMO_PRICE_MAX_CHF = 30.0
 
 logger = logging.getLogger(__name__)
 _PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS = 8.0
+_MAX_ATTRACTION_FACET_FILTERS = 3
+_DESTINATION_ATTRACTION_RADIUS_M = 75_000
+_WORD_RE = re.compile(r"[a-z0-9]+")
+_DESCRIPTION_MAX_CHARS = 220
+
+# Varied free-time copy so unfilled slots don't all read "Free exploration".
+_FREE_TIME_LABELS: list[str] = [
+    "Free exploration",
+    "Wander {destination}",
+    "Local discovery time",
+    "Cafe stop and people-watching",
+]
 
 
 @dataclass
@@ -137,6 +227,19 @@ class RecommendationItem:
     latitude: float | None = None
     longitude: float | None = None
     image_url: str | None = None
+    description: str | None = None
+
+
+def _clean_description(text: str | None) -> str | None:
+    if not text:
+        return None
+    collapsed = " ".join(text.split())
+    if not collapsed:
+        return None
+    if len(collapsed) <= _DESCRIPTION_MAX_CHARS:
+        return collapsed
+    truncated = collapsed[:_DESCRIPTION_MAX_CHARS].rsplit(" ", 1)[0].rstrip(",.;:")
+    return f"{truncated}…"
 
 
 def _score_text(name: str, description: str, category: str, styles: list[str]) -> float:
@@ -160,14 +263,10 @@ def _score_text(name: str, description: str, category: str, styles: list[str]) -
 
 
 def _effective_styles(
-    preferences: dict | None,
     mood: str,
     group_type: str,
 ) -> list[str]:
-    prefs = preferences or {}
-    preferred_styles = prefs.get("travel_styles", [])
     ordered_styles = [
-        *preferred_styles,
         *_MOOD_TO_STYLES.get(mood, []),
         *_GROUP_TO_STYLES.get(group_type, []),
     ]
@@ -178,6 +277,177 @@ def _effective_styles(
             seen.add(style)
             unique_styles.append(style)
     return unique_styles
+
+
+def _tokens(text: str) -> set[str]:
+    return set(_WORD_RE.findall(text.lower()))
+
+
+def _matches_term(text: str, tokens: set[str], term: str) -> bool:
+    normalized = term.lower().strip()
+    if not normalized:
+        return False
+    if " " in normalized:
+        return normalized in text
+    return any(token == normalized or token.startswith(normalized) for token in tokens)
+
+
+def _facet_value_match_score(
+    facet: FacetRecord,
+    value: FacetValueRecord,
+    styles: list[str],
+) -> int:
+    value_text = f"{value.name} {value.title or ''}".lower()
+    full_text = f"{facet.name} {facet.title or ''} {value_text}".lower()
+    value_tokens = _tokens(value_text)
+    full_tokens = _tokens(full_text)
+    score = 0
+
+    for index, style in enumerate(styles):
+        weight = max(len(styles) - index, 1)
+        terms = _STYLE_FACET_TERMS.get(style, [style.replace("_", " ")])
+        for term in terms:
+            if _matches_term(value_text, value_tokens, term):
+                score += weight * 2
+            elif _matches_term(full_text, full_tokens, term):
+                score += weight
+
+    return score
+
+
+_METEOROLOGICAL_SEASONS: dict[int, str] = {
+    12: "winter",
+    1: "winter",
+    2: "winter",
+    3: "spring",
+    4: "spring",
+    5: "spring",
+    6: "summer",
+    7: "summer",
+    8: "summer",
+    9: "autumn",
+    10: "autumn",
+    11: "autumn",
+}
+
+
+def _season_for_date(value: date) -> str:
+    return _METEOROLOGICAL_SEASONS[value.month]
+
+
+def _season_facet_filter(value: date) -> str | None:
+    """Resolve the ``seasons`` facet filter for the trip's season, if available.
+
+    Returns a ``"<facet>:<value>"`` filter only when the live facet snapshot actually
+    exposes a season facet with a matching value, so we never guess a facet/value name
+    the API doesn't recognise. Returns None otherwise (no season constraint applied).
+    """
+    snapshot = get_attraction_facets_snapshot()
+    if snapshot is None:
+        return None
+
+    season = _season_for_date(value)
+    for facet in snapshot.facets:
+        if "season" not in f"{facet.name} {facet.title or ''}".lower():
+            continue
+        for facet_value in facet.values:
+            label = f"{facet_value.name} {facet_value.title or ''}".lower()
+            if season in label:
+                return f"{facet.name}:{facet_value.name}"
+    return None
+
+
+def _combine_facet_filters(season_filter: str | None, style_filter: str | None) -> str:
+    """AND a season constraint with a style facet filter into one ``facet.filter``."""
+    if season_filter and style_filter:
+        return f"{season_filter},{style_filter}"
+    return season_filter or style_filter or ""
+
+
+def _ranked_filters_for_style(snapshot: FacetSnapshotRecord, style: str) -> list[str]:
+    candidates: list[tuple[int, int, str]] = []
+    for facet in snapshot.facets:
+        for value in facet.values:
+            if value.count <= 0:
+                continue
+            score = _facet_value_match_score(facet, value, [style])
+            if score <= 0:
+                continue
+            candidates.append((score, value.count, f"{facet.name}:{value.name}"))
+
+    candidates.sort(key=lambda candidate: (candidate[0], candidate[1]), reverse=True)
+    return [facet_filter for _, _, facet_filter in candidates]
+
+
+def _facet_filters_for_styles(styles: list[str]) -> list[str]:
+    snapshot = get_attraction_facets_snapshot()
+    if snapshot is None or not styles:
+        return []
+
+    # Rank facet values per individual style, then round-robin across styles so the
+    # chosen filters span different experience types (nature + culture + food) instead
+    # of clustering on one. Filters earlier in the list are the higher-priority picks.
+    ranked_by_style = [_ranked_filters_for_style(snapshot, style) for style in styles]
+
+    filters: list[str] = []
+    seen: set[str] = set()
+    max_depth = max((len(ranked) for ranked in ranked_by_style), default=0)
+    for depth in range(max_depth):
+        for ranked in ranked_by_style:
+            if depth >= len(ranked):
+                continue
+            facet_filter = ranked[depth]
+            if facet_filter in seen:
+                continue
+            seen.add(facet_filter)
+            filters.append(facet_filter)
+            if len(filters) >= _MAX_ATTRACTION_FACET_FILTERS:
+                return filters
+    return filters
+
+
+def _distance_meters(
+    origin_latitude: float,
+    origin_longitude: float,
+    target_latitude: float,
+    target_longitude: float,
+) -> float:
+    earth_radius_m = 6_371_000
+    origin_lat = math.radians(origin_latitude)
+    target_lat = math.radians(target_latitude)
+    delta_lat = math.radians(target_latitude - origin_latitude)
+    delta_lon = math.radians(target_longitude - origin_longitude)
+
+    haversine = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(origin_lat) * math.cos(target_lat) * math.sin(delta_lon / 2) ** 2
+    )
+    return (
+        earth_radius_m * 2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine))
+    )
+
+
+def _scope_attractions_to_destination(
+    dest: DestinationRecord,
+    attractions: list[AttractionRecord],
+) -> list[AttractionRecord]:
+    if dest.geo is None:
+        return attractions
+
+    scoped: list[AttractionRecord] = []
+    for attraction in attractions:
+        if attraction.geo is None:
+            scoped.append(attraction)
+            continue
+        distance_m = _distance_meters(
+            dest.geo.latitude,
+            dest.geo.longitude,
+            attraction.geo.latitude,
+            attraction.geo.longitude,
+        )
+        if distance_m <= _DESTINATION_ATTRACTION_RADIUS_M:
+            scoped.append(attraction)
+    return scoped
 
 
 def _demo_price(*seed_parts: object) -> float:
@@ -228,6 +498,7 @@ def _build_day_timeline(
                 "cost": activity["cost"],
                 "url": activity.get("url"),
                 "image_url": activity.get("image_url"),
+                "description": activity.get("description"),
                 "refreshable": True,
             }
         )
@@ -414,6 +685,49 @@ def _recalculate_estimated_total(
     return round(total, 2)
 
 
+def _interleave_by_category(
+    items: list[RecommendationItem],
+) -> list[RecommendationItem]:
+    """Order unique items by score while avoiding back-to-back same-category stops.
+
+    Items are bucketed by category; each step picks the highest-scoring head from a
+    bucket whose category differs from the previous pick (falling back to any bucket
+    when all that remain share the last category). No item is repeated.
+    """
+    buckets: dict[str, list[RecommendationItem]] = {}
+    for item in sorted(items, key=lambda i: i.score, reverse=True):
+        buckets.setdefault(item.category or "activity", []).append(item)
+
+    bucket_list = list(buckets.values())
+    arranged: list[RecommendationItem] = []
+    last_category: str | None = None
+    while any(bucket_list):
+        available = [bucket for bucket in bucket_list if bucket]
+        preferred = [
+            bucket
+            for bucket in available
+            if (bucket[0].category or "activity") != last_category
+        ]
+        chosen = max(preferred or available, key=lambda bucket: bucket[0].score)
+        item = chosen.pop(0)
+        arranged.append(item)
+        last_category = item.category or "activity"
+    return arranged
+
+
+def _day_theme(activities: list[dict]) -> str | None:
+    counts: dict[str, int] = {}
+    for activity in activities:
+        category = activity.get("category")
+        if not category or category in {"leisure", "transport"}:
+            continue
+        counts[category] = counts.get(category, 0) + 1
+    if not counts:
+        return None
+    dominant = max(counts, key=lambda category: counts[category])
+    return dominant.replace("_", " ").capitalize()
+
+
 def _build_itinerary(
     items: list[RecommendationItem],
     start_date: date,
@@ -424,36 +738,39 @@ def _build_itinerary(
     transport_mode: str,
     travelers: int,
     include_transport_costs: bool,
+    destination_name: str = "the area",
 ) -> tuple[list[dict], float]:
     num_days = max((end_date - start_date).days, 1)
     times = _TRIP_LENGTH_SLOTS.get(trip_length, _TRIP_LENGTH_SLOTS["half_day"])
 
-    sorted_items = sorted(items, key=lambda item: item.score, reverse=True)
     needed = num_days * len(times)
-    pool = (
-        (sorted_items * ((needed // len(sorted_items)) + 1))[:needed]
-        if sorted_items
-        else []
-    )
+    # No repeats: take as many unique, category-interleaved items as there are slots.
+    sequence = _interleave_by_category(items)[:needed]
 
     days: list[dict] = []
     activity_total = 0.0
     transport_total = 0.0
     idx = 0
+    fallback_idx = 0
 
     for day_num in range(num_days):
         current = start_date + timedelta(days=day_num)
         activities: list[dict] = []
 
         for slot_index, time in enumerate(times):
-            if idx < len(pool):
-                item = pool[idx]
+            description = None
+            if idx < len(sequence):
+                item = sequence[idx]
                 idx += 1
                 name, category, url = item.name, item.category, item.url
                 latitude, longitude = item.latitude, item.longitude
                 image_url = item.image_url
+                description = item.description
             else:
-                name, category, url = "Free exploration", "leisure", ""
+                label = _FREE_TIME_LABELS[fallback_idx % len(_FREE_TIME_LABELS)]
+                fallback_idx += 1
+                name = label.format(destination=destination_name)
+                category, url = "leisure", ""
                 latitude, longitude = None, None
                 image_url = None
 
@@ -476,6 +793,7 @@ def _build_itinerary(
                     "cost": activity_cost,
                     "url": url or None,
                     "image_url": image_url,
+                    "description": description,
                     "_latitude": latitude,
                     "_longitude": longitude,
                 }
@@ -494,6 +812,7 @@ def _build_itinerary(
             {
                 "day": day_num + 1,
                 "date": current.isoformat(),
+                "theme": _day_theme(activities),
                 "activities": activities,
                 "timeline_items": timeline_items,
             }
@@ -508,16 +827,19 @@ async def _collect_destination_items(
     client: SwissTourismClient,
     dest: DestinationRecord,
     styles: list[str],
+    facet_filters: list[str],
+    season_filter: str | None = None,
 ) -> list[RecommendationItem]:
-    attractions_result, tours_result = await asyncio.gather(
-        client.list_attractions(destination_id=dest.id, page=1, page_size=20),
-        client.list_tours(query=dest.name, page=1, page_size=10),
+    (attraction_records, facet_rank_by_id), tour_records = await asyncio.gather(
+        _list_matching_attractions(client, dest, facet_filters, season_filter),
+        _list_destination_tours(client, dest.name),
     )
 
     items: list[RecommendationItem] = []
     fallback_image_url = dest.images[0].url if dest.images else None
-    for attr in attractions_result.data:
-        score = _score_text(attr.name, attr.description, attr.category, styles)
+    for attr in attraction_records:
+        text_score = _score_text(attr.name, attr.description, attr.category, styles)
+        score = _facet_blended_score(text_score, facet_rank_by_id.get(attr.id))
         items.append(
             RecommendationItem(
                 name=attr.name,
@@ -527,10 +849,11 @@ async def _collect_destination_items(
                 latitude=attr.geo.latitude if attr.geo else None,
                 longitude=attr.geo.longitude if attr.geo else None,
                 image_url=attr.images[0].url if attr.images else fallback_image_url,
+                description=_clean_description(attr.description),
             )
         )
 
-    for tour in tours_result.data:
+    for tour in tour_records:
         score = _score_text(tour.name, tour.description, "tour", styles)
         label = tour.name + (f" ({tour.duration})" if tour.duration else "")
         items.append(
@@ -542,6 +865,7 @@ async def _collect_destination_items(
                 latitude=tour.geo.latitude if tour.geo else None,
                 longitude=tour.geo.longitude if tour.geo else None,
                 image_url=tour.images[0].url if tour.images else fallback_image_url,
+                description=_clean_description(tour.description),
             )
         )
 
@@ -555,10 +879,118 @@ async def _collect_destination_items(
                 latitude=dest.geo.latitude if dest.geo else None,
                 longitude=dest.geo.longitude if dest.geo else None,
                 image_url=fallback_image_url,
+                description=_clean_description(dest.description),
             )
         ]
 
     return items
+
+
+def _facet_blended_score(text_score: float, facet_rank: int | None) -> float:
+    """Blend the keyword text score with the facet match priority.
+
+    Facet-matched attractions sit in a high score band (floor ~0.84) so they rank
+    above generic keyword matches, but higher-priority facets (rank 0) score above
+    lower-priority ones, and the text score breaks ties within a band — so ordering
+    stays meaningful instead of every facet hit collapsing onto a single value.
+    """
+    if facet_rank is None:
+        return text_score
+    rank_weight = max(_MAX_ATTRACTION_FACET_FILTERS - facet_rank, 1)
+    return round(min(1.0, 0.78 + 0.04 * rank_weight + 0.08 * text_score), 3)
+
+
+async def _list_matching_attractions(
+    client: SwissTourismClient,
+    dest: DestinationRecord,
+    facet_filters: list[str],
+    season_filter: str | None = None,
+) -> tuple[list[AttractionRecord], dict[str, int]]:
+    """Fetch attractions, blending results from every facet filter.
+
+    When a ``season_filter`` is supplied it is ANDed into every query (including the
+    fallback) so results stay season-appropriate. Returns the merged attractions plus
+    a map of attraction id -> facet rank (the 0-based index of the filter that first
+    sourced it, 0 = highest priority), so the itinerary mixes experience types instead
+    of all coming from one facet. Falls back to a season-only (or unfiltered) query
+    only when no style facet filter yields anything.
+    """
+    geo_filters = (
+        {
+            "latitude": dest.geo.latitude,
+            "longitude": dest.geo.longitude,
+            "radius_m": _DESTINATION_ATTRACTION_RADIUS_M,
+        }
+        if dest.geo is not None
+        else {}
+    )
+
+    async def _fetch(facet_filter: str) -> list[AttractionRecord]:
+        try:
+            result = await client.list_attractions(
+                destination_id=dest.id,
+                facet_filter=facet_filter or None,
+                **geo_filters,
+                page=1,
+                page_size=10,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to fetch Swiss Tourism attractions with facet filter %s",
+                facet_filter,
+                exc_info=True,
+            )
+            return []
+        return _scope_attractions_to_destination(dest, result.data)
+
+    if facet_filters:
+        combined = [_combine_facet_filters(season_filter, ff) for ff in facet_filters]
+        results = await asyncio.gather(*[_fetch(ff) for ff in combined])
+        merged: list[AttractionRecord] = []
+        facet_rank_by_id: dict[str, int] = {}
+        for rank, attractions in enumerate(results):
+            for attraction in attractions:
+                if attraction.id in facet_rank_by_id:
+                    continue
+                facet_rank_by_id[attraction.id] = rank
+                merged.append(attraction)
+        if merged:
+            return merged, facet_rank_by_id
+
+    try:
+        attractions_result = await client.list_attractions(
+            destination_id=dest.id,
+            facet_filter=season_filter or None,
+            **geo_filters,
+            page=1,
+            page_size=20,
+        )
+    except Exception:
+        logger.warning(
+            "Failed to fetch Swiss Tourism attractions for destination %s",
+            dest.id,
+            exc_info=True,
+        )
+        return [], {}
+    return _scope_attractions_to_destination(dest, attractions_result.data), {}
+
+
+async def _list_destination_tours(
+    client: SwissTourismClient,
+    destination_name: str,
+) -> list[TourRecord]:
+    try:
+        tours_result = await client.list_tours(
+            query=destination_name, page=1, page_size=10
+        )
+    except Exception:
+        logger.warning(
+            "Failed to fetch Swiss Tourism tours for destination %s",
+            destination_name,
+            exc_info=True,
+        )
+        return []
+    return tours_result.data
 
 
 async def _pick_destinations(
@@ -566,12 +998,11 @@ async def _pick_destinations(
     destination: str | None,
     styles: list[str],
 ) -> list[DestinationRecord]:
-    dest_result = await client.list_destinations(query=destination, page=1, page_size=6)
+    destination_query = destination.strip() if destination else None
+    dest_result = await client.list_destinations(
+        query=destination_query, page=1, page_size=6
+    )
     destinations = dest_result.data
-
-    if not destinations and destination:
-        dest_result = await client.list_destinations(page=1, page_size=6)
-        destinations = dest_result.data
 
     if not destinations:
         return []
@@ -579,12 +1010,40 @@ async def _pick_destinations(
     def _dest_score(dest: DestinationRecord) -> float:
         return _score_text(dest.name, dest.description, dest.category or "", styles)
 
+    if destination_query:
+        return sorted(
+            destinations,
+            key=lambda dest: (
+                _destination_query_score(dest, destination_query),
+                _dest_score(dest),
+            ),
+            reverse=True,
+        )[:1]
+
     return sorted(destinations, key=_dest_score, reverse=True)[:4]
+
+
+def _destination_query_score(dest: DestinationRecord, query: str) -> int:
+    normalized_query = query.lower().strip()
+    normalized_name = dest.name.lower().strip()
+    if normalized_name == normalized_query:
+        return 100
+    if normalized_name in normalized_query:
+        return 90
+    if normalized_name.startswith(normalized_query):
+        return 80
+    if normalized_query in normalized_name:
+        return 70
+
+    query_words = _tokens(normalized_query)
+    name_words = _tokens(normalized_name)
+    if query_words and query_words.issubset(name_words):
+        return 60
+    return 0
 
 
 async def recommend(
     client: SwissTourismClient,
-    preferences: dict | None,
     destination: str | None,
     start_date: date,
     end_date: date,
@@ -601,11 +1060,11 @@ async def recommend(
     budget_tier: Literal["budget", "mid", "luxury"] | None = None,
     public_transport_client: PublicTransportClient | None = None,
 ) -> list[dict]:
-    prefs = preferences or {}
-    selected_budget_tier: str = budget_tier or prefs.get("budget_tier", "mid")
-    pace: str = prefs.get("pace", "moderate")
-    styles = _effective_styles(preferences, mood, group_type)
-    selected_trip_length = trip_length or _PACE_TO_TRIP_LENGTH.get(pace, "half_day")
+    selected_budget_tier: str = budget_tier or "mid"
+    styles = _effective_styles(mood, group_type)
+    facet_filters = _facet_filters_for_styles(styles)
+    season_filter = _season_facet_filter(start_date)
+    selected_trip_length = trip_length or "half_day"
 
     top_dests = await _pick_destinations(client, destination, styles)
     if not top_dests:
@@ -614,7 +1073,9 @@ async def recommend(
     recommendations: list[dict] = []
 
     for dest in top_dests:
-        items = await _collect_destination_items(client, dest, styles)
+        items = await _collect_destination_items(
+            client, dest, styles, facet_filters, season_filter
+        )
         include_transport_costs = trip_length is not None
         days, estimated_total = _build_itinerary(
             items,
@@ -626,6 +1087,7 @@ async def recommend(
             transport_mode,
             travelers,
             include_transport_costs,
+            destination_name=dest.name,
         )
         if transport_mode == "public_transport" and public_transport_client is not None:
             await _enrich_public_transport_timeline(
@@ -695,6 +1157,7 @@ def _replace_activity_in_itinerary(
             )
             activity["url"] = replacement.url or None
             activity["image_url"] = replacement.image_url
+            activity["description"] = replacement.description
             activity["_latitude"] = replacement.latitude
             activity["_longitude"] = replacement.longitude
             replaced = True
@@ -713,7 +1176,6 @@ def _replace_activity_in_itinerary(
 
 async def refresh_recommendation_item(
     client: SwissTourismClient,
-    preferences: dict | None,
     destination: str | None,
     start_date: date,
     end_date: date,
@@ -726,9 +1188,10 @@ async def refresh_recommendation_item(
     item_id: str,
     public_transport_client: PublicTransportClient | None = None,
 ) -> dict:
-    styles = _effective_styles(preferences, mood, group_type)
-    pace = (preferences or {}).get("pace", "moderate")
-    selected_trip_length = trip_length or _PACE_TO_TRIP_LENGTH.get(pace, "half_day")
+    styles = _effective_styles(mood, group_type)
+    facet_filters = _facet_filters_for_styles(styles)
+    season_filter = _season_facet_filter(start_date)
+    selected_trip_length = trip_length or "half_day"
     top_dests = await _pick_destinations(client, destination, styles)
     if not top_dests:
         return {
@@ -743,7 +1206,9 @@ async def refresh_recommendation_item(
     target_dest = next(
         (dest for dest in top_dests if dest.name == destination), top_dests[0]
     )
-    items = await _collect_destination_items(client, target_dest, styles)
+    items = await _collect_destination_items(
+        client, target_dest, styles, facet_filters, season_filter
+    )
 
     current_titles = {
         activity.get("title")

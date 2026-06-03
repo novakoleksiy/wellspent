@@ -41,6 +41,7 @@ export interface Activity {
     cost: number;
     url?: string | null;
     image_url?: string | null;
+    description?: string | null;
 }
 
 export interface TimelineItem {
@@ -56,6 +57,7 @@ export interface TimelineItem {
     notes?: string | null;
     url?: string | null;
     image_url?: string | null;
+    description?: string | null;
     refreshable: boolean;
 }
 
@@ -74,6 +76,7 @@ export interface TransportLeg {
 export interface ItineraryDay {
     day: number;
     date: string;
+    theme?: string | null;
     activities: Activity[];
     timeline_items?: TimelineItem[];
 }

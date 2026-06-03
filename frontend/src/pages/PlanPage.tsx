@@ -131,6 +131,7 @@ function timelineItems(day: Recommendation["itinerary"]["days"][number]): Timeli
               category: activity.category,
               cost: activity.cost,
               url: activity.url,
+              description: activity.description,
               refreshable: true,
           }));
 }
@@ -590,7 +591,14 @@ export default function PlanPage() {
                                     <article key={day.day} className="rounded-[2rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.48)] p-5">
                                         <div className="flex items-end justify-between gap-4">
                                             <div>
-                                                <p className="text-sm font-medium text-[var(--ws-muted)]">Day {day.day}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-medium text-[var(--ws-muted)]">Day {day.day}</p>
+                                                    {day.theme && (
+                                                        <span className="rounded-full bg-[rgba(232,93,44,0.12)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ws-orange)]">
+                                                            {day.theme}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <h3 className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
                                                     {new Date(day.date).toLocaleDateString(undefined, {
                                                         weekday: "long",
@@ -630,6 +638,9 @@ export default function PlanPage() {
                                                                 <div>
                                                                     <p className="text-base font-semibold text-[var(--ws-ink)]">{item.title}</p>
                                                                     <p className="mt-1 text-sm capitalize text-[var(--ws-muted)]">{item.category}</p>
+                                                                    {item.description && (
+                                                                        <p className="mt-2 text-sm text-[rgba(87,84,74,0.85)]">{item.description}</p>
+                                                                    )}
                                                                     {item.duration_text && (
                                                                         <p className="mt-2 text-sm text-[var(--ws-muted)]">{item.duration_text}</p>
                                                                     )}
