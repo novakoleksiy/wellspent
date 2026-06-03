@@ -73,7 +73,9 @@ class HttpxOjpTransportClient:
         return self._parse_trip_response(resp.text)
 
     async def resolve_place(self, place: TransportPlace) -> TransportPlace:
-        if place.stop_point_ref is not None:
+        if place.stop_point_ref is not None or (
+            place.latitude is not None and place.longitude is not None
+        ):
             return place
 
         body = self._build_location_request(name=place.name)
@@ -157,12 +159,9 @@ class HttpxOjpTransportClient:
         if place.latitude is not None and place.longitude is not None:
             return f"""<PlaceRef>
             <GeoPosition>
-              <Longitude>{place.longitude}</Longitude>
-              <Latitude>{place.latitude}</Latitude>
+              <siri:Longitude>{place.longitude}</siri:Longitude>
+              <siri:Latitude>{place.latitude}</siri:Latitude>
             </GeoPosition>
-            <Name>
-              <Text>{escape(place.name)}</Text>
-            </Name>
           </PlaceRef>"""
         return f"""<PlaceRef>
             <Name>

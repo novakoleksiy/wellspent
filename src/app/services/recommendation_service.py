@@ -6,7 +6,7 @@ import math
 import random
 import re
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Literal
 
 from app.ports.swiss_tourism import (
@@ -222,6 +222,9 @@ _CAR_ROUTE_DISTANCE_MULTIPLIER = 1.3
 _CAR_AVERAGE_SPEED_KMH = 35.0
 _CAR_MIN_DURATION_MINUTES = 5
 _CAR_DURATION_ROUNDING_MINUTES = 5
+_TRANSPORT_MIN_ACTIVITY_VISIT_MINUTES = 45
+_TRANSPORT_MAX_ACTIVITY_VISIT_MINUTES = 120
+_TRANSPORT_NEXT_ACTIVITY_BUFFER_MINUTES = 45
 _MAX_ATTRACTION_FACET_FILTERS = 3
 _DESTINATION_ATTRACTION_RADIUS_M = 30_000
 _ATTRACTION_FETCH_PAGE_SIZE = 50
@@ -561,6 +564,47 @@ def _car_route_estimate(activity: dict, next_activity: dict) -> tuple[str, str]:
     )
 
 
+def _time_to_minutes(value: str) -> int | None:
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})", value.strip())
+    if match is None:
+        return None
+
+    hours = int(match.group(1))
+    minutes = int(match.group(2))
+    if hours > 23 or minutes > 59:
+        return None
+    return hours * 60 + minutes
+
+
+def _minutes_to_time(value: int) -> str:
+    minutes_in_day = 24 * 60
+    normalized = value % minutes_in_day
+    return f"{normalized // 60:02d}:{normalized % 60:02d}"
+
+
+def _transport_departure_time(activity_time: str, next_activity_time: str) -> str:
+    activity_minutes = _time_to_minutes(activity_time)
+    next_activity_minutes = _time_to_minutes(next_activity_time)
+    if activity_minutes is None:
+        return activity_time
+    if next_activity_minutes is None or next_activity_minutes <= activity_minutes:
+        return _minutes_to_time(
+            activity_minutes + _TRANSPORT_MIN_ACTIVITY_VISIT_MINUTES
+        )
+
+    gap_minutes = next_activity_minutes - activity_minutes
+    if gap_minutes <= _TRANSPORT_MIN_ACTIVITY_VISIT_MINUTES:
+        visit_minutes = max(1, gap_minutes // 2)
+    else:
+        visit_minutes = max(
+            _TRANSPORT_MIN_ACTIVITY_VISIT_MINUTES,
+            gap_minutes - _TRANSPORT_NEXT_ACTIVITY_BUFFER_MINUTES,
+        )
+        visit_minutes = min(visit_minutes, _TRANSPORT_MAX_ACTIVITY_VISIT_MINUTES)
+
+    return _minutes_to_time(activity_minutes + visit_minutes)
+
+
 def _build_day_timeline(
     day_num: int,
     activity_entries: list[dict],
@@ -592,14 +636,17 @@ def _build_day_timeline(
 
         next_activity = activity_entries[index + 1]
         duration_text = transport_note
-        notes = "Placeholder routing for v1. Live transport data will plug in later."
+        notes = None
+        transport_time = _transport_departure_time(
+            activity["time"], next_activity["time"]
+        )
         if transport_mode == "car":
             duration_text, notes = _car_route_estimate(activity, next_activity)
         timeline_items.append(
             {
                 "id": f"transport-{day_num}-{index}",
                 "kind": "transport",
-                "time": activity["time"],
+                "time": transport_time,
                 "title": transport_title,
                 "category": "transport",
                 "cost": _transport_cost(
@@ -626,6 +673,27 @@ def _transport_place(activity: dict) -> TransportPlace:
         latitude=activity.get("_latitude"),
         longitude=activity.get("_longitude"),
     )
+
+
+def _has_transport_coordinates(activity: dict) -> bool:
+    return (
+        activity.get("_latitude") is not None and activity.get("_longitude") is not None
+    )
+
+
+def _format_route_note_time(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    normalized = value.strip()
+    try:
+        parsed = datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+    except ValueError:
+        time_match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::\d{2})?", normalized)
+        if time_match is None:
+            return normalized
+        return f"{int(time_match.group(1)):02d}:{time_match.group(2)}"
+    return parsed.strftime("%H:%M")
 
 
 def _summarize_transport_route(route: TransportItinerary) -> tuple[str, str, str]:
@@ -657,11 +725,11 @@ def _summarize_transport_route(route: TransportItinerary) -> tuple[str, str, str
     destination = route.legs[-1].destination
     notes_parts = []
     if first_departure:
-        notes_parts.append(f"Depart {first_departure}")
+        notes_parts.append(f"Depart {_format_route_note_time(first_departure)}")
     if origin:
         notes_parts.append(f"from {origin}")
     if last_arrival:
-        notes_parts.append(f"arrive {last_arrival}")
+        notes_parts.append(f"arrive {_format_route_note_time(last_arrival)}")
     if destination:
         notes_parts.append(f"at {destination}")
     notes = " ".join(notes_parts) or "Live route from OpenTransportData Swiss."
@@ -716,13 +784,25 @@ async def _enrich_public_transport_timeline(
     async def _route_for_pair(
         day: dict, index: int, activity: dict, next_activity: dict
     ):
+        if not _has_transport_coordinates(activity) or not _has_transport_coordinates(
+            next_activity
+        ):
+            logger.info(
+                "Skipping public transport route without coordinates from %s to %s",
+                activity.get("title"),
+                next_activity.get("title"),
+            )
+            return None
+
         try:
             return await asyncio.wait_for(
                 transport_client.plan_route(
                     origin=_transport_place(activity),
                     destination=_transport_place(next_activity),
                     departure_date=date.fromisoformat(day["date"]),
-                    departure_time=activity["time"],
+                    departure_time=_transport_departure_time(
+                        activity["time"], next_activity["time"]
+                    ),
                     travelers=travelers,
                 ),
                 timeout=_PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS,

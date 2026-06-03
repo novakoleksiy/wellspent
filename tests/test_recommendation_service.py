@@ -845,8 +845,8 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
                 TransportLeg(
                     mode="tram",
                     line="4",
-                    departure_time="2026-06-01T09:30:00",
-                    arrival_time="2026-06-01T09:48:00",
+                    departure_time="2026-06-01T11:35:00Z",
+                    arrival_time="2026-06-01T11:53:00Z",
                     duration_minutes=18,
                     origin="Kunsthaus",
                     destination="Bellevue",
@@ -871,15 +871,17 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
     transport_items = [item for item in timeline if item["kind"] == "transport"]
     assert transport.calls
     assert transport.calls[0][0].latitude == 47.3701
+    assert transport.calls[0][3] == "11:30"
     assert transport_items[0]["title"] == "tram 4"
+    assert transport_items[0]["time"] == "11:30"
     assert transport_items[0]["duration_text"] == "18 min, 0 transfers"
     assert 15 <= transport_items[0]["cost"] <= 30
     assert transport_items[0]["transport_legs"] == [
         {
             "mode": "tram",
             "line": "4",
-            "departure_time": "2026-06-01T09:30:00",
-            "arrival_time": "2026-06-01T09:48:00",
+            "departure_time": "2026-06-01T11:35:00Z",
+            "arrival_time": "2026-06-01T11:53:00Z",
             "duration_minutes": 18,
             "origin": "Kunsthaus",
             "destination": "Bellevue",
@@ -888,6 +890,9 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
         }
     ]
     assert "Kunsthaus" in transport_items[0]["notes"]
+    assert "Depart 11:35" in transport_items[0]["notes"]
+    assert "arrive 11:53" in transport_items[0]["notes"]
+    assert "2026-06-01" not in transport_items[0]["notes"]
     assert (
         "_latitude" not in recommendations[0]["itinerary"]["days"][0]["activities"][0]
     )
@@ -976,6 +981,7 @@ def test_build_day_timeline_estimates_car_duration_from_activity_coordinates():
     )
 
     transport_item = next(item for item in timeline if item["kind"] == "transport")
+    assert transport_item["time"] == "10:15"
     assert transport_item["duration_text"] == "Approx. 50 min by car"
     assert transport_item["notes"] == "Estimated from about 28.9 km between stops."
 
@@ -1006,6 +1012,7 @@ def test_build_day_timeline_uses_car_placeholder_when_coordinates_are_missing():
     )
 
     transport_item = next(item for item in timeline if item["kind"] == "transport")
+    assert transport_item["time"] == "10:15"
     assert transport_item["duration_text"] == "Approx. 25 min by car"
     assert (
         transport_item["notes"]

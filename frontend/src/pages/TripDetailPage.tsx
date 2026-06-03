@@ -4,6 +4,7 @@ import { completeTrip, getTrip, setTripShared } from "../api/trips";
 import AppShell from "../components/AppShell";
 import TripCompletionModal from "../components/TripCompletionModal";
 import { getTripHeroImageUrl } from "../tripImages";
+import { visibleTimelineNote } from "../timelineNotes";
 import type { TimelineItem, TripCompleteRequest, TripOut } from "../types";
 
 function formatMoney(total: number, currency: string): string {
@@ -228,28 +229,31 @@ export default function TripDetailPage() {
                             </div>
 
                             <div className="mt-6 space-y-3">
-                                {timelineForDay(day).map((item, index) => (
-                                    <div
-                                        key={`${day.day}-${item.time}-${item.title}-${index}`}
-                                        className="grid gap-4 rounded-[1.5rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.5)] px-4 py-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
-                                    >
-                                        <div className="text-sm font-medium text-[var(--ws-muted)]">{item.time}</div>
-                                        <div>
-                                            <p className="text-base font-semibold text-[var(--ws-ink)]">{item.title}</p>
-                                            <p className="mt-1 text-sm text-[var(--ws-muted)] capitalize">{item.category}</p>
-                                            {item.description && (
-                                                <p className="mt-1 text-sm text-[rgba(87,84,74,0.85)]">{item.description}</p>
-                                            )}
-                                            {item.duration_text && (
-                                                <p className="mt-1 text-sm text-[var(--ws-muted)]">{item.duration_text}</p>
-                                            )}
-                                            {item.notes && <p className="mt-1 text-sm text-[var(--ws-muted)]">{item.notes}</p>}
+                                {timelineForDay(day).map((item, index) => {
+                                    const note = visibleTimelineNote(item);
+                                    return (
+                                        <div
+                                            key={`${day.day}-${item.time}-${item.title}-${index}`}
+                                            className="grid gap-4 rounded-[1.5rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.5)] px-4 py-4 sm:grid-cols-[96px_1fr_auto] sm:items-center"
+                                        >
+                                            <div className="text-sm font-medium text-[var(--ws-muted)]">{item.time}</div>
+                                            <div>
+                                                <p className="text-base font-semibold text-[var(--ws-ink)]">{item.title}</p>
+                                                <p className="mt-1 text-sm text-[var(--ws-muted)] capitalize">{item.category}</p>
+                                                {item.description && (
+                                                    <p className="mt-1 text-sm text-[rgba(87,84,74,0.85)]">{item.description}</p>
+                                                )}
+                                                {item.duration_text && (
+                                                    <p className="mt-1 text-sm text-[var(--ws-muted)]">{item.duration_text}</p>
+                                                )}
+                                                {note && <p className="mt-1 text-sm text-[var(--ws-muted)]">{note}</p>}
+                                            </div>
+                                            <div className="text-sm font-medium text-[var(--ws-muted)]">
+                                                {formatMoney(item.cost, trip.itinerary?.currency || "CHF")}
+                                            </div>
                                         </div>
-                                        <div className="text-sm font-medium text-[var(--ws-muted)]">
-                                            {formatMoney(item.cost, trip.itinerary?.currency || "CHF")}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </article>
                     ))}

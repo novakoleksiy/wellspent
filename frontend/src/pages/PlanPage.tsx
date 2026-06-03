@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend, refreshRecommendationItem } from "../api/trips";
 import AppShell from "../components/AppShell";
+import { visibleTimelineNote } from "../timelineNotes";
 import type { Recommendation, TimelineItem } from "../types";
 
 function inputDate(daysAhead: number): string {
@@ -617,6 +618,7 @@ export default function PlanPage() {
                                                 const transportLegs = item.transport_legs ?? [];
                                                 const canExpandTransport = item.kind === "transport" && transportLegs.length > 0;
                                                 const isTransportExpanded = expandedTransportIds.has(item.id);
+                                                const note = visibleTimelineNote(item);
 
                                                 return (
                                                     <div key={item.id} className="grid gap-4 sm:grid-cols-[82px_18px_1fr_auto] sm:items-start">
@@ -644,8 +646,8 @@ export default function PlanPage() {
                                                                     {item.duration_text && (
                                                                         <p className="mt-2 text-sm text-[var(--ws-muted)]">{item.duration_text}</p>
                                                                     )}
-                                                                    {item.notes && (
-                                                                        <p className="mt-2 text-sm text-[var(--ws-muted)]">{item.notes}</p>
+                                                                    {note && (
+                                                                        <p className="mt-2 text-sm text-[var(--ws-muted)]">{note}</p>
                                                                     )}
                                                                 </div>
                                                                 <div className="text-sm font-medium text-[var(--ws-muted)]">
