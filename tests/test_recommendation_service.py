@@ -196,13 +196,13 @@ def _attraction(
 
 
 def _tour(
-    tour_id: str, name: str, *, description: str, duration: str = ""
+    tour_id: str, name: str, *, description: str, duration_minutes: int | None = None
 ) -> TourRecord:
     return TourRecord(
         id=tour_id,
         name=name,
         description=description,
-        duration=duration,
+        duration_minutes=duration_minutes,
         url=f"https://example.com/tours/{tour_id}",
     )
 
@@ -320,7 +320,7 @@ async def test_recommend_scores_destinations_and_builds_itinerary(
                     "alpine-loop",
                     "Alpine Loop",
                     description="A high-altitude adventure tour.",
-                    duration="4h",
+                    duration_minutes=240,
                 )
             ],
             "Bern": [],

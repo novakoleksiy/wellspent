@@ -10,6 +10,8 @@ import OnboardingPage from "./pages/OnboardingPage";
 import PlanPage from "./pages/PlanPage";
 import RegisterPage from "./pages/RegisterPage";
 import SettingsPage from "./pages/SettingsPage";
+import TourDetailPage from "./pages/TourDetailPage";
+import ToursPage from "./pages/ToursPage";
 import TripDetailPage from "./pages/TripDetailPage";
 import { hasCompletedOnboarding } from "./preferences";
 
@@ -72,6 +74,8 @@ export default function App() {
           <Route path="/explore" element={<RequireAuth><RequireOnboarding><ExplorePage /></RequireOnboarding></RequireAuth>} />
           <Route path="/plan" element={<RequireAuth><RequireOnboarding><PlanPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/recommend" element={<Navigate to="/plan" replace />} />
+          <Route path="/tours" element={<RequireAuth><RequireOnboarding><ToursPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/tours/:id" element={<RequireAuth><RequireOnboarding><TourDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />

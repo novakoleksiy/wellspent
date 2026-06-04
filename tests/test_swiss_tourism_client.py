@@ -374,12 +374,41 @@ async def test_list_tours(client: HttpxSwissTourismClient):
     payload = {
         "data": [
             {
-                "id": "tour-1",
-                "name": "Rhine Falls Loop",
-                "description": "Scenic loop.",
-                "distance": 12.5,
-                "duration": "3h",
+                "identifier": "tour-1",
+                "name": "Rhine Route, Stage 4/9",
+                "abstract": "Scenic loop.",
                 "url": "https://myswitzerland.com/tours/1",
+                "specs": {
+                    "distance": 43,
+                    "duration": 350,
+                    "ascent": 150,
+                    "descent": 190,
+                },
+                "itinerary": [
+                    {"@type": "Place", "name": "Buchs"},
+                    {"@type": "Place", "name": "St. Margrethen"},
+                ],
+                "touristType": ["Outdoor Enthusiast - Biker and Cyclist"],
+                "classification": [
+                    {
+                        "name": "routestypes",
+                        "values": [{"name": "bicycle", "title": "Bicycle"}],
+                    },
+                    {
+                        "name": "requirementconditions",
+                        "values": [{"name": "medium", "title": "Medium"}],
+                    },
+                ],
+                "provider": {
+                    "@type": "Organization",
+                    "name": "Lungern Turren Bahn AG",
+                    "email": "info@ltb-ag.ch",
+                    "url": "https://www.turren.ch/",
+                    "address": {
+                        "telephone": "+41 (0)41 679 01 11",
+                        "addressLocality": "Lungern",
+                    },
+                },
             }
         ],
         "meta": {
@@ -394,8 +423,90 @@ async def test_list_tours(client: HttpxSwissTourismClient):
     tour = result.data[0]
     assert isinstance(tour, TourRecord)
     assert tour.id == "tour-1"
-    assert tour.distance_km == 12.5
-    assert tour.duration == "3h"
+    assert tour.distance_km == 43
+    assert tour.duration_minutes == 350
+    assert tour.ascent_m == 150
+    assert tour.descent_m == 190
+    assert tour.waypoints == ["Buchs", "St. Margrethen"]
+    assert tour.route_type == "Bicycle"
+    assert tour.difficulty == "Medium"
+    assert tour.tourist_types == ["Outdoor Enthusiast - Biker and Cyclist"]
+    assert tour.provider is not None
+    assert tour.provider.name == "Lungern Turren Bahn AG"
+    assert tour.provider.url == "https://www.turren.ch/"
+    assert tour.provider.phone == "+41 (0)41 679 01 11"
+    assert tour.provider.locality == "Lungern"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_tours_provider_as_list(client: HttpxSwissTourismClient):
+    # The live API returns `provider` (and `address`) as either a dict or a list.
+    payload = {
+        "data": [
+            {
+                "identifier": "tour-3",
+                "name": "Lungern Loop",
+                "abstract": "Provider given as a list.",
+                "url": "https://myswitzerland.com/tours/3",
+                "provider": [
+                    {
+                        "@type": "Organization",
+                        "name": "Lungern Turren Bahn AG",
+                        "url": "https://www.turren.ch/",
+                        "address": [
+                            {
+                                "telephone": "+41 41 679 01 11",
+                                "addressLocality": "Lungern",
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+    respx.get(f"{BASE_URL}/tours/").mock(return_value=Response(200, json=payload))
+
+    result = await client.list_tours()
+
+    tour = result.data[0]
+    assert tour.provider is not None
+    assert tour.provider.name == "Lungern Turren Bahn AG"
+    assert tour.provider.phone == "+41 41 679 01 11"
+    assert tour.provider.locality == "Lungern"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_tours_without_provider_or_specs(client: HttpxSwissTourismClient):
+    payload = {
+        "data": [
+            {
+                "identifier": "tour-2",
+                "name": "Minimal Tour",
+                "abstract": "No specs or provider.",
+                "url": "https://myswitzerland.com/tours/2",
+            }
+        ],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+    respx.get(f"{BASE_URL}/tours/").mock(return_value=Response(200, json=payload))
+
+    result = await client.list_tours()
+
+    tour = result.data[0]
+    assert tour.distance_km is None
+    assert tour.duration_minutes is None
+    assert tour.waypoints == []
+    assert tour.tourist_types == []
+    assert tour.route_type is None
+    assert tour.difficulty is None
+    assert tour.provider is None
 
 
 # ── get_tour ──────────────────────────────────────────────────────────────────

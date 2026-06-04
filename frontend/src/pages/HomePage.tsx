@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listDestinations } from "../api/swissTourism";
+import { listDestinations, listTours } from "../api/swissTourism";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
+import TourCard from "../components/TourCard";
 import { useAuth } from "../hooks/useAuth";
 import { getTripHeroImageUrl } from "../tripImages";
-import type { DestinationOut, TripOut } from "../types";
+import type { DestinationOut, TourOut, TripOut } from "../types";
 
 const nearbyIdeas = [
   {
@@ -34,6 +35,7 @@ export default function HomePage() {
   const [trips, setTrips] = useState<TripOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tours, setTours] = useState<TourOut[]>([]);
   const [destination, setDestination] = useState("");
   const [destinationOptions, setDestinationOptions] = useState<DestinationOut[]>([]);
   const [destinationSearchLoading, setDestinationSearchLoading] = useState(false);
@@ -50,6 +52,12 @@ export default function HomePage() {
         setError(err instanceof Error ? err.message : "Unable to load trips");
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    listTours({ pageSize: 4 })
+      .then((result) => setTours(result.data))
+      .catch(() => setTours([]));
   }, []);
 
   useEffect(() => {
@@ -249,6 +257,28 @@ export default function HomePage() {
             </div>
           )}
         </section>
+
+        {tours.length > 0 && (
+          <section className="ws-surface p-6 sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="ws-mono text-[var(--ws-orange)]">Ready-made tours</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+                  Pre-planned itineraries you can follow.
+                </h2>
+              </div>
+              <Link to="/tours" className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]">
+                See all tours
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {tours.map((tour) => (
+                <TourCard key={tour.id} tour={tour} />
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="ws-surface p-6 sm:p-7">
           <div className="flex items-center justify-between gap-4">

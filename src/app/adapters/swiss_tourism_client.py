@@ -14,6 +14,7 @@ from app.ports.swiss_tourism import (
     PageMeta,
     PaginatedResult,
     SwissImage,
+    TourProvider,
     TourRecord,
 )
 
@@ -368,13 +369,66 @@ class HttpxSwissTourismClient:
             return None
         return self._to_tour(data)
 
+    @staticmethod
+    def _classification_value(item: dict, name: str) -> str | None:
+        """First value title for the classification group whose name matches."""
+        for classification in item.get("classification", []) or []:
+            if classification.get("name") != name:
+                continue
+            for value in classification.get("values", []) or []:
+                title = value.get("title") or value.get("name")
+                if title:
+                    return title
+        return None
+
+    @staticmethod
+    def _extract_waypoints(item: dict) -> list[str]:
+        return [
+            place["name"]
+            for place in item.get("itinerary", []) or []
+            if isinstance(place, dict) and place.get("name")
+        ]
+
+    @staticmethod
+    def _first_dict(value: object) -> dict:
+        """The API returns some fields as either a dict or a list of dicts."""
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, list):
+            for entry in value:
+                if isinstance(entry, dict):
+                    return entry
+        return {}
+
+    @staticmethod
+    def _extract_provider(item: dict) -> TourProvider | None:
+        provider = HttpxSwissTourismClient._first_dict(item.get("provider"))
+        if not provider.get("name"):
+            return None
+        address = HttpxSwissTourismClient._first_dict(provider.get("address"))
+        return TourProvider(
+            name=provider["name"],
+            url=provider.get("url") or None,
+            email=provider.get("email") or None,
+            phone=address.get("telephone") or None,
+            locality=address.get("addressLocality") or None,
+        )
+
     def _to_tour(self, item: dict) -> TourRecord:
+        specs = self._first_dict(item.get("specs"))
         return TourRecord(
             id=item.get("identifier") or item.get("id", ""),
             name=item.get("name", ""),
             description=item.get("description") or item.get("abstract", ""),
-            distance_km=item.get("distance"),
-            duration=item.get("duration", ""),
+            distance_km=specs.get("distance", item.get("distance")),
+            duration_minutes=specs.get("duration"),
+            ascent_m=specs.get("ascent"),
+            descent_m=specs.get("descent"),
+            route_type=self._classification_value(item, "routestypes"),
+            difficulty=self._classification_value(item, "requirementconditions"),
+            waypoints=self._extract_waypoints(item),
+            tourist_types=[t for t in item.get("touristType", []) or [] if t],
+            provider=self._extract_provider(item),
             geo=self._extract_geo(item),
             images=self._extract_images(item),
             url=item.get("url", ""),

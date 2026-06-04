@@ -191,3 +191,34 @@ export interface DestinationListOut {
     data: DestinationOut[];
     pagination: PaginationOut;
 }
+
+export interface TourProvider {
+    name: string;
+    url?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    locality?: string | null;
+}
+
+export interface TourOut {
+    id: string;
+    name: string;
+    description: string;
+    distance_km?: number | null;
+    duration_minutes?: number | null;
+    ascent_m?: number | null;
+    descent_m?: number | null;
+    route_type?: string | null;
+    difficulty?: string | null;
+    waypoints: string[];
+    tourist_types: string[];
+    provider?: TourProvider | null;
+    geo?: GeoOut | null;
+    images: ImageOut[];
+    url: string;
+}
+
+export interface TourListOut {
+    data: TourOut[];
+    pagination: PaginationOut;
+}

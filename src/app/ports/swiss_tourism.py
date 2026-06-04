@@ -40,12 +40,28 @@ class AttractionRecord:
 
 
 @dataclass
+class TourProvider:
+    name: str
+    url: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    locality: str | None = None
+
+
+@dataclass
 class TourRecord:
     id: str
     name: str
     description: str = ""
     distance_km: float | None = None
-    duration: str = ""
+    duration_minutes: int | None = None
+    ascent_m: int | None = None
+    descent_m: int | None = None
+    route_type: str | None = None
+    difficulty: str | None = None
+    waypoints: list[str] = field(default_factory=list)
+    tourist_types: list[str] = field(default_factory=list)
+    provider: TourProvider | None = None
     geo: GeoCoordinates | None = None
     images: list[SwissImage] = field(default_factory=list)
     url: str = ""

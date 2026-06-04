@@ -12,6 +12,7 @@ type AppShellProps = {
 const links = [
   { to: "/", label: "Homepage" },
   { to: "/explore", label: "Explore" },
+  { to: "/tours", label: "Tours" },
   { to: "/trips", label: "My Trips" },
 ];
 

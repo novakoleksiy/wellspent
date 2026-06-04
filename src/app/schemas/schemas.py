@@ -305,12 +305,27 @@ class FacetSnapshotOut(BaseModel):
     facets: list[FacetOut] = Field(default_factory=list)
 
 
+class TourProviderOut(BaseModel):
+    name: str
+    url: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    locality: str | None = None
+
+
 class TourOut(BaseModel):
     id: str
     name: str
     description: str
     distance_km: float | None = None
-    duration: str = ""
+    duration_minutes: int | None = None
+    ascent_m: int | None = None
+    descent_m: int | None = None
+    route_type: str | None = None
+    difficulty: str | None = None
+    waypoints: list[str] = Field(default_factory=list)
+    tourist_types: list[str] = Field(default_factory=list)
+    provider: TourProviderOut | None = None
     geo: GeoOut | None = None
     images: list[ImageOut] = Field(default_factory=list)
     url: str = ""
