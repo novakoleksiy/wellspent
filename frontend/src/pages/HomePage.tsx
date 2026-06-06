@@ -1,14 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listDestinations, listTours } from "../api/swissTourism";
+import { listDestinations, listOffers, listTours } from "../api/swissTourism";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
+import OfferCard from "../components/OfferCard";
 import RouteCard from "../components/RouteCard";
 import TourCard from "../components/TourCard";
 import { useAuth } from "../hooks/useAuth";
 import { groupToursByRoute } from "../tourFormat";
 import { getTripHeroImageUrl } from "../tripImages";
-import type { DestinationOut, TourOut, TripOut } from "../types";
+import type { DestinationOut, OfferOut, TourOut, TripOut } from "../types";
 
 const nearbyIdeas = [
   {
@@ -38,6 +39,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tours, setTours] = useState<TourOut[]>([]);
+  const [offers, setOffers] = useState<OfferOut[]>([]);
   const [destination, setDestination] = useState("");
   const [destinationOptions, setDestinationOptions] = useState<DestinationOut[]>([]);
   const [destinationSearchLoading, setDestinationSearchLoading] = useState(false);
@@ -60,6 +62,12 @@ export default function HomePage() {
     listTours({ pageSize: 12 })
       .then((result) => setTours(result.data))
       .catch(() => setTours([]));
+  }, []);
+
+  useEffect(() => {
+    listOffers({ pageSize: 12 })
+      .then((result) => setOffers(result.data))
+      .catch(() => setOffers([]));
   }, []);
 
   useEffect(() => {
@@ -99,6 +107,7 @@ export default function HomePage() {
 
   const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 4);
   const tourEntries = groupToursByRoute(tours).slice(0, 4);
+  const offerEntries = offers.slice(0, 4);
 
   function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
@@ -288,6 +297,28 @@ export default function HomePage() {
                   <TourCard key={entry.tour.id} tour={entry.tour} />
                 ),
               )}
+            </div>
+          </section>
+        )}
+
+        {offerEntries.length > 0 && (
+          <section className="ws-surface p-6 sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="ws-mono text-[var(--ws-orange)]">Bookable offers</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+                  Swiss experiences you can reserve.
+                </h2>
+              </div>
+              <Link to="/offers" className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]">
+                See all offers
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {offerEntries.map((offer) => (
+                <OfferCard key={offer.id} offer={offer} />
+              ))}
             </div>
           </section>
         )}

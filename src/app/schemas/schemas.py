@@ -334,3 +334,27 @@ class TourOut(BaseModel):
 class TourListOut(BaseModel):
     data: list[TourOut]
     pagination: PaginationOut
+
+
+class OfferOut(BaseModel):
+    id: str
+    name: str
+    abstract: str = ""
+    description: str = ""
+    price_amount: float | None = None
+    price_currency: str | None = None
+    price_note: str | None = None
+    valid_from: str | None = None
+    valid_through: str | None = None
+    offer_type: str | None = None
+    area_id: str | None = None
+    area_name: str | None = None
+    geo: GeoOut | None = None
+    images: list[ImageOut] = Field(default_factory=list)
+    info_url: str = ""
+    booking_url: str | None = None
+
+
+class OfferListOut(BaseModel):
+    data: list[OfferOut]
+    pagination: PaginationOut

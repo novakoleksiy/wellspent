@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     my_swiss_tourism_api: str = ""
     # Tour data changes rarely, so cache upstream tour responses. Seconds; 0 disables.
     swiss_tours_cache_ttl: int = 86_400  # 1 day
+    # Offer data changes rarely too, so cache upstream offer responses. Seconds; 0 disables.
+    swiss_offers_cache_ttl: int = 86_400  # 1 day
     opentransportdata_api_key: str = ""
     opentransportdata_ojp_url: str = "https://api.opentransportdata.swiss/ojp20"
     opentransportdata_requestor_ref: str = "wellspent_test"

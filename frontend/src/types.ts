@@ -222,3 +222,27 @@ export interface TourListOut {
     data: TourOut[];
     pagination: PaginationOut;
 }
+
+export interface OfferOut {
+    id: string;
+    name: string;
+    abstract: string;
+    description: string;
+    price_amount?: number | null;
+    price_currency?: string | null;
+    price_note?: string | null;
+    valid_from?: string | null;
+    valid_through?: string | null;
+    offer_type?: string | null;
+    area_id?: string | null;
+    area_name?: string | null;
+    geo?: GeoOut | null;
+    images: ImageOut[];
+    info_url: string;
+    booking_url?: string | null;
+}
+
+export interface OfferListOut {
+    data: OfferOut[];
+    pagination: PaginationOut;
+}

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listTours } from "../api/swissTourism";
+import { listOffers, listTours } from "../api/swissTourism";
 import { listCommunityTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
+import OfferCard from "../components/OfferCard";
 import RouteCard from "../components/RouteCard";
 import TourCard from "../components/TourCard";
 import { groupToursByRoute } from "../tourFormat";
 import { getTripHeroImageUrl } from "../tripImages";
-import type { CommunityTripOut, TourOut } from "../types";
+import type { CommunityTripOut, OfferOut, TourOut } from "../types";
 
 const nearbyIdeas = [
     {
@@ -37,6 +38,7 @@ export default function ExplorePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [tours, setTours] = useState<TourOut[]>([]);
+    const [offers, setOffers] = useState<OfferOut[]>([]);
 
     useEffect(() => {
         listCommunityTrips()
@@ -53,7 +55,14 @@ export default function ExplorePage() {
             .catch(() => setTours([]));
     }, []);
 
+    useEffect(() => {
+        listOffers({ pageSize: 12 })
+            .then((result) => setOffers(result.data))
+            .catch(() => setOffers([]));
+    }, []);
+
     const tourEntries = groupToursByRoute(tours).slice(0, 6);
+    const offerEntries = offers.slice(0, 6);
 
     function openPlan(destination: string) {
         const query = destination.trim();
@@ -198,6 +207,28 @@ export default function ExplorePage() {
                                     <TourCard key={entry.tour.id} tour={entry.tour} />
                                 ),
                             )}
+                        </div>
+                    </section>
+                )}
+
+                {offerEntries.length > 0 && (
+                    <section className="ws-surface p-6 sm:p-7">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <p className="ws-mono text-[var(--ws-orange)]">Bookable offers</p>
+                                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+                                    Swiss experiences you can reserve.
+                                </h2>
+                            </div>
+                            <Link to="/offers" className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]">
+                                See all offers
+                            </Link>
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            {offerEntries.map((offer) => (
+                                <OfferCard key={offer.id} offer={offer} />
+                            ))}
                         </div>
                     </section>
                 )}

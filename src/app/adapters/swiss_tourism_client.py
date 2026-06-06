@@ -13,6 +13,7 @@ from app.ports.swiss_tourism import (
     FacetSnapshotRecord,
     FacetValueRecord,
     GeoCoordinates,
+    OfferRecord,
     PageMeta,
     PaginatedResult,
     SwissImage,
@@ -62,6 +63,7 @@ class _TTLCache:
 # Shared by every HttpxSwissTourismClient instance so the cache survives the
 # per-request client construction in core/db.py.
 _tour_cache = _TTLCache()
+_offer_cache = _TTLCache()
 
 _DESTINATION_CATEGORY_LABEL_KEYS = (
     "categoryName",
@@ -80,11 +82,19 @@ class SwissTourismAuthError(Exception):
 class HttpxSwissTourismClient:
     """Adapter that talks to the MySwitzerland OpenData API via httpx."""
 
-    def __init__(self, api_key: str, language: str = "en", cache_ttl: int = 0) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        language: str = "en",
+        cache_ttl: int = 0,
+        offers_cache_ttl: int = 0,
+    ) -> None:
         self._api_key = api_key
         self._language = language
         # Seconds to cache tour responses; 0 disables caching entirely.
         self._cache_ttl = cache_ttl
+        # Seconds to cache offer responses; 0 disables caching entirely.
+        self._offers_cache_ttl = offers_cache_ttl
 
     def _headers(self) -> dict[str, str]:
         return {"x-api-key": self._api_key}
@@ -494,4 +504,111 @@ class HttpxSwissTourismClient:
             geo=self._extract_geo(item),
             images=self._extract_images(item),
             url=item.get("url", ""),
+        )
+
+    # ── offers ───────────────────────────────────────────
+
+    async def list_offers(
+        self,
+        *,
+        query: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResult[OfferRecord]:
+        cache_key = ("list_offers", self._language, query, page, page_size)
+        cached = _offer_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        params = {
+            **self._base_params(),
+            "page": str(page - 1),
+            "hitsPerPage": str(page_size),
+        }
+        if query:
+            params["query"] = query
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{BASE_URL}/offers/",
+                headers=self._headers(),
+                params=params,
+            )
+            self._raise_for_status(resp)
+
+        body = resp.json()
+        offers = [self._to_offer(o) for o in body.get("data", [])]
+        result = PaginatedResult(
+            data=offers, meta=self._parse_page_meta(body.get("meta", {}))
+        )
+        # Only successful responses reach here, so errors are never cached.
+        _offer_cache.set(cache_key, result, self._offers_cache_ttl)
+        return result
+
+    async def get_offer(self, offer_id: str) -> OfferRecord | None:
+        cache_key = ("get_offer", self._language, offer_id)
+        cached = _offer_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{BASE_URL}/offers/{offer_id}",
+                headers=self._headers(),
+                params=self._base_params(),
+            )
+            if resp.status_code == 404:
+                return None
+            self._raise_for_status(resp)
+
+        body = resp.json()
+        data = body.get("data")
+        if not data:
+            return None
+        offer = self._to_offer(data)
+        # The offer payload only carries the area's id + coordinates. Resolve the
+        # destination once so the detail page can show a human-readable place; the
+        # resolved name is cached with the offer below.
+        if offer.area_id:
+            try:
+                destination = await self.get_destination(offer.area_id)
+                if destination and destination.name:
+                    offer.area_name = destination.name
+            except Exception:
+                # A failed lookup degrades gracefully: the name stays unset.
+                pass
+        # Cache only resolved offers; misses (404/empty) stay uncached so an offer
+        # that appears later is not hidden for the whole TTL window.
+        _offer_cache.set(cache_key, offer, self._offers_cache_ttl)
+        return offer
+
+    @staticmethod
+    def _extract_area_geo(area: dict) -> GeoCoordinates | None:
+        geo = area.get("geo")
+        if geo and "latitude" in geo and "longitude" in geo:
+            return GeoCoordinates(
+                latitude=float(geo["latitude"]),
+                longitude=float(geo["longitude"]),
+            )
+        return None
+
+    def _to_offer(self, item: dict) -> OfferRecord:
+        price = self._first_dict(item.get("priceSpecification"))
+        area = self._first_dict(item.get("areaServed"))
+        return OfferRecord(
+            id=item.get("identifier") or item.get("id", ""),
+            name=item.get("name", ""),
+            abstract=item.get("abstract", ""),
+            description=item.get("description", ""),
+            price_amount=price.get("minPrice"),
+            price_currency=price.get("priceCurrency") or None,
+            price_note=price.get("description") or None,
+            valid_from=item.get("validFrom") or None,
+            valid_through=item.get("validThrough") or None,
+            offer_type=self._classification_value(item, "offertype"),
+            area_id=area.get("identifier") or None,
+            geo=self._extract_area_geo(area),
+            images=self._extract_images(item),
+            info_url=item.get("url", ""),
+            booking_url=item.get("mainEntityOfPage") or None,
         )

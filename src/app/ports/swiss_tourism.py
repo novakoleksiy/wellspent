@@ -68,6 +68,26 @@ class TourRecord:
 
 
 @dataclass
+class OfferRecord:
+    id: str
+    name: str
+    abstract: str = ""
+    description: str = ""
+    price_amount: float | None = None
+    price_currency: str | None = None
+    price_note: str | None = None
+    valid_from: str | None = None
+    valid_through: str | None = None
+    offer_type: str | None = None
+    area_id: str | None = None
+    area_name: str | None = None
+    geo: GeoCoordinates | None = None
+    images: list[SwissImage] = field(default_factory=list)
+    info_url: str = ""
+    booking_url: str | None = None
+
+
+@dataclass
 class PageMeta:
     page_number: int
     page_size: int
@@ -147,3 +167,13 @@ class SwissTourismClient(Protocol):
     ) -> PaginatedResult[TourRecord]: ...
 
     async def get_tour(self, tour_id: str) -> TourRecord | None: ...
+
+    async def list_offers(
+        self,
+        *,
+        query: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResult[OfferRecord]: ...
+
+    async def get_offer(self, offer_id: str) -> OfferRecord | None: ...

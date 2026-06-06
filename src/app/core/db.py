@@ -85,6 +85,7 @@ def get_swiss_tourism_client() -> SwissTourismClient:
     return HttpxSwissTourismClient(
         api_key=settings.my_swiss_tourism_api,
         cache_ttl=settings.swiss_tours_cache_ttl,
+        offers_cache_ttl=settings.swiss_offers_cache_ttl,
     )
 
 

@@ -8,12 +8,14 @@ from app.adapters.swiss_tourism_client import (
     BASE_URL,
     HttpxSwissTourismClient,
     SwissTourismAuthError,
+    _offer_cache,
     _tour_cache,
 )
 from app.ports.swiss_tourism import (
     AttractionRecord,
     DestinationRecord,
     GeoCoordinates,
+    OfferRecord,
     SwissImage,
     TourRecord,
 )
@@ -32,6 +34,14 @@ def _clear_tour_cache():
     _tour_cache.clear()
     yield
     _tour_cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_offer_cache():
+    # The offer cache is process-wide, so isolate it between tests.
+    _offer_cache.clear()
+    yield
+    _offer_cache.clear()
 
 
 # ── static helper tests ───────────────────────────────────────────────────────
@@ -619,6 +629,165 @@ async def test_get_tour_served_from_cache_within_ttl():
 
     first = await cached_client.get_tour("tour-1")
     second = await cached_client.get_tour("tour-1")
+
+    assert route.call_count == 1
+    assert second is first
+
+
+# ── offers ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_offers(client: HttpxSwissTourismClient):
+    payload = {
+        "data": [
+            {
+                "identifier": "offer-1",
+                "name": "From Zurich: Day trip to Lucerne incl. boat tour",
+                "abstract": "Take a coach trip to Lucerne and enjoy a boat ride.",
+                "image": [
+                    {"url": "https://example.com/lucerne.jpg"},
+                ],
+                "areaServed": {
+                    "@type": "TouristDestination",
+                    "identifier": "dest-1",
+                    "geo": {"latitude": 47.380652, "longitude": 8.537228},
+                },
+                "priceSpecification": {
+                    "minPrice": 92,
+                    "priceCurrency": "CHF",
+                },
+                "validFrom": "2026-05-13",
+                "validThrough": "2026-10-18",
+                "url": "https://myswitzerland.com/offers/lucerne-day-trip/",
+                "mainEntityOfPage": "https://api.openbooking.ch/offers/sa-370/url",
+                "classification": [
+                    {
+                        "name": "offertype",
+                        "values": [
+                            {
+                                "name": "hotelpartneroffers",
+                                "title": "Hotel - Partner Offers",
+                            }
+                        ],
+                    },
+                ],
+            }
+        ],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+    respx.get(f"{BASE_URL}/offers/").mock(return_value=Response(200, json=payload))
+
+    result = await client.list_offers()
+
+    assert len(result.data) == 1
+    offer = result.data[0]
+    assert isinstance(offer, OfferRecord)
+    assert offer.id == "offer-1"
+    assert offer.price_amount == 92
+    assert offer.price_currency == "CHF"
+    assert offer.valid_from == "2026-05-13"
+    assert offer.valid_through == "2026-10-18"
+    assert offer.offer_type == "Hotel - Partner Offers"
+    assert offer.area_id == "dest-1"
+    assert offer.geo == GeoCoordinates(latitude=47.380652, longitude=8.537228)
+    assert offer.images[0].url == "https://example.com/lucerne.jpg"
+    assert offer.info_url == "https://myswitzerland.com/offers/lucerne-day-trip/"
+    assert offer.booking_url == "https://api.openbooking.ch/offers/sa-370/url"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_offers_minimal(client: HttpxSwissTourismClient):
+    payload = {
+        "data": [
+            {
+                "identifier": "offer-2",
+                "name": "Minimal Offer",
+            }
+        ],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+    respx.get(f"{BASE_URL}/offers/").mock(return_value=Response(200, json=payload))
+
+    offer = (await client.list_offers()).data[0]
+
+    assert offer.price_amount is None
+    assert offer.price_currency is None
+    assert offer.valid_from is None
+    assert offer.offer_type is None
+    assert offer.area_id is None
+    assert offer.geo is None
+    assert offer.images == []
+    assert offer.booking_url is None
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_offer_resolves_area_name(client: HttpxSwissTourismClient):
+    offer_payload = {
+        "data": {
+            "identifier": "offer-1",
+            "name": "Day trip to Lucerne",
+            "abstract": "A boat ride.",
+            "areaServed": {
+                "identifier": "dest-1",
+                "geo": {"latitude": 47.05, "longitude": 8.30},
+            },
+            "url": "https://myswitzerland.com/offers/lucerne/",
+        }
+    }
+    destination_payload = {
+        "data": {
+            "identifier": "dest-1",
+            "name": "Lucerne",
+        }
+    }
+    respx.get(f"{BASE_URL}/offers/offer-1").mock(
+        return_value=Response(200, json=offer_payload)
+    )
+    respx.get(f"{BASE_URL}/destinations/dest-1").mock(
+        return_value=Response(200, json=destination_payload)
+    )
+
+    offer = await client.get_offer("offer-1")
+
+    assert offer is not None
+    assert offer.area_id == "dest-1"
+    assert offer.area_name == "Lucerne"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_offer_not_found(client: HttpxSwissTourismClient):
+    respx.get(f"{BASE_URL}/offers/missing").mock(return_value=Response(404))
+
+    assert await client.get_offer("missing") is None
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_offers_served_from_cache_within_ttl():
+    cached_client = HttpxSwissTourismClient(
+        api_key="test-key", language="en", offers_cache_ttl=300
+    )
+    payload = {
+        "data": [{"identifier": "offer-1", "name": "Day trip"}],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+    route = respx.get(f"{BASE_URL}/offers/").mock(
+        return_value=Response(200, json=payload)
+    )
+
+    first = await cached_client.list_offers()
+    second = await cached_client.list_offers()
 
     assert route.call_count == 1
     assert second is first

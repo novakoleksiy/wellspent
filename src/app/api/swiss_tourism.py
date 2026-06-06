@@ -9,6 +9,8 @@ from app.schemas.schemas import (
     DestinationListOut,
     DestinationOut,
     FacetSnapshotOut,
+    OfferListOut,
+    OfferOut,
     PaginationOut,
     TourListOut,
     TourOut,
@@ -32,6 +34,10 @@ def _attraction_out(attraction: object) -> AttractionOut:
 
 def _tour_out(tour: object) -> TourOut:
     return TourOut(**asdict(tour))
+
+
+def _offer_out(offer: object) -> OfferOut:
+    return OfferOut(**asdict(offer))
 
 
 def _split_csv(value: str | None) -> list[str] | None:
@@ -152,3 +158,33 @@ async def get_tour(
     if not tour:
         raise HTTPException(404, "Tour not found")
     return _tour_out(tour)
+
+
+# ── Offers ───────────────────────────────────────────
+
+
+@router.get("/offers", response_model=OfferListOut)
+async def list_offers(
+    user: CurrentUser,
+    client: SwissTourism,
+    query: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+):
+    result = await client.list_offers(query=query, page=page, page_size=page_size)
+    return OfferListOut(
+        data=[_offer_out(o) for o in result.data],
+        pagination=_pagination_out(result.meta),
+    )
+
+
+@router.get("/offers/{offer_id}", response_model=OfferOut)
+async def get_offer(
+    offer_id: str,
+    user: CurrentUser,
+    client: SwissTourism,
+):
+    offer = await client.get_offer(offer_id)
+    if not offer:
+        raise HTTPException(404, "Offer not found")
+    return _offer_out(offer)

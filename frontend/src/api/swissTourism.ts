@@ -1,5 +1,11 @@
 import { request } from "./client";
-import type { DestinationListOut, TourListOut, TourOut } from "../types";
+import type {
+    DestinationListOut,
+    OfferListOut,
+    OfferOut,
+    TourListOut,
+    TourOut,
+} from "../types";
 
 type ListDestinationsOptions = {
     query?: string;
@@ -56,3 +62,31 @@ export const listTours = ({
 
 export const getTour = (id: string) =>
     request<TourOut>(`/api/swiss/tours/${encodeURIComponent(id)}`);
+
+type ListOffersOptions = {
+    query?: string;
+    page?: number;
+    pageSize?: number;
+    signal?: AbortSignal;
+};
+
+export const listOffers = ({
+    query,
+    page = 1,
+    pageSize = 12,
+    signal,
+}: ListOffersOptions = {}) => {
+    const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(pageSize),
+    });
+
+    if (query?.trim()) {
+        params.set("query", query.trim());
+    }
+
+    return request<OfferListOut>(`/api/swiss/offers?${params.toString()}`, { signal });
+};
+
+export const getOffer = (id: string) =>
+    request<OfferOut>(`/api/swiss/offers/${encodeURIComponent(id)}`);
