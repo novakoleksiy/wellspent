@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listTours } from "../api/swissTourism";
 import AppShell from "../components/AppShell";
+import RouteCard from "../components/RouteCard";
 import TourCard from "../components/TourCard";
+import { groupToursByRoute } from "../tourFormat";
 import type { TourOut } from "../types";
 
 export default function ToursPage() {
@@ -18,6 +20,8 @@ export default function ToursPage() {
             })
             .finally(() => setLoading(false));
     }, []);
+
+    const entries = groupToursByRoute(tours);
 
     return (
         <AppShell
@@ -37,7 +41,7 @@ export default function ToursPage() {
                             Pre-planned Swiss itineraries.
                         </h2>
                     </div>
-                    <span className="ws-pill px-4 py-2 text-sm font-medium">{tours.length}</span>
+                    <span className="ws-pill px-4 py-2 text-sm font-medium">{entries.length}</span>
                 </div>
 
                 {error && <p className="ws-error mt-5 px-4 py-3 text-sm">{error}</p>}
@@ -60,9 +64,18 @@ export default function ToursPage() {
                     </div>
                 ) : (
                     <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {tours.map((tour) => (
-                            <TourCard key={tour.id} tour={tour} />
-                        ))}
+                        {entries.map((entry) =>
+                            entry.kind === "route" ? (
+                                <RouteCard
+                                    key={`route:${entry.routeName}`}
+                                    routeName={entry.routeName}
+                                    stageCount={entry.stageCount}
+                                    representative={entry.representative}
+                                />
+                            ) : (
+                                <TourCard key={entry.tour.id} tour={entry.tour} />
+                            ),
+                        )}
                     </div>
                 )}
             </section>

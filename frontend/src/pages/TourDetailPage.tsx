@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getTour } from "../api/swissTourism";
+import { getTour, listTours } from "../api/swissTourism";
 import AppShell from "../components/AppShell";
-import { formatDistance, formatDuration, tourHeroImageUrl } from "../tourFormat";
+import {
+    formatDistance,
+    formatDuration,
+    isSameSeries,
+    parseTourSeries,
+    tourHeroImageUrl,
+    tourStageLabel,
+    tourStatsLine,
+    type TourSeries,
+} from "../tourFormat";
 import type { TourOut } from "../types";
 
 function waypointLabel(index: number, total: number): string {
@@ -11,11 +20,17 @@ function waypointLabel(index: number, total: number): string {
     return `Stop ${index}`;
 }
 
+type Stage = { tour: TourOut; series: TourSeries; isCurrent: boolean };
+
 export default function TourDetailPage() {
     const { id } = useParams();
     const [tour, setTour] = useState<TourOut | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [related, setRelated] = useState<{ tourId: string; stages: Stage[] }>({
+        tourId: "",
+        stages: [],
+    });
 
     useEffect(() => {
         if (!id) return;
@@ -26,6 +41,41 @@ export default function TourDetailPage() {
             })
             .finally(() => setLoading(false));
     }, [id]);
+
+    // A tour like "Rhine Route, Stage 4/9" belongs to a multi-stage route. Search
+    // by the route name to pull in the sibling stages and link them together.
+    useEffect(() => {
+        if (!tour) return;
+        const series = parseTourSeries(tour.name);
+        if (!series) return;
+
+        const controller = new AbortController();
+        listTours({ query: series.routeName, pageSize: 24, signal: controller.signal })
+            .then((result) => {
+                const siblings = new Map<string, Stage>();
+                for (const candidate of result.data) {
+                    const candidateSeries = parseTourSeries(candidate.name);
+                    if (candidateSeries && isSameSeries(candidateSeries, series)) {
+                        siblings.set(candidate.id, {
+                            tour: candidate,
+                            series: candidateSeries,
+                            isCurrent: candidate.id === tour.id,
+                        });
+                    }
+                }
+                // The current tour is the source of truth and may fall outside the
+                // search page, so make sure it is always present.
+                siblings.set(tour.id, { tour, series, isCurrent: true });
+
+                const ordered = [...siblings.values()].sort(
+                    (a, b) => a.series.stage - b.series.stage,
+                );
+                setRelated({ tourId: tour.id, stages: ordered.length > 1 ? ordered : [] });
+            })
+            .catch(() => setRelated({ tourId: tour.id, stages: [] }));
+
+        return () => controller.abort();
+    }, [tour]);
 
     if (loading) {
         return (
@@ -50,6 +100,9 @@ export default function TourDetailPage() {
     const duration = formatDuration(tour.duration_minutes);
     const waypoints = tour.waypoints;
     const provider = tour.provider;
+    const series = parseTourSeries(tour.name);
+    // Only trust fetched stages once they belong to the tour now on screen.
+    const stages = related.tourId === tour.id ? related.stages : [];
 
     const stats: { label: string; value: string }[] = [];
     if (distance) stats.push({ label: "Distance", value: distance });
@@ -78,7 +131,15 @@ export default function TourDetailPage() {
                 {heroImageUrl && <div className="absolute inset-0 bg-[rgba(20,19,15,0.48)]" />}
                 <div className="relative grid gap-6 px-6 py-7 sm:px-8 sm:py-8 lg:grid-cols-[1.15fr_0.85fr]">
                     <div>
-                        <p className="ws-mono text-white/65">Ready-made itinerary</p>
+                        <p className="ws-mono text-white/65">
+                            {series
+                                ? `${series.routeName}${
+                                      series.totalStages
+                                          ? ` · Stage ${series.stage} of ${series.totalStages}`
+                                          : ` · Stage ${series.stage}`
+                                  }`
+                                : "Ready-made itinerary"}
+                        </p>
                         <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
                             {tour.name}
                         </h2>
@@ -169,6 +230,68 @@ export default function TourDetailPage() {
                             </p>
                         )}
                     </article>
+
+                    {series && stages.length > 0 && (
+                        <article className="ws-surface p-6">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-[var(--ws-muted)]">
+                                        Part of {series.routeName}
+                                    </p>
+                                    <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+                                        Continue the route, stage by stage
+                                    </h2>
+                                </div>
+                                <p className="text-sm text-[rgba(87,84,74,0.8)]">
+                                    {series.totalStages ?? stages.length} stages
+                                </p>
+                            </div>
+
+                            <div className="mt-6 space-y-3">
+                                {stages.map(({ tour: stageTour, series: stageSeries, isCurrent }) => {
+                                    const stats = tourStatsLine(stageTour);
+                                    const label = tourStageLabel(stageTour.name, stageSeries);
+                                    const rowClass =
+                                        "grid gap-4 rounded-[1.5rem] border px-4 py-4 sm:grid-cols-[64px_1fr] sm:items-center";
+                                    const content = (
+                                        <>
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--ws-orange)] text-sm font-semibold text-white">
+                                                {stageSeries.stage}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="truncate text-base font-semibold text-[var(--ws-ink)]">
+                                                    {label}
+                                                </p>
+                                                <p className="mt-1 text-sm text-[var(--ws-muted)]">
+                                                    {isCurrent
+                                                        ? "You are here"
+                                                        : stats || "Swiss route"}
+                                                </p>
+                                            </div>
+                                        </>
+                                    );
+
+                                    return isCurrent ? (
+                                        <div
+                                            key={stageTour.id}
+                                            aria-current="true"
+                                            className={`${rowClass} border-[var(--ws-orange)] bg-[rgba(255,244,239,0.9)]`}
+                                        >
+                                            {content}
+                                        </div>
+                                    ) : (
+                                        <Link
+                                            key={stageTour.id}
+                                            to={`/tours/${stageTour.id}`}
+                                            className={`${rowClass} border-[var(--ws-line)] bg-[rgba(255,244,239,0.5)] transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]`}
+                                        >
+                                            {content}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </article>
+                    )}
                 </section>
 
                 <aside className="space-y-5 xl:sticky xl:top-28 xl:self-start">

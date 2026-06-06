@@ -9,6 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlanPage from "./pages/PlanPage";
 import RegisterPage from "./pages/RegisterPage";
+import RouteDetailPage from "./pages/RouteDetailPage";
 import SettingsPage from "./pages/SettingsPage";
 import TourDetailPage from "./pages/TourDetailPage";
 import ToursPage from "./pages/ToursPage";
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/plan" element={<RequireAuth><RequireOnboarding><PlanPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/recommend" element={<Navigate to="/plan" replace />} />
           <Route path="/tours" element={<RequireAuth><RequireOnboarding><ToursPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/tours/route/:name" element={<RequireAuth><RequireOnboarding><RouteDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/tours/:id" element={<RequireAuth><RequireOnboarding><TourDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />

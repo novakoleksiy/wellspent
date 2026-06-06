@@ -8,6 +8,7 @@ from app.adapters.swiss_tourism_client import (
     BASE_URL,
     HttpxSwissTourismClient,
     SwissTourismAuthError,
+    _tour_cache,
 )
 from app.ports.swiss_tourism import (
     AttractionRecord,
@@ -23,6 +24,14 @@ from app.ports.swiss_tourism import (
 @pytest.fixture
 def client() -> HttpxSwissTourismClient:
     return HttpxSwissTourismClient(api_key="test-key", language="en")
+
+
+@pytest.fixture(autouse=True)
+def _clear_tour_cache():
+    # The tour cache is process-wide, so isolate it between tests.
+    _tour_cache.clear()
+    yield
+    _tour_cache.clear()
 
 
 # ── static helper tests ───────────────────────────────────────────────────────
@@ -518,3 +527,98 @@ async def test_get_tour_not_found(client: HttpxSwissTourismClient):
     respx.get(f"{BASE_URL}/tours/missing").mock(return_value=Response(404))
 
     assert await client.get_tour("missing") is None
+
+
+# ── caching ───────────────────────────────────────────────────────────────────
+
+
+def _single_tour_list_payload() -> dict:
+    return {
+        "data": [
+            {
+                "identifier": "tour-1",
+                "name": "Rhine Route, Stage 1/9",
+                "abstract": "Scenic loop.",
+                "url": "https://myswitzerland.com/tours/1",
+            }
+        ],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_tours_served_from_cache_within_ttl():
+    cached_client = HttpxSwissTourismClient(
+        api_key="test-key", language="en", cache_ttl=300
+    )
+    route = respx.get(f"{BASE_URL}/tours/").mock(
+        return_value=Response(200, json=_single_tour_list_payload())
+    )
+
+    first = await cached_client.list_tours()
+    second = await cached_client.list_tours()
+
+    # The upstream API is hit once; the second call is served from cache.
+    assert route.call_count == 1
+    assert second is first
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_tours_not_cached_when_ttl_disabled(
+    client: HttpxSwissTourismClient,
+):
+    # The default fixture client has cache_ttl=0 (caching disabled).
+    route = respx.get(f"{BASE_URL}/tours/").mock(
+        return_value=Response(200, json=_single_tour_list_payload())
+    )
+
+    await client.list_tours()
+    await client.list_tours()
+
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_tours_cache_key_varies_by_query():
+    cached_client = HttpxSwissTourismClient(
+        api_key="test-key", language="en", cache_ttl=300
+    )
+    route = respx.get(f"{BASE_URL}/tours/").mock(
+        return_value=Response(200, json=_single_tour_list_payload())
+    )
+
+    await cached_client.list_tours(query="Rhine Route")
+    await cached_client.list_tours(query="Jura Route")
+
+    # Different queries are distinct cache entries, so both hit the API.
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_tour_served_from_cache_within_ttl():
+    cached_client = HttpxSwissTourismClient(
+        api_key="test-key", language="en", cache_ttl=300
+    )
+    payload = {
+        "data": {
+            "identifier": "tour-1",
+            "name": "Rhine Route, Stage 1/9",
+            "abstract": "Scenic loop.",
+            "url": "https://myswitzerland.com/tours/1",
+        }
+    }
+    route = respx.get(f"{BASE_URL}/tours/tour-1").mock(
+        return_value=Response(200, json=payload)
+    )
+
+    first = await cached_client.get_tour("tour-1")
+    second = await cached_client.get_tour("tour-1")
+
+    assert route.call_count == 1
+    assert second is first

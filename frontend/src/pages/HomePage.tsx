@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { listDestinations, listTours } from "../api/swissTourism";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
+import RouteCard from "../components/RouteCard";
 import TourCard from "../components/TourCard";
 import { useAuth } from "../hooks/useAuth";
+import { groupToursByRoute } from "../tourFormat";
 import { getTripHeroImageUrl } from "../tripImages";
 import type { DestinationOut, TourOut, TripOut } from "../types";
 
@@ -55,7 +57,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    listTours({ pageSize: 4 })
+    listTours({ pageSize: 12 })
       .then((result) => setTours(result.data))
       .catch(() => setTours([]));
   }, []);
@@ -96,6 +98,7 @@ export default function HomePage() {
   }, [destination]);
 
   const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 4);
+  const tourEntries = groupToursByRoute(tours).slice(0, 4);
 
   function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
@@ -258,7 +261,7 @@ export default function HomePage() {
           )}
         </section>
 
-        {tours.length > 0 && (
+        {tourEntries.length > 0 && (
           <section className="ws-surface p-6 sm:p-7">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -273,9 +276,18 @@ export default function HomePage() {
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {tours.map((tour) => (
-                <TourCard key={tour.id} tour={tour} />
-              ))}
+              {tourEntries.map((entry) =>
+                entry.kind === "route" ? (
+                  <RouteCard
+                    key={`route:${entry.routeName}`}
+                    routeName={entry.routeName}
+                    stageCount={entry.stageCount}
+                    representative={entry.representative}
+                  />
+                ) : (
+                  <TourCard key={entry.tour.id} tour={entry.tour} />
+                ),
+              )}
             </div>
           </section>
         )}

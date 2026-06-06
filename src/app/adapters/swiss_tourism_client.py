@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -20,6 +22,47 @@ from app.ports.swiss_tourism import (
 
 BASE_URL = "https://opendata.myswitzerland.io/v1"
 
+
+class _TTLCache:
+    """A tiny process-wide TTL cache shared across client instances.
+
+    Tour data is public and changes rarely, so the same upstream response can be
+    reused by every request/user within the TTL window. Per-process and in
+    memory: it resets on restart (which doubles as a cache-buster) and is not
+    shared across multiple server instances.
+    """
+
+    def __init__(self, maxsize: int = 256) -> None:
+        self._maxsize = maxsize
+        self._store: dict[Any, tuple[float, Any]] = {}
+
+    def get(self, key: Any) -> Any | None:
+        entry = self._store.get(key)
+        if entry is None:
+            return None
+        expires_at, value = entry
+        if expires_at < time.monotonic():
+            self._store.pop(key, None)
+            return None
+        return value
+
+    def set(self, key: Any, value: Any, ttl: int) -> None:
+        if ttl <= 0:
+            return
+        # Evict the soonest-to-expire entry when full to bound memory.
+        if len(self._store) >= self._maxsize and key not in self._store:
+            oldest = min(self._store, key=lambda k: self._store[k][0])
+            self._store.pop(oldest, None)
+        self._store[key] = (time.monotonic() + ttl, value)
+
+    def clear(self) -> None:
+        self._store.clear()
+
+
+# Shared by every HttpxSwissTourismClient instance so the cache survives the
+# per-request client construction in core/db.py.
+_tour_cache = _TTLCache()
+
 _DESTINATION_CATEGORY_LABEL_KEYS = (
     "categoryName",
     "categoryLabel",
@@ -37,9 +80,11 @@ class SwissTourismAuthError(Exception):
 class HttpxSwissTourismClient:
     """Adapter that talks to the MySwitzerland OpenData API via httpx."""
 
-    def __init__(self, api_key: str, language: str = "en") -> None:
+    def __init__(self, api_key: str, language: str = "en", cache_ttl: int = 0) -> None:
         self._api_key = api_key
         self._language = language
+        # Seconds to cache tour responses; 0 disables caching entirely.
+        self._cache_ttl = cache_ttl
 
     def _headers(self) -> dict[str, str]:
         return {"x-api-key": self._api_key}
@@ -330,6 +375,11 @@ class HttpxSwissTourismClient:
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[TourRecord]:
+        cache_key = ("list_tours", self._language, query, page, page_size)
+        cached = _tour_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         params = {
             **self._base_params(),
             "page": str(page - 1),
@@ -348,11 +398,19 @@ class HttpxSwissTourismClient:
 
         body = resp.json()
         tours = [self._to_tour(t) for t in body.get("data", [])]
-        return PaginatedResult(
+        result = PaginatedResult(
             data=tours, meta=self._parse_page_meta(body.get("meta", {}))
         )
+        # Only successful responses reach here, so errors are never cached.
+        _tour_cache.set(cache_key, result, self._cache_ttl)
+        return result
 
     async def get_tour(self, tour_id: str) -> TourRecord | None:
+        cache_key = ("get_tour", self._language, tour_id)
+        cached = _tour_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 f"{BASE_URL}/tours/{tour_id}",
@@ -367,7 +425,11 @@ class HttpxSwissTourismClient:
         data = body.get("data")
         if not data:
             return None
-        return self._to_tour(data)
+        tour = self._to_tour(data)
+        # Cache only resolved tours; misses (404/empty) stay uncached so a tour
+        # that appears later is not hidden for the whole TTL window.
+        _tour_cache.set(cache_key, tour, self._cache_ttl)
+        return tour
 
     @staticmethod
     def _classification_value(item: dict, name: str) -> str | None:
