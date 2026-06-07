@@ -66,8 +66,15 @@ export default function CommunityTripModal({ trip, onClose }: CommunityTripModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,19,15,0.45)] px-4 py-6 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-[var(--ws-line)] bg-[#fffdf8] shadow-2xl shadow-stone-950/20">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,19,15,0.45)] px-4 py-6 backdrop-blur-sm"
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-[var(--ws-line)] bg-[#fffdf8] shadow-2xl shadow-stone-950/20"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="relative">
           {heroImageUrl ? (
             <div className="relative h-44 w-full overflow-hidden rounded-t-[2rem] sm:h-52">

@@ -1,7 +1,7 @@
 import { formatPrice, offerHeroImageUrl } from "./offerFormat";
 import { routeSlug, tourHeroImageUrl, tourStatsLine, type TourListEntry } from "./tourFormat";
 import { getTripHeroImageUrl } from "./tripImages";
-import type { CommunityTripOut, OfferOut } from "./types";
+import type { CommunityTripOut, OfferOut, TourOut } from "./types";
 
 /** The three content types that share the Explore board and Home rails. */
 export type BoardKind = "trip" | "tour" | "offer";
@@ -13,9 +13,9 @@ export interface BoardItem {
     title: string;
     subtitle: string;
     imageUrl: string | null;
-    /** Link target (tours, offers). Mutually exclusive with onSelect. */
+    /** Link target. Mutually exclusive with onSelect. */
     to?: string;
-    /** Click handler (community trips open a detail modal in place). */
+    /** Click handler — every board kind opens a preview modal in place. */
     onSelect?: () => void;
 }
 
@@ -58,17 +58,28 @@ export function communityTripToBoardItem(
     };
 }
 
-export function tourEntryToBoardItem(entry: TourListEntry): BoardItem {
+/**
+ * When `onOpen` is provided the card opens a preview modal in place (the Explore
+ * board); when omitted it falls back to a link to the detail page (the homepage
+ * spotlight, which navigates rather than previewing).
+ */
+export function tourEntryToBoardItem(
+    entry: TourListEntry,
+    onOpen?: (tour: TourOut) => void,
+): BoardItem {
     if (entry.kind === "route") {
         const startPlace = entry.representative.waypoints[0];
         const stages = `${entry.stageCount} stage${entry.stageCount === 1 ? "" : "s"}`;
+        // Routes collapse multiple stages; preview the representative stage tour.
         return {
             key: `route:${entry.routeName.toLowerCase()}`,
             kind: "tour",
             title: entry.routeName,
             subtitle: startPlace ? `From ${startPlace} · ${stages}` : stages,
             imageUrl: tourHeroImageUrl(entry.representative),
-            to: `/tours/route/${routeSlug(entry.routeName)}`,
+            ...(onOpen
+                ? { onSelect: () => onOpen(entry.representative) }
+                : { to: `/tours/route/${routeSlug(entry.routeName)}` }),
         };
     }
 
@@ -79,18 +90,21 @@ export function tourEntryToBoardItem(entry: TourListEntry): BoardItem {
         title: tour.name,
         subtitle: tourStatsLine(tour) || tour.waypoints[0] || "Swiss tour",
         imageUrl: tourHeroImageUrl(tour),
-        to: `/tours/${tour.id}`,
+        ...(onOpen ? { onSelect: () => onOpen(tour) } : { to: `/tours/${tour.id}` }),
     };
 }
 
-export function offerToBoardItem(offer: OfferOut): BoardItem {
+export function offerToBoardItem(
+    offer: OfferOut,
+    onOpen?: (offer: OfferOut) => void,
+): BoardItem {
     return {
         key: `offer:${offer.id}`,
         kind: "offer",
         title: offer.name,
         subtitle: formatPrice(offer.price_amount, offer.price_currency) ?? offer.area_name ?? "Bookable offer",
         imageUrl: offerHeroImageUrl(offer),
-        to: `/offers/${offer.id}`,
+        ...(onOpen ? { onSelect: () => onOpen(offer) } : { to: `/offers/${offer.id}` }),
     };
 }
 

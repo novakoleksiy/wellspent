@@ -4,9 +4,11 @@ import { BOARD_META, type BoardKind } from "../boardItems";
 import AppShell from "../components/AppShell";
 import BoardCard from "../components/BoardCard";
 import CommunityTripModal from "../components/CommunityTripModal";
+import OfferPreviewModal from "../components/OfferPreviewModal";
+import TourPreviewModal from "../components/TourPreviewModal";
 import { useColumnCount } from "../hooks/useColumnCount";
 import { useExploreBoard } from "../hooks/useExploreBoard";
-import type { CommunityTripOut } from "../types";
+import type { CommunityTripOut, OfferOut, TourOut } from "../types";
 
 const nearbyIdeas = [
     {
@@ -58,8 +60,17 @@ export default function ExplorePage() {
 
     const [filter, setFilter] = useState<BoardFilter>("all");
     const [selectedTrip, setSelectedTrip] = useState<CommunityTripOut | null>(null);
+    const [selectedTour, setSelectedTour] = useState<TourOut | null>(null);
+    const [selectedOffer, setSelectedOffer] = useState<OfferOut | null>(null);
     const { items, initialLoading, loadingMore, hasMore, error, sentinelRef } =
-        useExploreBoard(setSelectedTrip, filter);
+        useExploreBoard(
+            {
+                onOpenTrip: setSelectedTrip,
+                onOpenTour: setSelectedTour,
+                onOpenOffer: setSelectedOffer,
+            },
+            filter,
+        );
     const columnCount = useColumnCount();
 
     const visibleItems = useMemo(
@@ -204,6 +215,12 @@ export default function ExplorePage() {
                     trip={selectedTrip}
                     onClose={() => setSelectedTrip(null)}
                 />
+            )}
+            {selectedTour && (
+                <TourPreviewModal tour={selectedTour} onClose={() => setSelectedTour(null)} />
+            )}
+            {selectedOffer && (
+                <OfferPreviewModal offer={selectedOffer} onClose={() => setSelectedOffer(null)} />
             )}
         </AppShell>
     );

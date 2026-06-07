@@ -18,8 +18,8 @@ function isoWeek(date: Date): number {
  */
 export function pickFeatured(tours: TourOut[], offers: OfferOut[]): BoardItem | null {
     const candidates = [
-        ...groupToursByRoute(tours).map(tourEntryToBoardItem),
-        ...offers.map(offerToBoardItem),
+        ...groupToursByRoute(tours).map((entry) => tourEntryToBoardItem(entry)),
+        ...offers.map((offer) => offerToBoardItem(offer)),
     ].filter((item) => item.imageUrl);
 
     if (candidates.length === 0) {

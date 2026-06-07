@@ -12,6 +12,12 @@ import {
 import { groupToursByRoute } from "../tourFormat";
 import type { CommunityTripOut, OfferOut, TourOut } from "../types";
 
+export interface ExploreBoardHandlers {
+    onOpenTrip: (trip: CommunityTripOut) => void;
+    onOpenTour: (tour: TourOut) => void;
+    onOpenOffer: (offer: OfferOut) => void;
+}
+
 const PAGE_SIZE = 12;
 
 export interface ExploreBoard {
@@ -34,9 +40,10 @@ export interface ExploreBoard {
  * scroll sentinel would stay in view and loop until the API rate-limits us.
  */
 export function useExploreBoard(
-    onOpenTrip: (trip: CommunityTripOut) => void,
+    handlers: ExploreBoardHandlers,
     activeFilter: "all" | BoardKind,
 ): ExploreBoard {
+    const { onOpenTrip, onOpenTour, onOpenOffer } = handlers;
     const [communityTrips, setCommunityTrips] = useState<CommunityTripOut[]>([]);
     const [tours, setTours] = useState<TourOut[]>([]);
     const [offers, setOffers] = useState<OfferOut[]>([]);
@@ -171,10 +178,12 @@ export function useExploreBoard(
         const tripItems = communityTrips.map((trip) =>
             communityTripToBoardItem(trip, onOpenTrip),
         );
-        const tourItems = groupToursByRoute(tours).map(tourEntryToBoardItem);
-        const offerItems = offers.map(offerToBoardItem);
+        const tourItems = groupToursByRoute(tours).map((entry) =>
+            tourEntryToBoardItem(entry, onOpenTour),
+        );
+        const offerItems = offers.map((offer) => offerToBoardItem(offer, onOpenOffer));
         return interleave(tripItems, tourItems, offerItems);
-    }, [communityTrips, tours, offers, onOpenTrip]);
+    }, [communityTrips, tours, offers, onOpenTrip, onOpenTour, onOpenOffer]);
 
     return { items, initialLoading, loadingMore, hasMore, error, sentinelRef };
 }
