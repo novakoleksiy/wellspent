@@ -160,7 +160,7 @@ export default function HomePage() {
                 onChange={(event) => handleDestinationChange(event.target.value)}
                 onFocus={() => setDestinationFocused(true)}
                 onBlur={() => setDestinationFocused(false)}
-                placeholder="Plan a new trip"
+                placeholder="Enter a destination idea..."
                 autoComplete="off"
                 className="w-full rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-[var(--ws-yellow)] focus:outline-none focus:ring-2 focus:ring-[rgba(255,235,105,0.25)]"
               />
