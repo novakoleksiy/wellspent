@@ -1,12 +1,15 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listDestinations, listOffers, listTours } from "../api/swissTourism";
 import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
+import FeaturedSpotlight from "../components/FeaturedSpotlight";
 import OfferCard from "../components/OfferCard";
+import Rail from "../components/Rail";
 import RouteCard from "../components/RouteCard";
 import TourCard from "../components/TourCard";
 import { useAuth } from "../hooks/useAuth";
+import { pickFeatured } from "../homeFeatured";
 import { groupToursByRoute } from "../tourFormat";
 import { getTripHeroImageUrl } from "../tripImages";
 import type { DestinationOut, OfferOut, TourOut, TripOut } from "../types";
@@ -105,9 +108,10 @@ export default function HomePage() {
     };
   }, [destination]);
 
-  const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 4);
-  const tourEntries = groupToursByRoute(tours).slice(0, 4);
-  const offerEntries = offers.slice(0, 4);
+  const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 8);
+  const tourEntries = groupToursByRoute(tours).slice(0, 12);
+  const offerEntries = offers.slice(0, 12);
+  const featured = useMemo(() => pickFeatured(tours, offers), [tours, offers]);
 
   function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
@@ -195,43 +199,49 @@ export default function HomePage() {
           </form>
         </section>
 
-        <section className="ws-surface p-6 sm:p-7">
-          <div>
-            <div>
-              <p className="ws-mono text-[var(--ws-muted)]">Recent trips</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                Your completed trips.
-              </h2>
-            </div>
-          </div>
+        {featured && <FeaturedSpotlight item={featured} />}
 
-          {error && (
-            <p className="ws-error mt-5 px-4 py-3 text-sm">
-              {error}
-            </p>
-          )}
+        {error && <p className="ws-error px-4 py-3 text-sm">{error}</p>}
 
-          {loading ? (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-40 animate-pulse rounded-[1.75rem] bg-[var(--ws-cream)]" />
-              ))}
-            </div>
-          ) : recentTrips.length === 0 ? (
+        {loading ? (
+          <Rail
+            eyebrow="Recent trips"
+            eyebrowClassName="text-[var(--ws-muted)]"
+            title="Your completed trips."
+          >
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-44 w-72 shrink-0 animate-pulse rounded-[1.75rem] bg-[var(--ws-cream)]"
+              />
+            ))}
+          </Rail>
+        ) : recentTrips.length === 0 ? (
+          <section className="ws-surface p-6 sm:p-7">
+            <p className="ws-mono text-[var(--ws-muted)]">Recent trips</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+              Your completed trips.
+            </h2>
             <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
               <p className="ws-mono text-[var(--ws-muted)]">Ready to start</p>
               <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
                 Your completed trips will appear here once you save an itinerary.
               </p>
             </div>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {recentTrips.map((trip) => {
-                const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
+          </section>
+        ) : (
+          <Rail
+            eyebrow="Recent trips"
+            eyebrowClassName="text-[var(--ws-muted)]"
+            title="Your completed trips."
+            seeAllTo="/trips"
+          >
+            {recentTrips.map((trip) => {
+              const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
 
-                return (
+              return (
+                <div key={trip.id} className="w-72 shrink-0 snap-start">
                   <Link
-                    key={trip.id}
                     to={`/trips/${trip.id}`}
                     className={heroImageUrl
                       ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
@@ -264,63 +274,51 @@ export default function HomePage() {
                       </div>
                     </div>
                   </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                </div>
+              );
+            })}
+          </Rail>
+        )}
 
         {tourEntries.length > 0 && (
-          <section className="ws-surface p-6 sm:p-7">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="ws-mono text-[var(--ws-orange)]">Ready-made tours</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                  Pre-planned itineraries you can follow.
-                </h2>
-              </div>
-              <Link to="/tours" className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]">
-                See all tours
-              </Link>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {tourEntries.map((entry) =>
-                entry.kind === "route" ? (
+          <Rail
+            eyebrow="Ready-made tours"
+            title="Pre-planned itineraries you can follow."
+            seeAllTo="/tours"
+            seeAllLabel="See all tours"
+          >
+            {tourEntries.map((entry) => (
+              <div
+                key={entry.kind === "route" ? `route:${entry.routeName}` : entry.tour.id}
+                className="w-72 shrink-0 snap-start"
+              >
+                {entry.kind === "route" ? (
                   <RouteCard
-                    key={`route:${entry.routeName}`}
                     routeName={entry.routeName}
                     stageCount={entry.stageCount}
                     representative={entry.representative}
                   />
                 ) : (
-                  <TourCard key={entry.tour.id} tour={entry.tour} />
-                ),
-              )}
-            </div>
-          </section>
+                  <TourCard tour={entry.tour} />
+                )}
+              </div>
+            ))}
+          </Rail>
         )}
 
         {offerEntries.length > 0 && (
-          <section className="ws-surface p-6 sm:p-7">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="ws-mono text-[var(--ws-orange)]">Bookable offers</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                  Swiss experiences you can reserve.
-                </h2>
+          <Rail
+            eyebrow="Bookable offers"
+            title="Swiss experiences you can reserve."
+            seeAllTo="/offers"
+            seeAllLabel="See all offers"
+          >
+            {offerEntries.map((offer) => (
+              <div key={offer.id} className="w-72 shrink-0 snap-start">
+                <OfferCard offer={offer} />
               </div>
-              <Link to="/offers" className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]">
-                See all offers
-              </Link>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {offerEntries.map((offer) => (
-                <OfferCard key={offer.id} offer={offer} />
-              ))}
-            </div>
-          </section>
+            ))}
+          </Rail>
         )}
 
         <section className="ws-surface p-6 sm:p-7">

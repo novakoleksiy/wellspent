@@ -222,3 +222,14 @@ select {
   background: #fcf8e4;
   box-shadow: 0 18px 28px rgba(20, 19, 15, 0.14);
 }
+
+/* Horizontal snap rail (Home) — hides the scrollbar while keeping swipe/scroll. */
+.ws-rail {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ws-rail::-webkit-scrollbar {
+  display: none;
+}
