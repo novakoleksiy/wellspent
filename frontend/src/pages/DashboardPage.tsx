@@ -108,6 +108,10 @@ export default function TripsPage() {
   });
   const activeTrips = visibleTrips.filter((trip) => trip.status !== "completed");
   const pastTrips = visibleTrips.filter((trip) => trip.status === "completed");
+  const recentTrips = trips
+    .filter((trip) => trip.status === "completed")
+    .sort((first, second) => new Date(second.created_at).getTime() - new Date(first.created_at).getTime())
+    .slice(0, 8);
   const pastArchiveTrips = pastTrips
     .filter((trip) => {
       const query = pastSearch.trim().toLowerCase();
@@ -647,6 +651,62 @@ export default function TripsPage() {
       }
     >
       <div className="space-y-4">
+        {recentTrips.length > 0 && (
+          <section className="ws-surface p-6 sm:p-7">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="ws-mono text-[var(--ws-muted)]">Recent trips</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
+                  Your completed trips.
+                </h2>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {recentTrips.map((trip) => {
+              const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
+
+              return (
+                <div key={trip.id} className="h-full">
+                  <Link
+                    to={`/trips/${trip.id}`}
+                    className={heroImageUrl
+                      ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
+                      : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
+                  >
+                    {heroImageUrl && (
+                      <img
+                        src={heroImageUrl}
+                        alt={trip.destination}
+                        className="h-40 w-full object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
+                          <p className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
+                        </div>
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
+                          {formatDate(trip.created_at)}
+                        </span>
+                      </div>
+                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-[var(--ws-muted)]">
+                        {trip.description || "Saved from your recommendation flow and ready to revisit."}
+                      </p>
+                      <div className="mt-auto flex items-center justify-between pt-5 text-sm text-[var(--ws-muted)]">
+                        <span>{trip.itinerary?.days?.length ?? 0} day{trip.itinerary?.days?.length === 1 ? "" : "s"}</span>
+                        <span className="font-medium capitalize">completed</span>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              );
+            })}
+            </div>
+          </section>
+        )}
+
         <section className="ws-surface p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>

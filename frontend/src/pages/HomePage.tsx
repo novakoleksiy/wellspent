@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listDestinations, listOffers, listTours } from "../api/swissTourism";
-import { listTrips } from "../api/trips";
 import AppShell from "../components/AppShell";
 import FeaturedSpotlight from "../components/FeaturedSpotlight";
 import OfferCard from "../components/OfferCard";
@@ -11,8 +10,7 @@ import TourCard from "../components/TourCard";
 import { useAuth } from "../hooks/useAuth";
 import { pickFeatured } from "../homeFeatured";
 import { groupToursByRoute } from "../tourFormat";
-import { getTripHeroImageUrl } from "../tripImages";
-import type { DestinationOut, OfferOut, TourOut, TripOut } from "../types";
+import type { DestinationOut, OfferOut, TourOut } from "../types";
 
 const nearbyIdeas = [
   {
@@ -29,18 +27,8 @@ const nearbyIdeas = [
   },
 ];
 
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export default function HomePage() {
   const { user } = useAuth();
-  const [trips, setTrips] = useState<TripOut[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [tours, setTours] = useState<TourOut[]>([]);
   const [offers, setOffers] = useState<OfferOut[]>([]);
   const [destination, setDestination] = useState("");
@@ -48,18 +36,8 @@ export default function HomePage() {
   const [destinationSearchLoading, setDestinationSearchLoading] = useState(false);
   const [destinationSearchError, setDestinationSearchError] = useState("");
   const [destinationFocused, setDestinationFocused] = useState(false);
+  const [showRandomPrompt, setShowRandomPrompt] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    listTrips()
-      .then((items) => {
-        setTrips(items);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unable to load trips");
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   useEffect(() => {
     listTours({ pageSize: 12 })
@@ -72,6 +50,21 @@ export default function HomePage() {
       .then((result) => setOffers(result.data))
       .catch(() => setOffers([]));
   }, []);
+
+  useEffect(() => {
+    if (!showRandomPrompt) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowRandomPrompt(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showRandomPrompt]);
 
   useEffect(() => {
     const query = destination.trim();
@@ -108,7 +101,6 @@ export default function HomePage() {
     };
   }, [destination]);
 
-  const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 8);
   const tourEntries = groupToursByRoute(tours).slice(0, 12);
   const offerEntries = offers.slice(0, 12);
   const featured = useMemo(() => pickFeatured(tours, offers), [tours, offers]);
@@ -138,7 +130,16 @@ export default function HomePage() {
 
   function handlePlanSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (destination.trim().length === 0) {
+      setShowRandomPrompt(true);
+      return;
+    }
     openPlan(destination);
+  }
+
+  function confirmRandomDestination() {
+    setShowRandomPrompt(false);
+    openPlan("");
   }
 
   return (
@@ -201,91 +202,13 @@ export default function HomePage() {
 
         {featured && <FeaturedSpotlight item={featured} />}
 
-        {error && <p className="ws-error px-4 py-3 text-sm">{error}</p>}
-
-        {loading ? (
-          <Rail
-            eyebrow="Recent trips"
-            eyebrowClassName="text-[var(--ws-muted)]"
-            title="Your completed trips."
-          >
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-44 w-72 shrink-0 animate-pulse rounded-[1.75rem] bg-[var(--ws-cream)]"
-              />
-            ))}
-          </Rail>
-        ) : recentTrips.length === 0 ? (
-          <section className="ws-surface p-6 sm:p-7">
-            <p className="ws-mono text-[var(--ws-muted)]">Recent trips</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-              Your completed trips.
-            </h2>
-            <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
-              <p className="ws-mono text-[var(--ws-muted)]">Ready to start</p>
-              <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
-                Your completed trips will appear here once you save an itinerary.
-              </p>
-            </div>
-          </section>
-        ) : (
-          <Rail
-            eyebrow="Recent trips"
-            eyebrowClassName="text-[var(--ws-muted)]"
-            title="Your completed trips."
-            seeAllTo="/trips"
-          >
-            {recentTrips.map((trip) => {
-              const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
-
-              return (
-                <div key={trip.id} className="w-72 shrink-0 snap-start">
-                  <Link
-                    to={`/trips/${trip.id}`}
-                    className={heroImageUrl
-                      ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
-                      : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
-                  >
-                    {heroImageUrl && (
-                      <img
-                        src={heroImageUrl}
-                        alt={trip.destination}
-                        className="h-40 w-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                    <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
-                          <p className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
-                        </div>
-                        <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
-                          {formatDate(trip.created_at)}
-                        </span>
-                      </div>
-                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-[var(--ws-muted)]">
-                        {trip.description || "Saved from your recommendation flow and ready to revisit."}
-                      </p>
-                      <div className="mt-auto flex items-center justify-between pt-5 text-sm text-[var(--ws-muted)]">
-                        <span>{trip.itinerary?.days?.length ?? 0} day{trip.itinerary?.days?.length === 1 ? "" : "s"}</span>
-                        <span className="font-medium capitalize">completed</span>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              );
-            })}
-          </Rail>
-        )}
-
         {tourEntries.length > 0 && (
           <Rail
             eyebrow="Ready-made tours"
             title="Pre-planned itineraries you can follow."
             seeAllTo="/tours"
             seeAllLabel="See all tours"
+            autoScroll
           >
             {tourEntries.map((entry) => (
               <div
@@ -312,6 +235,7 @@ export default function HomePage() {
             title="Swiss experiences you can reserve."
             seeAllTo="/offers"
             seeAllLabel="See all offers"
+            autoScroll
           >
             {offerEntries.map((offer) => (
               <div key={offer.id} className="w-72 shrink-0 snap-start">
@@ -355,6 +279,50 @@ export default function HomePage() {
           </div>
         </section>
       </div>
+
+      {showRandomPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,19,15,0.45)] px-4 py-6 backdrop-blur-sm"
+          onClick={() => setShowRandomPrompt(false)}
+          role="presentation"
+        >
+          <div
+            className="ws-surface w-full max-w-md rounded-[2rem] p-6 sm:p-7"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="random-destination-title"
+          >
+            <p className="ws-mono text-[var(--ws-orange)]">No destination yet</p>
+            <h2
+              id="random-destination-title"
+              className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]"
+            >
+              We'll surprise you.
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[var(--ws-muted)]">
+              You haven't picked a destination, so we'll choose a random Swiss spot for you.
+              Continue to the planner?
+            </p>
+            <div className="mt-7 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowRandomPrompt(false)}
+                className="ws-btn-secondary px-5 py-3 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRandomDestination}
+                className="ws-btn-primary px-5 py-3 text-sm"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

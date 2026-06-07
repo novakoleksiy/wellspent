@@ -7,6 +7,7 @@ type RailProps = {
     title: string;
     seeAllTo?: string;
     seeAllLabel?: string;
+    autoScroll?: boolean;
     children: ReactNode;
 };
 
@@ -20,6 +21,7 @@ export default function Rail({
     title,
     seeAllTo,
     seeAllLabel = "See all",
+    autoScroll = false,
     children,
 }: RailProps) {
     return (
@@ -41,9 +43,20 @@ export default function Rail({
                 )}
             </div>
 
-            <div className="ws-rail -mx-6 mt-6 flex gap-4 overflow-x-auto px-6 pb-2 sm:-mx-7 sm:px-7">
-                {children}
-            </div>
+            {autoScroll ? (
+                <div className="ws-marquee -mx-6 mt-6 overflow-hidden px-6 pb-2 sm:-mx-7 sm:px-7">
+                    <div className="ws-marquee-track flex">
+                        <div className="flex shrink-0 gap-4 pr-4">{children}</div>
+                        <div className="flex shrink-0 gap-4 pr-4" aria-hidden="true">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="ws-rail -mx-6 mt-6 flex gap-4 overflow-x-auto px-6 pb-2 sm:-mx-7 sm:px-7">
+                    {children}
+                </div>
+            )}
         </section>
     );
 }

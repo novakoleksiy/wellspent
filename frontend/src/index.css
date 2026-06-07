@@ -233,3 +233,29 @@ select {
 .ws-rail::-webkit-scrollbar {
   display: none;
 }
+
+/* Continuous auto-sliding carousel (Home tours/offers). Two identical groups
+   slide left by 50% for a seamless loop; pauses on hover. */
+.ws-marquee-track {
+  width: max-content;
+  animation: ws-marquee 40s linear infinite;
+}
+
+.ws-marquee:hover .ws-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes ws-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-marquee-track {
+    animation: none;
+  }
+}
