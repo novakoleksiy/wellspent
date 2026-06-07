@@ -34,7 +34,7 @@ export interface ExploreBoard {
  * scroll sentinel would stay in view and loop until the API rate-limits us.
  */
 export function useExploreBoard(
-    openPlan: (destination: string) => void,
+    onOpenTrip: (trip: CommunityTripOut) => void,
     activeFilter: "all" | BoardKind,
 ): ExploreBoard {
     const [communityTrips, setCommunityTrips] = useState<CommunityTripOut[]>([]);
@@ -169,12 +169,12 @@ export function useExploreBoard(
 
     const items = useMemo(() => {
         const tripItems = communityTrips.map((trip) =>
-            communityTripToBoardItem(trip, openPlan),
+            communityTripToBoardItem(trip, onOpenTrip),
         );
         const tourItems = groupToursByRoute(tours).map(tourEntryToBoardItem);
         const offerItems = offers.map(offerToBoardItem);
         return interleave(tripItems, tourItems, offerItems);
-    }, [communityTrips, tours, offers, openPlan]);
+    }, [communityTrips, tours, offers, onOpenTrip]);
 
     return { items, initialLoading, loadingMore, hasMore, error, sentinelRef };
 }

@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { BOARD_META, type BoardKind } from "../boardItems";
 import AppShell from "../components/AppShell";
 import BoardCard from "../components/BoardCard";
+import CommunityTripModal from "../components/CommunityTripModal";
 import { useColumnCount } from "../hooks/useColumnCount";
 import { useExploreBoard } from "../hooks/useExploreBoard";
+import type { CommunityTripOut } from "../types";
 
 const nearbyIdeas = [
     {
@@ -55,8 +57,9 @@ export default function ExplorePage() {
     );
 
     const [filter, setFilter] = useState<BoardFilter>("all");
+    const [selectedTrip, setSelectedTrip] = useState<CommunityTripOut | null>(null);
     const { items, initialLoading, loadingMore, hasMore, error, sentinelRef } =
-        useExploreBoard(openPlan, filter);
+        useExploreBoard(setSelectedTrip, filter);
     const columnCount = useColumnCount();
 
     const visibleItems = useMemo(
@@ -195,6 +198,13 @@ export default function ExplorePage() {
                     </div>
                 </section>
             </div>
+
+            {selectedTrip && (
+                <CommunityTripModal
+                    trip={selectedTrip}
+                    onClose={() => setSelectedTrip(null)}
+                />
+            )}
         </AppShell>
     );
 }

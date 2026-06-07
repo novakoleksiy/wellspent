@@ -15,7 +15,7 @@ export interface BoardItem {
     imageUrl: string | null;
     /** Link target (tours, offers). Mutually exclusive with onSelect. */
     to?: string;
-    /** Click handler (community trips have no detail page → open the planner). */
+    /** Click handler (community trips open a detail modal in place). */
     onSelect?: () => void;
 }
 
@@ -46,7 +46,7 @@ export const BOARD_META: Record<
 
 export function communityTripToBoardItem(
     trip: CommunityTripOut,
-    openPlan: (destination: string) => void,
+    onOpen: (trip: CommunityTripOut) => void,
 ): BoardItem {
     return {
         key: `trip:${trip.id}`,
@@ -54,7 +54,7 @@ export function communityTripToBoardItem(
         title: trip.title,
         subtitle: trip.destination,
         imageUrl: getTripHeroImageUrl(trip.itinerary),
-        onSelect: () => openPlan(trip.destination),
+        onSelect: () => onOpen(trip),
     };
 }
 
