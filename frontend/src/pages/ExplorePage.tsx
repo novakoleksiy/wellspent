@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { BOARD_META, type BoardKind } from "../boardItems";
 import AppShell from "../components/AppShell";
 import BoardCard from "../components/BoardCard";
@@ -9,21 +9,6 @@ import TourPreviewModal from "../components/TourPreviewModal";
 import { useColumnCount } from "../hooks/useColumnCount";
 import { useExploreBoard } from "../hooks/useExploreBoard";
 import type { CommunityTripOut, OfferOut, TourOut } from "../types";
-
-const nearbyIdeas = [
-    {
-        name: "Lucerne",
-        description: "Lake views, an easy old-town stroll, and mountain access for a low-friction weekend.",
-    },
-    {
-        name: "Interlaken",
-        description: "A strong base for scenic rail rides, alpine walks, and a more active short escape.",
-    },
-    {
-        name: "Lausanne",
-        description: "Vineyards, waterfront time, and a slower city break with quick regional connections.",
-    },
-];
 
 type BoardFilter = "all" | BoardKind;
 
@@ -48,16 +33,6 @@ function bucketByColumn<T>(items: T[], columnCount: number): T[][] {
 }
 
 export default function ExplorePage() {
-    const navigate = useNavigate();
-
-    const openPlan = useCallback(
-        (destination: string) => {
-            const query = destination.trim();
-            navigate(query ? `/plan?destination=${encodeURIComponent(query)}` : "/plan");
-        },
-        [navigate],
-    );
-
     const [filter, setFilter] = useState<BoardFilter>("all");
     const [selectedTrip, setSelectedTrip] = useState<CommunityTripOut | null>(null);
     const [selectedTour, setSelectedTour] = useState<TourOut | null>(null);
@@ -171,43 +146,6 @@ export default function ExplorePage() {
                     </p>
                 )}
 
-                <section className="ws-surface p-6 sm:p-7">
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <p className="ws-mono text-[var(--ws-orange)]">Explore Nearby</p>
-                            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                                A few easy places to start.
-                            </h2>
-                        </div>
-                        <Link
-                            to="/plan"
-                            className="text-sm font-medium text-[var(--ws-muted)] transition hover:text-[var(--ws-ink)]"
-                        >
-                            Open planner
-                        </Link>
-                    </div>
-
-                    <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                        {nearbyIdeas.map((idea) => (
-                            <article key={idea.name} className="ws-chip-card px-5 py-5">
-                                <p className="ws-mono text-[var(--ws-muted)]">Nearby idea</p>
-                                <h3 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                                    {idea.name}
-                                </h3>
-                                <p className="mt-4 text-sm leading-6 text-[var(--ws-muted)]">
-                                    {idea.description}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => openPlan(idea.name)}
-                                    className="ws-btn-primary mt-5 px-4 py-2 text-sm"
-                                >
-                                    Explore {idea.name}
-                                </button>
-                            </article>
-                        ))}
-                    </div>
-                </section>
             </div>
 
             {selectedTrip && (
