@@ -63,15 +63,18 @@ class SqlAlchemyTripRepo:
         return _to_record(trip) if trip else None
 
     async def list_shared(
-        self, *, viewer_user_id: int, limit: int = 6
+        self, *, viewer_user_id: int, limit: int | None = None
     ) -> list[CommunityTripRecord]:
-        result = await self._session.execute(
+        query = (
             select(Trip, User.full_name)
             .join(User, User.id == Trip.user_id)
-            .where(Trip.shared_at.is_not(None), Trip.user_id != viewer_user_id)
+            .where(Trip.shared_at.is_not(None))
             .order_by(Trip.shared_at.desc(), Trip.created_at.desc())
-            .limit(limit)
         )
+        if limit is not None:
+            query = query.limit(limit)
+
+        result = await self._session.execute(query)
         return [
             CommunityTripRecord(
                 id=trip.id,

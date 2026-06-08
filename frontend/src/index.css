@@ -222,3 +222,40 @@ select {
   background: #fcf8e4;
   box-shadow: 0 18px 28px rgba(20, 19, 15, 0.14);
 }
+
+/* Horizontal snap rail (Home) — hides the scrollbar while keeping swipe/scroll. */
+.ws-rail {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ws-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* Continuous auto-sliding carousel (Home tours/offers). Two identical groups
+   slide left by 50% for a seamless loop; pauses on hover. */
+.ws-marquee-track {
+  width: max-content;
+  animation: ws-marquee 40s linear infinite;
+}
+
+.ws-marquee:hover .ws-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes ws-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-marquee-track {
+    animation: none;
+  }
+}

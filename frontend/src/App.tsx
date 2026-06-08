@@ -6,10 +6,15 @@ import ExplorePage from "./pages/ExplorePage";
 import HomePage from "./pages/HomePage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
+import OfferDetailPage from "./pages/OfferDetailPage";
+import OffersPage from "./pages/OffersPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import PlanPage from "./pages/PlanPage";
 import RegisterPage from "./pages/RegisterPage";
+import RouteDetailPage from "./pages/RouteDetailPage";
 import SettingsPage from "./pages/SettingsPage";
+import TourDetailPage from "./pages/TourDetailPage";
+import ToursPage from "./pages/ToursPage";
 import TripDetailPage from "./pages/TripDetailPage";
 import { hasCompletedOnboarding } from "./preferences";
 
@@ -72,6 +77,11 @@ export default function App() {
           <Route path="/explore" element={<RequireAuth><RequireOnboarding><ExplorePage /></RequireOnboarding></RequireAuth>} />
           <Route path="/plan" element={<RequireAuth><RequireOnboarding><PlanPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/recommend" element={<Navigate to="/plan" replace />} />
+          <Route path="/tours" element={<RequireAuth><RequireOnboarding><ToursPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/tours/route/:name" element={<RequireAuth><RequireOnboarding><RouteDetailPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/tours/:id" element={<RequireAuth><RequireOnboarding><TourDetailPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/offers" element={<RequireAuth><RequireOnboarding><OffersPage /></RequireOnboarding></RequireAuth>} />
+          <Route path="/offers/:id" element={<RequireAuth><RequireOnboarding><OfferDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips" element={<RequireAuth><RequireOnboarding><TripsPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/trips/:id" element={<RequireAuth><RequireOnboarding><TripDetailPage /></RequireOnboarding></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><RequireOnboarding><SettingsPage /></RequireOnboarding></RequireAuth>} />

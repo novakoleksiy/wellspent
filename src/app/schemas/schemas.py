@@ -98,6 +98,7 @@ class TimelineItem(BaseModel):
     notes: str | None = Field(default=None, max_length=500)
     url: str | None = Field(default=None, max_length=2048)
     image_url: str | None = Field(default=None, max_length=2048)
+    description: str | None = Field(default=None, max_length=500)
     refreshable: bool = False
 
 
@@ -109,11 +110,13 @@ class ItineraryActivity(BaseModel):
     cost: float = Field(ge=0, le=100_000)
     url: str | None = Field(default=None, max_length=2048)
     image_url: str | None = Field(default=None, max_length=2048)
+    description: str | None = Field(default=None, max_length=500)
 
 
 class ItineraryDay(BaseModel):
     day: int = Field(ge=1, le=MAX_ITINERARY_DAYS)
     date: str = Field(max_length=32)
+    theme: str | None = Field(default=None, max_length=80)
     activities: list[ItineraryActivity] = Field(
         default_factory=list, max_length=MAX_ITINERARY_ACTIVITIES_PER_DAY
     )
@@ -283,12 +286,46 @@ class AttractionListOut(BaseModel):
     pagination: PaginationOut
 
 
+class FacetValueOut(BaseModel):
+    name: str
+    count: int
+    title: str | None = None
+
+
+class FacetOut(BaseModel):
+    name: str
+    title: str | None = None
+    values: list[FacetValueOut] = Field(default_factory=list)
+
+
+class FacetSnapshotOut(BaseModel):
+    object_type: str
+    language: str
+    fetched_at: datetime
+    facets: list[FacetOut] = Field(default_factory=list)
+
+
+class TourProviderOut(BaseModel):
+    name: str
+    url: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    locality: str | None = None
+
+
 class TourOut(BaseModel):
     id: str
     name: str
     description: str
     distance_km: float | None = None
-    duration: str = ""
+    duration_minutes: int | None = None
+    ascent_m: int | None = None
+    descent_m: int | None = None
+    route_type: str | None = None
+    difficulty: str | None = None
+    waypoints: list[str] = Field(default_factory=list)
+    tourist_types: list[str] = Field(default_factory=list)
+    provider: TourProviderOut | None = None
     geo: GeoOut | None = None
     images: list[ImageOut] = Field(default_factory=list)
     url: str = ""
@@ -296,4 +333,28 @@ class TourOut(BaseModel):
 
 class TourListOut(BaseModel):
     data: list[TourOut]
+    pagination: PaginationOut
+
+
+class OfferOut(BaseModel):
+    id: str
+    name: str
+    abstract: str = ""
+    description: str = ""
+    price_amount: float | None = None
+    price_currency: str | None = None
+    price_note: str | None = None
+    valid_from: str | None = None
+    valid_through: str | None = None
+    offer_type: str | None = None
+    area_id: str | None = None
+    area_name: str | None = None
+    geo: GeoOut | None = None
+    images: list[ImageOut] = Field(default_factory=list)
+    info_url: str = ""
+    booking_url: str | None = None
+
+
+class OfferListOut(BaseModel):
+    data: list[OfferOut]
     pagination: PaginationOut

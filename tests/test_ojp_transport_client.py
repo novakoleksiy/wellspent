@@ -29,9 +29,9 @@ def test_build_trip_request_uses_coordinates_and_requestor_ref():
 
     assert '<OJP xmlns="http://www.vdv.de/ojp"' in body
     assert "<siri:RequestorRef>wellspent_test</siri:RequestorRef>" in body
-    assert "<Latitude>47.3701</Latitude>" in body
-    assert "<Longitude>8.548</Longitude>" in body
-    assert "Kunsthaus &amp; Museum" in body
+    assert "<siri:Latitude>47.3701</siri:Latitude>" in body
+    assert "<siri:Longitude>8.548</siri:Longitude>" in body
+    assert "Kunsthaus &amp; Museum" not in body
     assert "<DepArrTime>2026-06-01T09:30:00</DepArrTime>" in body
     assert "<TripRequestPeriod>" not in body
 
@@ -104,6 +104,10 @@ async def test_plan_route_sends_ojp_headers_and_parses_trip_response():
     assert result.legs[0].line == "4"
     assert result.legs[0].origin == "Kunsthaus"
     assert result.legs[0].destination == "Bellevue"
+    assert len(respx.calls) == 1
+    assert "<OJPLocationInformationRequest>" not in request.content.decode()
+    assert "<GeoPosition>" in request.content.decode()
+    assert "<Name>" not in request.content.decode()
 
 
 @pytest.mark.asyncio

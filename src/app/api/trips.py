@@ -38,7 +38,6 @@ async def recommend(
 ):
     recs = await recommendation_service.recommend(
         client,
-        preferences=user.preferences,
         destination=body.destination,
         start_date=body.start_date,
         end_date=body.end_date,
@@ -62,7 +61,6 @@ async def refresh_recommendation_item(
 ):
     rec = await recommendation_service.refresh_recommendation_item(
         client,
-        preferences=user.preferences,
         destination=body.destination,
         start_date=body.start_date,
         end_date=body.end_date,

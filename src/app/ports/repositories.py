@@ -100,7 +100,7 @@ class TripRepository(Protocol):
     ) -> TripRecord | None: ...
 
     async def list_shared(
-        self, *, viewer_user_id: int, limit: int = 6
+        self, *, viewer_user_id: int, limit: int | None = None
     ) -> list[CommunityTripRecord]: ...
 
     async def set_shared(

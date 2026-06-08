@@ -1,10 +1,16 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listTrips } from "../api/trips";
+import { listDestinations, listOffers, listTours } from "../api/swissTourism";
 import AppShell from "../components/AppShell";
+import FeaturedSpotlight from "../components/FeaturedSpotlight";
+import OfferCard from "../components/OfferCard";
+import Rail from "../components/Rail";
+import RouteCard from "../components/RouteCard";
+import TourCard from "../components/TourCard";
 import { useAuth } from "../hooks/useAuth";
-import { getTripHeroImageUrl } from "../tripImages";
-import type { TripOut } from "../types";
+import { pickFeatured } from "../homeFeatured";
+import { groupToursByRoute } from "../tourFormat";
+import type { DestinationOut, OfferOut, TourOut } from "../types";
 
 const nearbyIdeas = [
   {
@@ -21,42 +27,119 @@ const nearbyIdeas = [
   },
 ];
 
-function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export default function HomePage() {
   const { user } = useAuth();
-  const [trips, setTrips] = useState<TripOut[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [tours, setTours] = useState<TourOut[]>([]);
+  const [offers, setOffers] = useState<OfferOut[]>([]);
   const [destination, setDestination] = useState("");
+  const [destinationOptions, setDestinationOptions] = useState<DestinationOut[]>([]);
+  const [destinationSearchLoading, setDestinationSearchLoading] = useState(false);
+  const [destinationSearchError, setDestinationSearchError] = useState("");
+  const [destinationFocused, setDestinationFocused] = useState(false);
+  const [showRandomPrompt, setShowRandomPrompt] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    listTrips()
-      .then((items) => {
-        setTrips(items);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unable to load trips");
-      })
-      .finally(() => setLoading(false));
+    listTours({ pageSize: 12 })
+      .then((result) => setTours(result.data))
+      .catch(() => setTours([]));
   }, []);
 
-  const recentTrips = trips.filter((trip) => trip.status === "completed").slice(0, 4);
+  useEffect(() => {
+    listOffers({ pageSize: 12 })
+      .then((result) => setOffers(result.data))
+      .catch(() => setOffers([]));
+  }, []);
+
+  useEffect(() => {
+    if (!showRandomPrompt) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowRandomPrompt(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showRandomPrompt]);
+
+  useEffect(() => {
+    const query = destination.trim();
+    if (query.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const timeoutId = window.setTimeout(() => {
+      listDestinations({ query, pageSize: 5, signal: controller.signal })
+        .then((result) => {
+          if (!controller.signal.aborted) {
+            setDestinationOptions(result.data);
+          }
+        })
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          if (!controller.signal.aborted) {
+            setDestinationOptions([]);
+            setDestinationSearchError("Destination search is unavailable right now.");
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setDestinationSearchLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [destination]);
+
+  const tourEntries = groupToursByRoute(tours).slice(0, 12);
+  const offerEntries = offers.slice(0, 12);
+  const featured = useMemo(() => pickFeatured(tours, offers), [tours, offers]);
 
   function openPlan(nextDestination: string) {
     const query = nextDestination.trim();
     navigate(query ? `/plan?destination=${encodeURIComponent(query)}` : "/plan");
   }
 
+  function chooseDestination(option: DestinationOut) {
+    setDestination(option.name);
+    setDestinationFocused(false);
+    openPlan(option.name);
+  }
+
+  function handleDestinationChange(value: string) {
+    setDestination(value);
+    setDestinationSearchError("");
+
+    if (value.trim().length < 2) {
+      setDestinationOptions([]);
+      setDestinationSearchLoading(false);
+    } else {
+      setDestinationSearchLoading(true);
+    }
+  }
+
   function handlePlanSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (destination.trim().length === 0) {
+      setShowRandomPrompt(true);
+      return;
+    }
     openPlan(destination);
+  }
+
+  function confirmRandomDestination() {
+    setShowRandomPrompt(false);
+    openPlan("");
   }
 
   return (
@@ -69,14 +152,45 @@ export default function HomePage() {
             <label className="sr-only" htmlFor="trip-destination">
               Plan a new trip
             </label>
-            <input
-              id="trip-destination"
-              type="search"
-              value={destination}
-              onChange={(event) => setDestination(event.target.value)}
-              placeholder="Plan a new trip"
-              className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-[var(--ws-yellow)] focus:outline-none focus:ring-2 focus:ring-[rgba(255,235,105,0.25)]"
-            />
+            <div className="relative min-w-0 flex-1">
+              <input
+                id="trip-destination"
+                type="search"
+                value={destination}
+                onChange={(event) => handleDestinationChange(event.target.value)}
+                onFocus={() => setDestinationFocused(true)}
+                onBlur={() => setDestinationFocused(false)}
+                placeholder="Enter a destination idea..."
+                autoComplete="off"
+                className="w-full rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-[var(--ws-yellow)] focus:outline-none focus:ring-2 focus:ring-[rgba(255,235,105,0.25)]"
+              />
+              {destinationFocused && destination.trim().length >= 2 && (
+                <div className="absolute top-[calc(100%+0.5rem)] right-0 left-0 z-20 overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#fffdf8] text-[var(--ws-ink)] shadow-2xl shadow-stone-950/25">
+                  {destinationSearchLoading ? (
+                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">Searching Swiss destinations...</p>
+                  ) : destinationSearchError ? (
+                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">{destinationSearchError}</p>
+                  ) : destinationOptions.length > 0 ? (
+                    destinationOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => chooseDestination(option)}
+                          className="block w-full px-4 py-3 text-left transition hover:bg-[var(--ws-cream)]"
+                        >
+                          <span className="block text-sm font-semibold">{option.name}</span>
+                          {option.category && (
+                            <span className="mt-0.5 block text-xs capitalize text-[var(--ws-muted)]">{option.category}</span>
+                          )}
+                        </button>
+                    ))
+                  ) : (
+                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">No matching destinations found.</p>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               className="ws-btn-accent px-6 py-3 text-sm"
@@ -86,80 +200,50 @@ export default function HomePage() {
           </form>
         </section>
 
-        <section className="ws-surface p-6 sm:p-7">
-          <div>
-            <div>
-              <p className="ws-mono text-[var(--ws-muted)]">Recent trips</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">
-                Your completed trips.
-              </h2>
-            </div>
-          </div>
+        {featured && <FeaturedSpotlight item={featured} />}
 
-          {error && (
-            <p className="ws-error mt-5 px-4 py-3 text-sm">
-              {error}
-            </p>
-          )}
+        {tourEntries.length > 0 && (
+          <Rail
+            eyebrow="Ready-made tours"
+            title="Pre-planned itineraries you can follow."
+            seeAllTo="/tours"
+            seeAllLabel="See all tours"
+            autoScroll
+          >
+            {tourEntries.map((entry) => (
+              <div
+                key={entry.kind === "route" ? `route:${entry.routeName}` : entry.tour.id}
+                className="w-72 shrink-0 snap-start"
+              >
+                {entry.kind === "route" ? (
+                  <RouteCard
+                    routeName={entry.routeName}
+                    stageCount={entry.stageCount}
+                    representative={entry.representative}
+                  />
+                ) : (
+                  <TourCard tour={entry.tour} />
+                )}
+              </div>
+            ))}
+          </Rail>
+        )}
 
-          {loading ? (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-40 animate-pulse rounded-[1.75rem] bg-[var(--ws-cream)]" />
-              ))}
-            </div>
-          ) : recentTrips.length === 0 ? (
-            <div className="mt-6 rounded-[1.75rem] border border-dashed border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-6 py-10 text-center">
-              <p className="ws-mono text-[var(--ws-muted)]">Ready to start</p>
-              <p className="mt-3 text-base leading-7 text-[var(--ws-muted)]">
-                Your completed trips will appear here once you save an itinerary.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {recentTrips.map((trip) => {
-                const heroImageUrl = getTripHeroImageUrl(trip.itinerary);
-
-                return (
-                  <Link
-                    key={trip.id}
-                    to={`/trips/${trip.id}`}
-                    className={heroImageUrl
-                      ? "flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--ws-line)] bg-[#fffdf8] transition hover:border-[rgba(20,19,15,0.24)]"
-                      : "flex h-full flex-col rounded-[1.75rem] border border-[var(--ws-line)] bg-[rgba(255,244,239,0.6)] px-5 py-5 transition hover:border-[rgba(20,19,15,0.24)] hover:bg-[#fffdf8]"}
-                  >
-                    {heroImageUrl && (
-                      <img
-                        src={heroImageUrl}
-                        alt={trip.destination}
-                        className="h-40 w-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                    <div className={heroImageUrl ? "flex flex-1 flex-col px-5 py-5" : "flex flex-1 flex-col"}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-[var(--ws-muted)]">{trip.destination}</p>
-                          <p className="mt-2 line-clamp-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">{trip.title}</p>
-                        </div>
-                        <span className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--ws-muted)] shadow-sm">
-                          {formatDate(trip.created_at)}
-                        </span>
-                      </div>
-                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-[var(--ws-muted)]">
-                        {trip.description || "Saved from your recommendation flow and ready to revisit."}
-                      </p>
-                      <div className="mt-auto flex items-center justify-between pt-5 text-sm text-[var(--ws-muted)]">
-                        <span>{trip.itinerary?.days?.length ?? 0} day{trip.itinerary?.days?.length === 1 ? "" : "s"}</span>
-                        <span className="font-medium capitalize">completed</span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        {offerEntries.length > 0 && (
+          <Rail
+            eyebrow="Bookable offers"
+            title="Swiss experiences you can reserve."
+            seeAllTo="/offers"
+            seeAllLabel="See all offers"
+            autoScroll
+          >
+            {offerEntries.map((offer) => (
+              <div key={offer.id} className="w-72 shrink-0 snap-start">
+                <OfferCard offer={offer} />
+              </div>
+            ))}
+          </Rail>
+        )}
 
         <section className="ws-surface p-6 sm:p-7">
           <div className="flex items-center justify-between gap-4">
@@ -195,6 +279,50 @@ export default function HomePage() {
           </div>
         </section>
       </div>
+
+      {showRandomPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,19,15,0.45)] px-4 py-6 backdrop-blur-sm"
+          onClick={() => setShowRandomPrompt(false)}
+          role="presentation"
+        >
+          <div
+            className="ws-surface w-full max-w-md rounded-[2rem] p-6 sm:p-7"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="random-destination-title"
+          >
+            <p className="ws-mono text-[var(--ws-orange)]">No destination yet</p>
+            <h2
+              id="random-destination-title"
+              className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]"
+            >
+              We'll surprise you.
+            </h2>
+            <p className="mt-4 text-base leading-7 text-[var(--ws-muted)]">
+              You haven't picked a destination, so we'll choose a random Swiss spot for you.
+              Continue to the planner?
+            </p>
+            <div className="mt-7 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowRandomPrompt(false)}
+                className="ws-btn-secondary px-5 py-3 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRandomDestination}
+                className="ws-btn-primary px-5 py-3 text-sm"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

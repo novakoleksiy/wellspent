@@ -41,6 +41,7 @@ export interface Activity {
     cost: number;
     url?: string | null;
     image_url?: string | null;
+    description?: string | null;
 }
 
 export interface TimelineItem {
@@ -56,6 +57,7 @@ export interface TimelineItem {
     notes?: string | null;
     url?: string | null;
     image_url?: string | null;
+    description?: string | null;
     refreshable: boolean;
 }
 
@@ -74,6 +76,7 @@ export interface TransportLeg {
 export interface ItineraryDay {
     day: number;
     date: string;
+    theme?: string | null;
     activities: Activity[];
     timeline_items?: TimelineItem[];
 }
@@ -155,4 +158,91 @@ export interface CommunityTripOut {
     created_at: string;
     shared_at: string;
     owner_name: string;
+}
+
+export interface GeoOut {
+    latitude: number;
+    longitude: number;
+}
+
+export interface ImageOut {
+    url: string;
+    title: string;
+}
+
+export interface PaginationOut {
+    page_number: number;
+    page_size: number;
+    total_elements: number;
+    total_pages: number;
+}
+
+export interface DestinationOut {
+    id: string;
+    name: string;
+    category?: string | null;
+    description: string;
+    geo?: GeoOut | null;
+    images: ImageOut[];
+    url: string;
+}
+
+export interface DestinationListOut {
+    data: DestinationOut[];
+    pagination: PaginationOut;
+}
+
+export interface TourProvider {
+    name: string;
+    url?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    locality?: string | null;
+}
+
+export interface TourOut {
+    id: string;
+    name: string;
+    description: string;
+    distance_km?: number | null;
+    duration_minutes?: number | null;
+    ascent_m?: number | null;
+    descent_m?: number | null;
+    route_type?: string | null;
+    difficulty?: string | null;
+    waypoints: string[];
+    tourist_types: string[];
+    provider?: TourProvider | null;
+    geo?: GeoOut | null;
+    images: ImageOut[];
+    url: string;
+}
+
+export interface TourListOut {
+    data: TourOut[];
+    pagination: PaginationOut;
+}
+
+export interface OfferOut {
+    id: string;
+    name: string;
+    abstract: string;
+    description: string;
+    price_amount?: number | null;
+    price_currency?: string | null;
+    price_note?: string | null;
+    valid_from?: string | null;
+    valid_through?: string | null;
+    offer_type?: string | null;
+    area_id?: string | null;
+    area_name?: string | null;
+    geo?: GeoOut | null;
+    images: ImageOut[];
+    info_url: string;
+    booking_url?: string | null;
+}
+
+export interface OfferListOut {
+    data: OfferOut[];
+    pagination: PaginationOut;
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Protocol
 
 
@@ -39,15 +40,51 @@ class AttractionRecord:
 
 
 @dataclass
+class TourProvider:
+    name: str
+    url: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    locality: str | None = None
+
+
+@dataclass
 class TourRecord:
     id: str
     name: str
     description: str = ""
     distance_km: float | None = None
-    duration: str = ""
+    duration_minutes: int | None = None
+    ascent_m: int | None = None
+    descent_m: int | None = None
+    route_type: str | None = None
+    difficulty: str | None = None
+    waypoints: list[str] = field(default_factory=list)
+    tourist_types: list[str] = field(default_factory=list)
+    provider: TourProvider | None = None
     geo: GeoCoordinates | None = None
     images: list[SwissImage] = field(default_factory=list)
     url: str = ""
+
+
+@dataclass
+class OfferRecord:
+    id: str
+    name: str
+    abstract: str = ""
+    description: str = ""
+    price_amount: float | None = None
+    price_currency: str | None = None
+    price_note: str | None = None
+    valid_from: str | None = None
+    valid_through: str | None = None
+    offer_type: str | None = None
+    area_id: str | None = None
+    area_name: str | None = None
+    geo: GeoCoordinates | None = None
+    images: list[SwissImage] = field(default_factory=list)
+    info_url: str = ""
+    booking_url: str | None = None
 
 
 @dataclass
@@ -56,6 +93,28 @@ class PageMeta:
     page_size: int
     total_elements: int
     total_pages: int
+
+
+@dataclass
+class FacetValueRecord:
+    name: str
+    count: int
+    title: str | None = None
+
+
+@dataclass
+class FacetRecord:
+    name: str
+    title: str | None = None
+    values: list[FacetValueRecord] = field(default_factory=list)
+
+
+@dataclass
+class FacetSnapshotRecord:
+    object_type: str
+    language: str
+    fetched_at: datetime
+    facets: list[FacetRecord] = field(default_factory=list)
 
 
 @dataclass
@@ -69,6 +128,7 @@ class SwissTourismClient(Protocol):
         self,
         *,
         query: str | None = None,
+        language: str | None = None,
         page: int = 1,
         page_size: int = 10,
     ) -> PaginatedResult[DestinationRecord]: ...
@@ -82,6 +142,9 @@ class SwissTourismClient(Protocol):
         *,
         query: str | None = None,
         destination_id: str | None = None,
+        facets: list[str] | None = None,
+        facet_filter: str | None = None,
+        facets_translate: bool | None = None,
         latitude: float | None = None,
         longitude: float | None = None,
         radius_m: int | None = None,
@@ -93,6 +156,8 @@ class SwissTourismClient(Protocol):
 
     async def get_attraction(self, attraction_id: str) -> AttractionRecord | None: ...
 
+    async def get_attraction_facets(self) -> FacetSnapshotRecord: ...
+
     async def list_tours(
         self,
         *,
@@ -102,3 +167,13 @@ class SwissTourismClient(Protocol):
     ) -> PaginatedResult[TourRecord]: ...
 
     async def get_tour(self, tour_id: str) -> TourRecord | None: ...
+
+    async def list_offers(
+        self,
+        *,
+        query: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResult[OfferRecord]: ...
+
+    async def get_offer(self, offer_id: str) -> OfferRecord | None: ...

@@ -48,7 +48,7 @@ async def get_trip(repo: TripRepository, user_id: int, trip_id: int) -> TripReco
 
 
 async def list_shared_trips(
-    repo: TripRepository, user_id: int, *, limit: int = 6
+    repo: TripRepository, user_id: int, *, limit: int | None = None
 ) -> list[CommunityTripRecord]:
     return await repo.list_shared(viewer_user_id=user_id, limit=limit)
 
