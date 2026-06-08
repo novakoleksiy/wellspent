@@ -15,6 +15,7 @@ from app.ports.swiss_tourism import (
     FacetRecord,
     FacetSnapshotRecord,
     FacetValueRecord,
+    OfferRecord,
     SwissTourismClient,
 )
 from app.ports.transport import (
@@ -227,8 +228,11 @@ _TRANSPORT_MAX_ACTIVITY_VISIT_MINUTES = 120
 _TRANSPORT_NEXT_ACTIVITY_BUFFER_MINUTES = 45
 _MAX_ATTRACTION_FACET_FILTERS = 3
 _DESTINATION_ATTRACTION_RADIUS_M = 30_000
+_DESTINATION_OFFER_RADIUS_M = _DESTINATION_ATTRACTION_RADIUS_M
 _ATTRACTION_FETCH_PAGE_SIZE = 50
 _MAX_ATTRACTION_FETCH_PAGES = 3
+_OFFER_FETCH_PAGE_SIZE = 30
+_OFFER_CHF_CURRENCIES = {"chf", "sfr"}
 _ATTRACTION_TEXT_SCORE_WEIGHT = 0.55
 _ATTRACTION_PROXIMITY_SCORE_WEIGHT = 0.45
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -254,6 +258,8 @@ class RecommendationItem:
     longitude: float | None = None
     image_url: str | None = None
     description: str | None = None
+    # Real CHF price for offer-derived items; ``None`` means fall back to demo pricing.
+    price: float | None = None
 
 
 @dataclass
@@ -488,6 +494,67 @@ def _attraction_distance_m(
     )
 
 
+def _scope_offers_to_destination(
+    dest: DestinationRecord,
+    offers: list[OfferRecord],
+) -> list[OfferRecord]:
+    """Keep offers that plausibly belong to the destination.
+
+    ``list_offers`` is query-only, so results matched the destination name but may be
+    geographically far. Offers carrying the destination's ``area_id`` are always kept;
+    offers with coordinates are kept only within the radius; offers with neither signal
+    are kept since they cannot be filtered (mirrors the attraction scoper's leniency).
+    """
+    scoped: list[OfferRecord] = []
+    for offer in offers:
+        if offer.area_id and offer.area_id == dest.id:
+            scoped.append(offer)
+            continue
+        if dest.geo is None or offer.geo is None:
+            scoped.append(offer)
+            continue
+        distance_m = _distance_meters(
+            dest.geo.latitude,
+            dest.geo.longitude,
+            offer.geo.latitude,
+            offer.geo.longitude,
+        )
+        if distance_m <= _DESTINATION_OFFER_RADIUS_M:
+            scoped.append(offer)
+    return scoped
+
+
+def _offer_distance_m(dest: DestinationRecord, offer: OfferRecord) -> float | None:
+    if dest.geo is None or offer.geo is None:
+        return None
+    return _distance_meters(
+        dest.geo.latitude,
+        dest.geo.longitude,
+        offer.geo.latitude,
+        offer.geo.longitude,
+    )
+
+
+def _offer_chf_price(offer: OfferRecord) -> float | None:
+    """Real CHF price for an offer, or ``None`` when absent or in another currency."""
+    if offer.price_amount is None or offer.price_amount <= 0:
+        return None
+    currency = (offer.price_currency or "").strip().lower()
+    if currency and currency not in _OFFER_CHF_CURRENCIES:
+        return None
+    return float(offer.price_amount)
+
+
+def _offer_description(offer: OfferRecord) -> str | None:
+    """Compose a short offer blurb, leading with the offer type when available."""
+    body = offer.abstract or offer.description
+    cleaned = _clean_description(body)
+    offer_type = (offer.offer_type or "").strip()
+    if offer_type and cleaned:
+        return _clean_description(f"{offer_type} · {cleaned}")
+    return cleaned or (offer_type or None)
+
+
 def _proximity_blended_score(base_score: float, distance_m: float | None) -> float:
     if distance_m is None:
         return base_score
@@ -517,6 +584,23 @@ def _activity_cost(
     return _demo_price(
         "activity", budget_tier, group_type, max(travelers, 1), *seed_parts
     )
+
+
+def _resolve_activity_cost(
+    price: float | None,
+    travelers: int,
+    budget_tier: str,
+    group_type: str,
+    *seed_parts: object,
+) -> float:
+    """Use a real (offer) price when available, else fall back to the demo price.
+
+    Offer prices are treated as per-person and scaled by the traveler count, mirroring
+    how the demo price folds travelers in.
+    """
+    if price is not None:
+        return round(price * max(travelers, 1), 2)
+    return _activity_cost(budget_tier, group_type, travelers, *seed_parts)
 
 
 def _transport_cost(
@@ -950,6 +1034,7 @@ def _build_itinerary(
 
         for slot_index, time in enumerate(times):
             description = None
+            price = None
             if idx < len(sequence):
                 item = sequence[idx]
                 idx += 1
@@ -957,6 +1042,7 @@ def _build_itinerary(
                 latitude, longitude = item.latitude, item.longitude
                 image_url = item.image_url
                 description = item.description
+                price = item.price
             else:
                 label = _FREE_TIME_LABELS[fallback_idx % len(_FREE_TIME_LABELS)]
                 fallback_idx += 1
@@ -965,10 +1051,11 @@ def _build_itinerary(
                 latitude, longitude = None, None
                 image_url = None
 
-            activity_cost = _activity_cost(
+            activity_cost = _resolve_activity_cost(
+                price,
+                travelers,
                 budget_tier,
                 group_type,
-                travelers,
                 day_num + 1,
                 slot_index,
                 name,
@@ -1021,8 +1108,10 @@ async def _collect_destination_items(
     facet_filters: list[str],
     season_filter: str | None = None,
 ) -> list[RecommendationItem]:
-    attraction_records, signals_by_id = await _list_matching_attractions(
-        client, dest, facet_filters, season_filter
+    # Attractions and offers are independent upstream calls — fetch them together.
+    (attraction_records, signals_by_id), offer_items = await asyncio.gather(
+        _list_matching_attractions(client, dest, facet_filters, season_filter),
+        _collect_offer_items(client, dest, styles),
     )
 
     items: list[RecommendationItem] = []
@@ -1047,6 +1136,8 @@ async def _collect_destination_items(
             )
         )
 
+    items.extend(offer_items)
+
     if not items:
         items = [
             RecommendationItem(
@@ -1061,6 +1152,61 @@ async def _collect_destination_items(
             )
         ]
 
+    return items
+
+
+async def _collect_offer_items(
+    client: SwissTourismClient,
+    dest: DestinationRecord,
+    styles: list[str],
+) -> list[RecommendationItem]:
+    """Fetch destination offers and convert them into scored recommendation items.
+
+    Offers are searched by destination name (the only filter ``list_offers`` supports),
+    scoped by proximity, and given the stable ``"offer"`` category so they interleave with
+    attractions. A failed fetch degrades gracefully to no offers rather than breaking the
+    whole recommendation.
+    """
+    try:
+        result = await client.list_offers(
+            query=dest.name, page=1, page_size=_OFFER_FETCH_PAGE_SIZE
+        )
+    except Exception:
+        logger.warning(
+            "Failed to fetch Swiss Tourism offers for %s",
+            dest.name,
+            exc_info=True,
+        )
+        return []
+
+    offers = _scope_offers_to_destination(dest, result.data)
+    fallback_image_url = dest.images[0].url if dest.images else None
+    items: list[RecommendationItem] = []
+    for offer in offers:
+        if not offer.name:
+            continue
+        distance_m = _offer_distance_m(dest, offer)
+        text_score = _score_text(
+            offer.name,
+            offer.abstract or offer.description,
+            offer.offer_type or "",
+            styles,
+        )
+        score = _proximity_blended_score(text_score, distance_m)
+        items.append(
+            RecommendationItem(
+                name=offer.name,
+                category="offer",
+                url=offer.booking_url or offer.info_url,
+                score=score,
+                distance_m=distance_m,
+                latitude=offer.geo.latitude if offer.geo else None,
+                longitude=offer.geo.longitude if offer.geo else None,
+                image_url=offer.images[0].url if offer.images else fallback_image_url,
+                description=_offer_description(offer),
+                price=_offer_chf_price(offer),
+            )
+        )
     return items
 
 
@@ -1350,10 +1496,11 @@ def _replace_activity_in_itinerary(
                 continue
             activity["title"] = replacement.name
             activity["category"] = replacement.category or "activity"
-            activity["cost"] = _activity_cost(
+            activity["cost"] = _resolve_activity_cost(
+                replacement.price,
+                travelers,
                 "demo-refresh",
                 group_type,
-                travelers,
                 item_id,
                 replacement.name,
                 replacement.category,

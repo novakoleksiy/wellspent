@@ -12,6 +12,7 @@ from app.ports.swiss_tourism import (
     FacetSnapshotRecord,
     FacetValueRecord,
     GeoCoordinates,
+    OfferRecord,
     PageMeta,
     PaginatedResult,
     TourRecord,
@@ -32,6 +33,8 @@ class FakeSwissClient:
     failing_facet_filters: set[str] = field(default_factory=set)
     fail_unfiltered_attractions: bool = False
     failing_tour_queries: set[str] = field(default_factory=set)
+    offers_by_query: dict[str, list[OfferRecord]] = field(default_factory=dict)
+    failing_offer_queries: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.destination_queries: list[str | None] = []
@@ -40,6 +43,7 @@ class FakeSwissClient:
             tuple[float | None, float | None, int | None]
         ] = []
         self.tour_queries: list[str | None] = []
+        self.offer_queries: list[str | None] = []
 
     async def list_destinations(
         self,
@@ -127,6 +131,26 @@ class FakeSwissClient:
                     return tour
         return None
 
+    async def list_offers(
+        self,
+        *,
+        query: str | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResult[OfferRecord]:
+        self.offer_queries.append(query)
+        if query in self.failing_offer_queries:
+            raise RuntimeError("upstream rate limited")
+        offers = self.offers_by_query.get(query or "", [])
+        return PaginatedResult(data=offers[:page_size], meta=_page_meta(len(offers)))
+
+    async def get_offer(self, offer_id: str) -> OfferRecord | None:
+        for offers in self.offers_by_query.values():
+            for offer in offers:
+                if offer.id == offer_id:
+                    return offer
+        return None
+
 
 @dataclass
 class FakePublicTransportClient:
@@ -204,6 +228,30 @@ def _tour(
         description=description,
         duration_minutes=duration_minutes,
         url=f"https://example.com/tours/{tour_id}",
+    )
+
+
+def _offer(
+    offer_id: str,
+    name: str,
+    *,
+    abstract: str = "",
+    offer_type: str | None = None,
+    price_amount: float | None = None,
+    price_currency: str | None = None,
+    area_id: str | None = None,
+    geo: tuple[float, float] | None = None,
+) -> OfferRecord:
+    return OfferRecord(
+        id=offer_id,
+        name=name,
+        abstract=abstract,
+        offer_type=offer_type,
+        price_amount=price_amount,
+        price_currency=price_currency,
+        area_id=area_id,
+        geo=GeoCoordinates(*geo) if geo else None,
+        info_url=f"https://example.com/offers/{offer_id}",
     )
 
 
@@ -1379,3 +1427,69 @@ def test_facet_blended_score_orders_by_rank_and_preserves_text_tiebreak():
     assert recommendation_service._facet_blended_score(
         0.9, 0
     ) > recommendation_service._facet_blended_score(0.4, 0)
+
+
+@pytest.mark.asyncio
+async def test_recommend_mixes_offers_with_attractions_and_uses_real_price():
+    travelers = 3
+    offer = _offer(
+        "lucerne-boat",
+        "Lake Lucerne boat cruise",
+        abstract="Scenic paddle-steamer cruise across the lake.",
+        offer_type="Day trip",
+        price_amount=40.0,
+        price_currency="CHF",
+        area_id="lucerne",
+        geo=(47.05, 8.31),
+    )
+    client = FakeSwissClient(
+        destinations=[
+            _destination(
+                "lucerne",
+                "Lucerne",
+                description="Lakeside town with a historic old town.",
+                geo=(47.05, 8.31),
+            )
+        ],
+        attractions_by_destination={
+            "lucerne": [
+                _attraction(
+                    "chapel-bridge",
+                    "Chapel Bridge",
+                    category="museum",
+                    description="Historic covered bridge in the old town.",
+                    geo=(47.0517, 8.3076),
+                ),
+                _attraction(
+                    "lion-monument",
+                    "Lion Monument",
+                    category="museum",
+                    description="Carved cultural heritage monument.",
+                    geo=(47.0585, 8.3115),
+                ),
+            ]
+        },
+        tours_by_query={"Lucerne": []},
+        offers_by_query={"Lucerne": [offer]},
+    )
+
+    recommendations = await recommendation_service.recommend(
+        client,
+        destination="Lucerne",
+        start_date=date(2026, 6, 3),
+        end_date=date(2026, 6, 4),
+        travelers=travelers,
+        mood="culture_history",
+        trip_length="half_day",
+    )
+
+    assert client.offer_queries == ["Lucerne"]
+    activities = recommendations[0]["itinerary"]["days"][0]["activities"]
+    offer_activities = [a for a in activities if a["category"] == "offer"]
+    # The offer is interleaved into the plan alongside the attractions.
+    assert offer_activities, "expected at least one offer activity in the itinerary"
+    assert offer_activities[0]["title"] == "Lake Lucerne boat cruise"
+    # Real CHF price is used as the cost, scaled per traveler, not a demo price.
+    assert offer_activities[0]["cost"] == 40.0 * travelers
+    # Attractions still appear, so the plan is a genuine mix.
+    assert any(a["category"] != "offer" for a in activities)
