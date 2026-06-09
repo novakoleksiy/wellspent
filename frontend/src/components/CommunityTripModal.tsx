@@ -31,7 +31,6 @@ function timelineForDay(
     time: activity.time,
     title: activity.title,
     category: activity.category,
-    cost: activity.cost,
     url: activity.url,
     description: activity.description,
     refreshable: false,

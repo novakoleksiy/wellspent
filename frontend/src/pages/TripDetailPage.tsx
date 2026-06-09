@@ -26,7 +26,6 @@ function timelineForDay(day: NonNullable<TripOut["itinerary"]>["days"][number]):
         time: activity.time,
         title: activity.title,
         category: activity.category,
-        cost: activity.cost,
         url: activity.url,
         description: activity.description,
         refreshable: false,

@@ -398,20 +398,13 @@ async def test_recommend_scores_destinations_and_builds_itinerary(
         for activity in day["activities"]
     }
     assert "Alpine Loop (4h)" not in titles
-    # Attractions (no real offer price) no longer carry a fabricated per-item cost.
-    activity_costs = [
-        activity["cost"]
+    # Itinerary items no longer carry any per-item cost field.
+    items = [
+        item
         for day in recommendations[0]["itinerary"]["days"]
-        for activity in day["activities"]
+        for item in (*day["activities"], *day["timeline_items"])
     ]
-    assert all(cost is None for cost in activity_costs)
-    transport_costs = [
-        item["cost"]
-        for day in recommendations[0]["itinerary"]["days"]
-        for item in day["timeline_items"]
-        if item["kind"] == "transport"
-    ]
-    assert all(cost is None for cost in transport_costs)
+    assert all("cost" not in item for item in items)
     # Estimated total is budget/length-based: "budget" + "full_day" range, rounded to 5.
     estimated_total = recommendations[0]["itinerary"]["estimated_total"]
     assert 170 <= estimated_total <= 280
@@ -925,7 +918,7 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
     assert transport_items[0]["title"] == "tram 4"
     assert transport_items[0]["time"] == "11:30"
     assert transport_items[0]["duration_text"] == "18 min, 0 transfers"
-    assert transport_items[0]["cost"] is None
+    assert "cost" not in transport_items[0]
     assert transport_items[0]["transport_legs"] == [
         {
             "mode": "tram",
@@ -1012,7 +1005,6 @@ def test_build_day_timeline_estimates_car_duration_from_activity_coordinates():
                 "time": "09:00",
                 "title": "First stop",
                 "category": "museum",
-                "cost": 20.0,
                 "_latitude": 0.0,
                 "_longitude": 0.0,
             },
@@ -1021,7 +1013,6 @@ def test_build_day_timeline_estimates_car_duration_from_activity_coordinates():
                 "time": "11:00",
                 "title": "Second stop",
                 "category": "viewpoint",
-                "cost": 20.0,
                 "_latitude": 0.0,
                 "_longitude": 0.2,
             },
@@ -1045,14 +1036,12 @@ def test_build_day_timeline_uses_car_placeholder_when_coordinates_are_missing():
                 "time": "09:00",
                 "title": "First stop",
                 "category": "museum",
-                "cost": 20.0,
             },
             {
                 "id": "activity-1-1",
                 "time": "11:00",
                 "title": "Second stop",
                 "category": "viewpoint",
-                "cost": 20.0,
                 "_latitude": 47.0,
                 "_longitude": 8.0,
             },
@@ -1432,7 +1421,7 @@ def test_facet_blended_score_orders_by_rank_and_preserves_text_tiebreak():
 
 
 @pytest.mark.asyncio
-async def test_recommend_mixes_offers_with_attractions_and_uses_real_price():
+async def test_recommend_mixes_offers_with_attractions():
     travelers = 3
     offer = _offer(
         "lucerne-boat",
@@ -1491,7 +1480,7 @@ async def test_recommend_mixes_offers_with_attractions_and_uses_real_price():
     # The offer is interleaved into the plan alongside the attractions.
     assert offer_activities, "expected at least one offer activity in the itinerary"
     assert offer_activities[0]["title"] == "Lake Lucerne boat cruise"
-    # Real CHF price is used as the cost, scaled per traveler, not a demo price.
-    assert offer_activities[0]["cost"] == 40.0 * travelers
+    # Offers carry no per-item cost; pricing is not surfaced on the itinerary.
+    assert "cost" not in offer_activities[0]
     # Attractions still appear, so the plan is a genuine mix.
     assert any(a["category"] != "offer" for a in activities)

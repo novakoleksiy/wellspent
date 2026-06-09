@@ -250,7 +250,6 @@ _DESTINATION_OFFER_RADIUS_M = _DESTINATION_ATTRACTION_RADIUS_M
 _ATTRACTION_FETCH_PAGE_SIZE = 50
 _MAX_ATTRACTION_FETCH_PAGES = 3
 _OFFER_FETCH_PAGE_SIZE = 30
-_OFFER_CHF_CURRENCIES = {"chf", "sfr"}
 _ATTRACTION_TEXT_SCORE_WEIGHT = 0.55
 _ATTRACTION_PROXIMITY_SCORE_WEIGHT = 0.45
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -276,9 +275,6 @@ class RecommendationItem:
     longitude: float | None = None
     image_url: str | None = None
     description: str | None = None
-    # Real CHF price for offer-derived items; kept for downstream use (e.g. Explore
-    # offers). ``None`` means no real price is known. Not surfaced on trip itineraries.
-    price: float | None = None
 
 
 @dataclass
@@ -554,16 +550,6 @@ def _offer_distance_m(dest: DestinationRecord, offer: OfferRecord) -> float | No
     )
 
 
-def _offer_chf_price(offer: OfferRecord) -> float | None:
-    """Real CHF price for an offer, or ``None`` when absent or in another currency."""
-    if offer.price_amount is None or offer.price_amount <= 0:
-        return None
-    currency = (offer.price_currency or "").strip().lower()
-    if currency and currency not in _OFFER_CHF_CURRENCIES:
-        return None
-    return float(offer.price_amount)
-
-
 def _offer_description(offer: OfferRecord) -> str | None:
     """Compose a short offer blurb, leading with the offer type when available."""
     body = offer.abstract or offer.description
@@ -584,17 +570,6 @@ def _proximity_blended_score(base_score: float, distance_m: float | None) -> flo
         + proximity_score * _ATTRACTION_PROXIMITY_SCORE_WEIGHT,
         3,
     )
-
-
-def _resolve_activity_cost(price: float | None, travelers: int) -> float | None:
-    """Real (offer) price scaled by travelers, or ``None`` when no real price exists.
-
-    Kept in the backend for potential future use; itinerary items no longer surface a
-    fabricated cost, so attractions without a real price carry ``None``.
-    """
-    if price is None:
-        return None
-    return round(price * max(travelers, 1), 2)
 
 
 def _estimated_total(budget_tier: str, trip_length: str, *seed_parts: object) -> float:
@@ -708,7 +683,6 @@ def _build_day_timeline(
                 "time": activity["time"],
                 "title": activity["title"],
                 "category": activity["category"],
-                "cost": activity["cost"],
                 "url": activity.get("url"),
                 "image_url": activity.get("image_url"),
                 "description": activity.get("description"),
@@ -734,7 +708,6 @@ def _build_day_timeline(
                 "time": transport_time,
                 "title": transport_title,
                 "category": "transport",
-                "cost": None,
                 "duration_text": duration_text,
                 "transport_mode": transport_mode,
                 "notes": notes,
@@ -999,7 +972,6 @@ def _build_itinerary(
 
         for slot_index, time in enumerate(times):
             description = None
-            price = None
             if idx < len(sequence):
                 item = sequence[idx]
                 idx += 1
@@ -1007,7 +979,6 @@ def _build_itinerary(
                 latitude, longitude = item.latitude, item.longitude
                 image_url = item.image_url
                 description = item.description
-                price = item.price
             else:
                 label = _FREE_TIME_LABELS[fallback_idx % len(_FREE_TIME_LABELS)]
                 fallback_idx += 1
@@ -1016,14 +987,12 @@ def _build_itinerary(
                 latitude, longitude = None, None
                 image_url = None
 
-            activity_cost = _resolve_activity_cost(price, travelers)
             activities.append(
                 {
                     "id": f"activity-{day_num + 1}-{slot_index}",
                     "time": time,
                     "title": name,
                     "category": category or "activity",
-                    "cost": activity_cost,
                     "url": url or None,
                     "image_url": image_url,
                     "description": description,
@@ -1153,7 +1122,6 @@ async def _collect_offer_items(
                 longitude=offer.geo.longitude if offer.geo else None,
                 image_url=offer.images[0].url if offer.images else fallback_image_url,
                 description=_offer_description(offer),
-                price=_offer_chf_price(offer),
             )
         )
     return items
@@ -1439,7 +1407,6 @@ def _replace_activity_in_itinerary(
                 continue
             activity["title"] = replacement.name
             activity["category"] = replacement.category or "activity"
-            activity["cost"] = _resolve_activity_cost(replacement.price, travelers)
             activity["url"] = replacement.url or None
             activity["image_url"] = replacement.image_url
             activity["description"] = replacement.description

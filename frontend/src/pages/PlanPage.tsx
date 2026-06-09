@@ -132,7 +132,6 @@ function timelineItems(day: Recommendation["itinerary"]["days"][number]): Timeli
               time: activity.time,
               title: activity.title,
               category: activity.category,
-              cost: activity.cost,
               url: activity.url,
               description: activity.description,
               refreshable: true,
