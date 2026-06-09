@@ -188,9 +188,17 @@ export default function CommunityTripModal({ trip, onClose }: CommunityTripModal
                               )}
                               {note && <p className="mt-1 text-xs text-[var(--ws-muted)]">{note}</p>}
                             </div>
-                            <div className="text-sm font-medium text-[var(--ws-muted)]">
-                              {formatMoney(item.cost, currency)}
-                            </div>
+                            {item.url && (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)]"
+                              >
+                                More info
+                                <span aria-hidden="true">→</span>
+                              </a>
+                            )}
                           </div>
                         );
                       })}

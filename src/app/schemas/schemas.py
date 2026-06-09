@@ -89,7 +89,7 @@ class TimelineItem(BaseModel):
     time: str = Field(max_length=32)
     title: str = Field(max_length=255)
     category: str = Field(max_length=80)
-    cost: float = Field(ge=0, le=100_000)
+    cost: float | None = Field(default=None, ge=0, le=100_000)
     duration_text: str | None = Field(default=None, max_length=120)
     transport_mode: str | None = Field(default=None, max_length=40)
     transport_legs: list[TimelineTransportLeg] = Field(
@@ -107,7 +107,7 @@ class ItineraryActivity(BaseModel):
     time: str = Field(max_length=32)
     title: str = Field(max_length=255)
     category: str = Field(max_length=80)
-    cost: float = Field(ge=0, le=100_000)
+    cost: float | None = Field(default=None, ge=0, le=100_000)
     url: str | None = Field(default=None, max_length=2048)
     image_url: str | None = Field(default=None, max_length=2048)
     description: str | None = Field(default=None, max_length=500)

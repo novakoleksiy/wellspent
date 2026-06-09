@@ -398,22 +398,24 @@ async def test_recommend_scores_destinations_and_builds_itinerary(
         for activity in day["activities"]
     }
     assert "Alpine Loop (4h)" not in titles
+    # Attractions (no real offer price) no longer carry a fabricated per-item cost.
     activity_costs = [
         activity["cost"]
         for day in recommendations[0]["itinerary"]["days"]
         for activity in day["activities"]
     ]
-    assert all(15 <= cost <= 30 for cost in activity_costs)
-    # The quiz always sets trip_length, so transport costs fold into the estimate.
+    assert all(cost is None for cost in activity_costs)
     transport_costs = [
         item["cost"]
         for day in recommendations[0]["itinerary"]["days"]
         for item in day["timeline_items"]
         if item["kind"] == "transport"
     ]
-    assert recommendations[0]["itinerary"]["estimated_total"] == round(
-        sum(activity_costs) + sum(transport_costs), 2
-    )
+    assert all(cost is None for cost in transport_costs)
+    # Estimated total is budget/length-based: "budget" + "full_day" range, rounded to 5.
+    estimated_total = recommendations[0]["itinerary"]["estimated_total"]
+    assert 170 <= estimated_total <= 280
+    assert estimated_total % 5 == 0
     assert recommendations[0]["highlights"]
 
 
@@ -923,7 +925,7 @@ async def test_recommend_enriches_public_transport_timeline_with_live_route():
     assert transport_items[0]["title"] == "tram 4"
     assert transport_items[0]["time"] == "11:30"
     assert transport_items[0]["duration_text"] == "18 min, 0 transfers"
-    assert 15 <= transport_items[0]["cost"] <= 30
+    assert transport_items[0]["cost"] is None
     assert transport_items[0]["transport_legs"] == [
         {
             "mode": "tram",

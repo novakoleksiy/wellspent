@@ -248,9 +248,17 @@ export default function TripDetailPage() {
                                                 )}
                                                 {note && <p className="mt-1 text-sm text-[var(--ws-muted)]">{note}</p>}
                                             </div>
-                                            <div className="text-sm font-medium text-[var(--ws-muted)]">
-                                                {formatMoney(item.cost, trip.itinerary?.currency || "CHF")}
-                                            </div>
+                                            {item.url && (
+                                                <a
+                                                    href={item.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)]"
+                                                >
+                                                    More info
+                                                    <span aria-hidden="true">→</span>
+                                                </a>
+                                            )}
                                         </div>
                                     );
                                 })}

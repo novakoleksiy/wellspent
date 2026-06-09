@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { createTrip, recommend, refreshRecommendationItem } from "../api/trips";
 import AppShell from "../components/AppShell";
 import { visibleTimelineNote } from "../timelineNotes";
-import type { Recommendation, TimelineItem } from "../types";
+import type { Recommendation, RecommendRequest, TimelineItem } from "../types";
 
 function inputDate(daysAhead: number): string {
     const date = new Date();
@@ -90,11 +90,11 @@ type PlannerForm = {
     end_date: string;
     travelers: number;
     notes: string;
-    mood: "culture_history" | "nature_outdoors" | "food_markets" | "slow_relaxing";
-    transport_mode: "car" | "public_transport";
-    trip_length: "2_3_hours" | "half_day" | "full_day";
-    group_type: "solo" | "couple" | "family" | "friends";
-    budget_tier: "budget" | "mid" | "luxury";
+    mood: "" | "culture_history" | "nature_outdoors" | "food_markets" | "slow_relaxing";
+    transport_mode: "" | "car" | "public_transport";
+    trip_length: "" | "2_3_hours" | "half_day" | "full_day";
+    group_type: "" | "solo" | "couple" | "family" | "friends";
+    budget_tier: "" | "budget" | "mid" | "luxury";
 };
 
 function initialPlannerForm(destination = ""): PlannerForm {
@@ -106,11 +106,11 @@ function initialPlannerForm(destination = ""): PlannerForm {
         end_date: startDate,
         travelers: 1,
         notes: "",
-        mood: "culture_history",
-        transport_mode: "public_transport",
-        trip_length: "half_day",
-        group_type: "solo",
-        budget_tier: "mid",
+        mood: "",
+        transport_mode: "",
+        trip_length: "",
+        group_type: "",
+        budget_tier: "",
     };
 }
 
@@ -218,6 +218,7 @@ export default function PlanPage() {
     const [searchParams] = useSearchParams();
     const [form, setForm] = useState<PlannerForm>(() => initialPlannerForm());
     const [stepIndex, setStepIndex] = useState(0);
+    const [pendingValue, setPendingValue] = useState<string | null>(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [travelersTouched, setTravelersTouched] = useState(false);
     const [result, setResult] = useState<Recommendation | null>(null);
@@ -228,6 +229,11 @@ export default function PlanPage() {
     const [error, setError] = useState("");
     const resultSectionRef = useRef<HTMLElement | null>(null);
     const shouldScrollToResultRef = useRef(false);
+    const advanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => () => {
+        if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
+    }, []);
 
     useEffect(() => {
         const nextDestination = searchParams.get("destination") || "";
@@ -246,14 +252,17 @@ export default function PlanPage() {
     }, [result, loading]);
 
     const currentStep = quizSteps[stepIndex];
+    const isLastStep = stepIndex === quizSteps.length - 1;
     const progressValue = ((stepIndex + 1) / quizSteps.length) * 100;
-    const canGenerate = stepIndex === quizSteps.length - 1;
+    const canGenerate = isLastStep && form[currentStep.key] !== "";
 
     const set = <K extends keyof PlannerForm>(field: K, value: PlannerForm[K]) => {
         setForm((current) => ({ ...current, [field]: value }));
     };
 
     const selectOption = (value: string) => {
+        if (pendingValue) return;
+
         if (currentStep.key === "group_type") {
             setForm((current) => ({
                 ...current,
@@ -263,12 +272,20 @@ export default function PlanPage() {
         } else {
             set(currentStep.key, value as never);
         }
+
+        setPendingValue(value);
+        advanceTimeoutRef.current = setTimeout(() => {
+            setPendingValue(null);
+            if (stepIndex < quizSteps.length - 1) {
+                setStepIndex((index) => index + 1);
+            }
+        }, 360);
     };
 
-    const handleNext = () => {
-        if (stepIndex < quizSteps.length - 1) {
-            setStepIndex((index) => index + 1);
-        }
+    const goBack = () => {
+        if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
+        setPendingValue(null);
+        setStepIndex((index) => Math.max(index - 1, 0));
     };
 
     const toggleTransportDetails = (itemId: string) => {
@@ -284,8 +301,10 @@ export default function PlanPage() {
     };
 
     const handleRestartQuiz = () => {
+        if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
         setForm(initialPlannerForm(searchParams.get("destination") || ""));
         setStepIndex(0);
+        setPendingValue(null);
         setShowAdvanced(false);
         setTravelersTouched(false);
         setResult(null);
@@ -304,7 +323,7 @@ export default function PlanPage() {
         setLoading(true);
         shouldScrollToResultRef.current = true;
         try {
-            const recs = await recommend({ ...form, end_date: form.start_date });
+            const recs = await recommend({ ...form, end_date: form.start_date } as RecommendRequest);
             setResult(recs[0] ?? null);
             setExpandedTransportIds(new Set());
             if (recs.length === 0) {
@@ -330,7 +349,7 @@ export default function PlanPage() {
                 end_date: form.start_date,
                 itinerary: result.itinerary,
                 item_id: itemId,
-            });
+            } as Parameters<typeof refreshRecommendationItem>[0]);
             setResult(next);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Failed to refresh itinerary item");
@@ -402,16 +421,20 @@ export default function PlanPage() {
                         <div className="mt-6 grid gap-3 sm:grid-cols-2">
                             {currentStep.options.map((option) => {
                                 const selected = form[currentStep.key] === option.value;
+                                const isPending = pendingValue === option.value;
                                 return (
                                     <button
                                         key={option.value}
                                         type="button"
                                         onClick={() => selectOption(option.value)}
-                                        className={`rounded-[1.75rem] border px-5 py-4 text-left transition ${
-                                            selected
+                                        disabled={pendingValue !== null}
+                                        className={`rounded-[1.75rem] border px-5 py-4 text-left transition duration-200 ${
+                                            isPending ? "plan-option-pop" : ""
+                                        } ${
+                                            selected || isPending
                                                 ? "border-[var(--ws-yellow)] bg-[rgba(255,235,105,0.14)] text-white"
                                                 : "border-white/10 bg-white/5 text-white/88 hover:border-white/25 hover:bg-white/10"
-                                        }`}
+                                        } ${pendingValue !== null && !isPending ? "opacity-50" : ""}`}
                                     >
                                         <div className="flex items-center justify-between gap-4">
                                             <p className="text-base font-semibold">{option.label}</p>
@@ -430,36 +453,35 @@ export default function PlanPage() {
                         <div className="mt-6 flex items-center justify-between gap-3">
                             <button
                                 type="button"
-                                onClick={() => setStepIndex((index) => Math.max(index - 1, 0))}
+                                onClick={goBack}
                                 disabled={stepIndex === 0}
                                 className="rounded-full border border-white/12 px-5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 Back
                             </button>
-                            {stepIndex < quizSteps.length - 1 && (
+                            {isLastStep && (
                                 <button
                                     type="button"
-                                    onClick={handleNext}
-                                    className="rounded-full bg-[var(--ws-yellow)] px-5 py-3 text-sm font-semibold text-[var(--ws-ink)] transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/15"
+                                    onClick={handleSubmit}
+                                    disabled={loading || !canGenerate}
+                                    className="ws-btn-accent px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    Next
+                                    {loading ? "Generating itinerary..." : "Generate proposed itinerary"}
                                 </button>
                             )}
                         </div>
-                    </div>
 
-                    {canGenerate && (
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                type="button"
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className="ws-btn-accent px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {loading ? "Generating itinerary..." : "Generate proposed itinerary"}
-                            </button>
-                        </div>
-                    )}
+                        <style>{`
+                            @keyframes plan-option-pop {
+                                0% { transform: scale(1); }
+                                40% { transform: scale(1.04); box-shadow: 0 0 0 3px rgba(255, 235, 105, 0.35); }
+                                100% { transform: scale(1); }
+                            }
+                            .plan-option-pop {
+                                animation: plan-option-pop 0.36s ease-out;
+                            }
+                        `}</style>
+                    </div>
 
                     {showAdvanced && (
                         <div className="fixed inset-0 z-40 flex justify-end bg-[rgba(20,19,15,0.48)] backdrop-blur-sm" role="presentation">
@@ -681,9 +703,17 @@ export default function PlanPage() {
                                                                         <p className="mt-2 text-sm text-[var(--ws-muted)]">{note}</p>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-sm font-medium text-[var(--ws-muted)]">
-                                                                    {formatMoney(item.cost, result.itinerary.currency)}
-                                                                </div>
+                                                                {item.url && (
+                                                                    <a
+                                                                        href={item.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)]"
+                                                                    >
+                                                                        More info
+                                                                        <span aria-hidden="true">→</span>
+                                                                    </a>
+                                                                )}
                                                             </div>
 
                                                             {canExpandTransport && (

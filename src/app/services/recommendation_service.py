@@ -213,8 +213,26 @@ _TRANSPORT_LABELS: dict[str, tuple[str, str]] = {
     ),
 }
 
-_DEMO_PRICE_MIN_CHF = 15.0
-_DEMO_PRICE_MAX_CHF = 30.0
+# Estimated trip-total ranges in CHF, keyed by budget tier and itinerary length.
+# The total shown to the user is a (seeded) random pick within the matching range,
+# so it depends only on the budget choice and trip length — not on per-item pricing.
+_ESTIMATED_TOTAL_RANGES: dict[str, dict[str, tuple[float, float]]] = {
+    "budget": {
+        "2_3_hours": (70.0, 120.0),
+        "half_day": (110.0, 190.0),
+        "full_day": (170.0, 280.0),
+    },
+    "mid": {
+        "2_3_hours": (130.0, 210.0),
+        "half_day": (210.0, 330.0),
+        "full_day": (320.0, 480.0),
+    },
+    "luxury": {
+        "2_3_hours": (260.0, 400.0),
+        "half_day": (430.0, 650.0),
+        "full_day": (650.0, 950.0),
+    },
+}
 
 logger = logging.getLogger(__name__)
 _PUBLIC_TRANSPORT_ROUTE_TIMEOUT_SECONDS = 8.0
@@ -258,7 +276,8 @@ class RecommendationItem:
     longitude: float | None = None
     image_url: str | None = None
     description: str | None = None
-    # Real CHF price for offer-derived items; ``None`` means fall back to demo pricing.
+    # Real CHF price for offer-derived items; kept for downstream use (e.g. Explore
+    # offers). ``None`` means no real price is known. Not surfaced on trip itineraries.
     price: float | None = None
 
 
@@ -567,48 +586,30 @@ def _proximity_blended_score(base_score: float, distance_m: float | None) -> flo
     )
 
 
-def _demo_price(*seed_parts: object) -> float:
-    seed = "|".join(str(part) for part in seed_parts)
-    return round(
-        random.Random(seed).uniform(_DEMO_PRICE_MIN_CHF, _DEMO_PRICE_MAX_CHF),
-        2,
-    )
+def _resolve_activity_cost(price: float | None, travelers: int) -> float | None:
+    """Real (offer) price scaled by travelers, or ``None`` when no real price exists.
 
-
-def _activity_cost(
-    budget_tier: str,
-    group_type: str,
-    travelers: int,
-    *seed_parts: object,
-) -> float:
-    return _demo_price(
-        "activity", budget_tier, group_type, max(travelers, 1), *seed_parts
-    )
-
-
-def _resolve_activity_cost(
-    price: float | None,
-    travelers: int,
-    budget_tier: str,
-    group_type: str,
-    *seed_parts: object,
-) -> float:
-    """Use a real (offer) price when available, else fall back to the demo price.
-
-    Offer prices are treated as per-person and scaled by the traveler count, mirroring
-    how the demo price folds travelers in.
+    Kept in the backend for potential future use; itinerary items no longer surface a
+    fabricated cost, so attractions without a real price carry ``None``.
     """
-    if price is not None:
-        return round(price * max(travelers, 1), 2)
-    return _activity_cost(budget_tier, group_type, travelers, *seed_parts)
+    if price is None:
+        return None
+    return round(price * max(travelers, 1), 2)
 
 
-def _transport_cost(
-    transport_mode: str,
-    travelers: int,
-    *seed_parts: object,
-) -> float:
-    return _demo_price("transport", transport_mode, max(travelers, 1), *seed_parts)
+def _estimated_total(budget_tier: str, trip_length: str, *seed_parts: object) -> float:
+    """A single trip-total estimate driven only by budget tier and trip length.
+
+    Picks a (seeded) value within the matching range so the same itinerary stays
+    stable across refreshes while different destinations vary.
+    """
+    by_length = _ESTIMATED_TOTAL_RANGES.get(budget_tier, _ESTIMATED_TOTAL_RANGES["mid"])
+    low, high = by_length.get(trip_length, by_length["half_day"])
+    seed = "|".join(
+        str(part) for part in ("estimate", budget_tier, trip_length, *seed_parts)
+    )
+    value = random.Random(seed).uniform(low, high)
+    return float(round(value / 5) * 5)
 
 
 def _car_route_estimate(activity: dict, next_activity: dict) -> tuple[str, str]:
@@ -733,14 +734,7 @@ def _build_day_timeline(
                 "time": transport_time,
                 "title": transport_title,
                 "category": "transport",
-                "cost": _transport_cost(
-                    transport_mode,
-                    travelers,
-                    day_num,
-                    index,
-                    activity["title"],
-                    next_activity["title"],
-                ),
+                "cost": None,
                 "duration_text": duration_text,
                 "transport_mode": transport_mode,
                 "notes": notes,
@@ -925,14 +919,6 @@ async def _enrich_public_transport_timeline(
             timeline_item["duration_text"] = duration_text
             timeline_item["notes"] = notes
             timeline_item["transport_legs"] = _transport_leg_details(route)
-            timeline_item["cost"] = _transport_cost(
-                "public_transport",
-                travelers,
-                day.get("day", 1),
-                timeline_item.get("id"),
-                title,
-                duration_text,
-            )
 
 
 def _remove_internal_activity_fields(days: list[dict]) -> None:
@@ -940,24 +926,6 @@ def _remove_internal_activity_fields(days: list[dict]) -> None:
         for activity in day.get("activities", []):
             activity.pop("_latitude", None)
             activity.pop("_longitude", None)
-
-
-def _recalculate_estimated_total(
-    days: list[dict], include_transport_costs: bool
-) -> float:
-    total = sum(
-        activity.get("cost") or 0.0
-        for day in days
-        for activity in day.get("activities", [])
-    )
-    if include_transport_costs:
-        total += sum(
-            item.get("cost") or 0.0
-            for day in days
-            for item in day.get("timeline_items", [])
-            if item.get("kind") == "transport"
-        )
-    return round(total, 2)
 
 
 def _interleave_by_category(
@@ -1012,7 +980,6 @@ def _build_itinerary(
     group_type: str,
     transport_mode: str,
     travelers: int,
-    include_transport_costs: bool,
     destination_name: str = "the area",
 ) -> tuple[list[dict], float]:
     num_days = 1
@@ -1023,8 +990,6 @@ def _build_itinerary(
     sequence = _interleave_by_category(items)[:needed]
 
     days: list[dict] = []
-    activity_total = 0.0
-    transport_total = 0.0
     idx = 0
     fallback_idx = 0
 
@@ -1051,17 +1016,7 @@ def _build_itinerary(
                 latitude, longitude = None, None
                 image_url = None
 
-            activity_cost = _resolve_activity_cost(
-                price,
-                travelers,
-                budget_tier,
-                group_type,
-                day_num + 1,
-                slot_index,
-                name,
-                category,
-            )
-            activity_total += activity_cost
+            activity_cost = _resolve_activity_cost(price, travelers)
             activities.append(
                 {
                     "id": f"activity-{day_num + 1}-{slot_index}",
@@ -1080,12 +1035,6 @@ def _build_itinerary(
         timeline_items = _build_day_timeline(
             day_num + 1, activities, transport_mode, travelers
         )
-        day_transport_total = 0.0
-        if include_transport_costs:
-            day_transport_total = sum(
-                item["cost"] for item in timeline_items if item["kind"] == "transport"
-            )
-        transport_total += day_transport_total
         days.append(
             {
                 "day": day_num + 1,
@@ -1096,7 +1045,7 @@ def _build_itinerary(
             }
         )
 
-    estimated_total = round(activity_total + transport_total, 2)
+    estimated_total = _estimated_total(budget_tier, trip_length, destination_name)
 
     return days, estimated_total
 
@@ -1425,7 +1374,6 @@ async def recommend(
         items = await _collect_destination_items(
             client, dest, styles, facet_filters, season_filter
         )
-        include_transport_costs = trip_length is not None
         days, estimated_total = _build_itinerary(
             items,
             start_date,
@@ -1435,15 +1383,11 @@ async def recommend(
             group_type,
             transport_mode,
             travelers,
-            include_transport_costs,
             destination_name=dest.name,
         )
         if transport_mode == "public_transport" and public_transport_client is not None:
             await _enrich_public_transport_timeline(
                 days, public_transport_client, travelers
-            )
-            estimated_total = _recalculate_estimated_total(
-                days, include_transport_costs
             )
         _remove_internal_activity_fields(days)
 
@@ -1481,7 +1425,6 @@ def _replace_activity_in_itinerary(
     replacement: RecommendationItem,
     transport_mode: str,
     travelers: int,
-    group_type: str,
 ) -> dict:
     next_itinerary = {
         **itinerary,
@@ -1496,15 +1439,7 @@ def _replace_activity_in_itinerary(
                 continue
             activity["title"] = replacement.name
             activity["category"] = replacement.category or "activity"
-            activity["cost"] = _resolve_activity_cost(
-                replacement.price,
-                travelers,
-                "demo-refresh",
-                group_type,
-                item_id,
-                replacement.name,
-                replacement.category,
-            )
+            activity["cost"] = _resolve_activity_cost(replacement.price, travelers)
             activity["url"] = replacement.url or None
             activity["image_url"] = replacement.image_url
             activity["description"] = replacement.description
@@ -1578,7 +1513,7 @@ async def refresh_recommendation_item(
 
     next_itinerary = (
         _replace_activity_in_itinerary(
-            itinerary, item_id, replacement, transport_mode, travelers, group_type
+            itinerary, item_id, replacement, transport_mode, travelers
         )
         if replacement is not None
         else itinerary
@@ -1588,9 +1523,8 @@ async def refresh_recommendation_item(
             next_itinerary.get("days", []), public_transport_client, travelers
         )
     _remove_internal_activity_fields(next_itinerary.get("days", []))
-    next_itinerary["estimated_total"] = _recalculate_estimated_total(
-        next_itinerary.get("days", []), trip_length is not None
-    )
+    # Estimated total is budget/length-based and already set on the itinerary; a single
+    # item swap doesn't change it, so the existing value is preserved as-is.
 
     top3 = sorted(items, key=lambda item: item.score, reverse=True)[:3]
     return {
