@@ -56,7 +56,7 @@ export default function LoginPage() {
                         Plan better trips with itineraries that already <span className="ws-serif-italic text-[var(--ws-yellow)]">fit you</span>.
                     </h1>
                     <p className="mt-6 max-w-lg text-base leading-7 text-white/72">
-                        Save your travel style once, generate a polished Swiss itinerary in minutes, and keep every great idea in one place.
+                        Set your travel style once and plan Swiss trips in minutes.
                     </p>
 
                     <div className="mt-12 grid gap-4 sm:grid-cols-2">
@@ -78,7 +78,7 @@ export default function LoginPage() {
                             Sign in to continue planning.
                         </h2>
                         <p className="mt-3 text-sm leading-6 text-[var(--ws-muted)]">
-                            We&apos;ll pick up with your saved trips and travel preferences.
+                            Back to your saved trips and preferences.
                         </p>
 
                         <form onSubmit={handleSubmit} className="mt-8 space-y-4">

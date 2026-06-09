@@ -61,7 +61,7 @@ export default function ExplorePage() {
     return (
         <AppShell
             title="Explore"
-            description="A living board of trips, tours, and offers from across Switzerland. Filter by type, or just keep scrolling."
+            description="Trips, tours, and offers from across Switzerland. Filter by type or keep scrolling."
             actions={
                 <Link to="/plan" className="ws-btn-primary px-5 py-3 text-sm">
                     Plan a trip

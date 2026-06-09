@@ -15,7 +15,7 @@ import type { DestinationOut, OfferOut, TourOut } from "../types";
 const nearbyIdeas = [
   {
     name: "Lucerne",
-    description: "Lake views, an easy old-town stroll, and mountain access for a low-friction weekend.",
+    description: "Lake views, an easy old-town stroll, and mountain access for a relaxed weekend.",
   },
   {
     name: "Interlaken",

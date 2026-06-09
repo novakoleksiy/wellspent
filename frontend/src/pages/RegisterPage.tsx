@@ -61,7 +61,7 @@ export default function RegisterPage() {
                         Start with your <span className="ws-serif-italic text-[var(--ws-orange)]">travel style</span>. We&apos;ll build from there.
                     </h1>
                     <p className="mt-6 max-w-lg text-base leading-7 text-[var(--ws-muted)]">
-                        Create your account, complete a quick preference setup, and move straight into personalized trip planning.
+                        Create an account, set your travel style, and start planning.
                     </p>
 
                     <div className="mt-12 space-y-4">
@@ -87,7 +87,7 @@ export default function RegisterPage() {
                             Build your planning profile.
                         </h2>
                         <p className="mt-3 text-sm leading-6 text-[var(--ws-muted)]">
-                            We&apos;ll take you directly into mandatory onboarding once your account is ready.
+                            Next, you&apos;ll set your travel preferences.
                         </p>
 
                         <form onSubmit={handleSubmit} className="mt-8 space-y-4">

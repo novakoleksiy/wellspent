@@ -116,7 +116,7 @@ export default function TripDetailPage() {
     return (
         <AppShell
             title={trip.title}
-            description={`Saved itinerary for ${trip.destination}`}
+            description={`Your trip to ${trip.destination}`}
             actions={
                 <div className="flex flex-wrap items-center gap-3">
                     {trip.status !== "completed" && (

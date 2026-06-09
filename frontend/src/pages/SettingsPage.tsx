@@ -34,7 +34,7 @@ export default function SettingsPage() {
   return (
     <AppShell
       title="Profile"
-      description="Keep your travel profile current so planning and recommendations stay aligned with the way you like to travel."
+      description="Keep your travel profile up to date so trips match how you like to travel."
       actions={
         <button
           onClick={handleSave}

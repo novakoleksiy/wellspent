@@ -35,14 +35,14 @@ const quizSteps = [
             { value: "culture_history", label: "Culture and History", hint: "Museums, old towns, castles" },
             { value: "nature_outdoors", label: "Nature and Outdoors", hint: "Views, trails, lakes, mountain air" },
             { value: "food_markets", label: "Food and Markets", hint: "Cafes, tastings, local markets" },
-            { value: "slow_relaxing", label: "Slow and Relaxing", hint: "Scenic, calm, low-friction" },
+            { value: "slow_relaxing", label: "Slow and Relaxing", hint: "Scenic, calm, easygoing" },
         ],
     },
     {
         key: "transport_mode",
         eyebrow: "Question 2",
         title: "How do you want to move around?",
-        description: "We will tailor the day flow and transport placeholders around this choice.",
+        description: "We'll plan the day's route around this.",
         options: [
             { value: "car", label: "Car", hint: "More flexibility between stops" },
             { value: "public_transport", label: "Public transport", hint: "Train, bus, and regional links" },
@@ -52,7 +52,7 @@ const quizSteps = [
         key: "trip_length",
         eyebrow: "Question 3",
         title: "How much time do you have?",
-        description: "This controls how dense each day feels.",
+        description: "This sets how many stops fit in your day.",
         options: [
             { value: "2_3_hours", label: "2-3 hours", hint: "A compact outing" },
             { value: "half_day", label: "Half day", hint: "A balanced short plan" },
@@ -63,7 +63,7 @@ const quizSteps = [
         key: "group_type",
         eyebrow: "Question 4",
         title: "Who is joining?",
-        description: "Family plans stay gentler. Friend plans skew more active.",
+        description: "Family plans are gentler; trips with friends are more active.",
         options: [
             { value: "solo", label: "Solo", hint: "Independent and flexible" },
             { value: "couple", label: "Couple", hint: "Balanced and easygoing" },
@@ -75,7 +75,7 @@ const quizSteps = [
         key: "budget_tier",
         eyebrow: "Question 5",
         title: "What budget feels right?",
-        description: "This shapes the estimate for activities, meals, stays, and transport.",
+        description: "This sets the estimate for activities, meals, stays, and travel.",
         options: [
             { value: "budget", label: "Low", hint: "Value-led picks and simple stops", visual: "$" },
             { value: "mid", label: "Medium", hint: "Balanced comfort and standout moments", visual: "$$" },
@@ -169,7 +169,7 @@ function TrainLoadingPopup() {
                 <p className="ws-mono text-[var(--ws-orange)]">All aboard</p>
                 <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--ws-ink)]">Building your Swiss route</h3>
                 <p className="mt-2 text-sm leading-6 text-[var(--ws-muted)]">
-                    Querying the travel APIs and stitching together your proposed itinerary.
+                    Putting together your day, stop by stop.
                 </p>
             </div>
             <style>{`
@@ -327,7 +327,7 @@ export default function PlanPage() {
             setExpandedTransportIds(new Set());
             if (recs.length === 0) {
                 shouldScrollToResultRef.current = false;
-                setError("No itinerary matched that combination. Try another mood or destination.");
+                setError("No match for those answers. Try a different mood or destination.");
             }
         } catch (err: unknown) {
             shouldScrollToResultRef.current = false;
@@ -376,7 +376,7 @@ export default function PlanPage() {
     return (
         <AppShell
             title="Plan a trip"
-            description="Answer a few quick questions, then shape a day-style itinerary without leaving the planner."
+            description="Answer a few quick questions and we'll build your day."
         >
             {loading && <TrainLoadingPopup />}
             <div className="mx-auto max-w-5xl space-y-6">
@@ -465,7 +465,7 @@ export default function PlanPage() {
                                     disabled={loading || !canGenerate}
                                     className="ws-btn-accent px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    {loading ? "Generating itinerary..." : "Generate proposed itinerary"}
+                                    {loading ? "Generating itinerary..." : "Generate itinerary"}
                                 </button>
                             )}
                         </div>
@@ -581,7 +581,7 @@ export default function PlanPage() {
                     <section ref={resultSectionRef} className="ws-surface scroll-mt-6 p-6 sm:p-8">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <p className="ws-mono text-[var(--ws-orange)]">Proposed itinerary</p>
+                                    <p className="ws-mono text-[var(--ws-orange)]">Your itinerary</p>
                                     <h2 className="ws-display mt-2 text-3xl">
                                         {result.destination}
                                     </h2>
