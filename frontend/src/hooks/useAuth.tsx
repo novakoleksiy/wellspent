@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         let cancelled = false;
-        let token = localStorage.getItem("token");
 
         // In demo mode the token comes from the credential-free session endpoint.
         // If it isn't ready yet — the machine rebooted before the seed script ran
@@ -60,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         const start = async () => {
+            let token = localStorage.getItem("token");
             if (!token && IS_DEMO) {
                 token = await acquireDemoToken();
             }
@@ -69,7 +69,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
                 setUser(await authApi.getMe());
             } catch {
+                // The stored token was rejected and the client's transparent
+                // refresh couldn't recover it (e.g. the demo backend isn't seeded
+                // yet, so /demo/session 503s). Drop it and, in demo mode, fall
+                // back to the backoff-retrying acquire — with its visible
+                // "Starting the demo…" status — so the kiosk self-heals instead
+                // of stranding on /login.
                 localStorage.removeItem("token");
+                if (!IS_DEMO || cancelled) {
+                    return;
+                }
+                token = await acquireDemoToken();
+                if (!token || cancelled) {
+                    return;
+                }
+                try {
+                    setUser(await authApi.getMe());
+                } catch {
+                    localStorage.removeItem("token");
+                }
             }
         };
 
