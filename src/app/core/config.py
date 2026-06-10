@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     openai_planner_temperature: float = 0.9
     openai_planner_timeout_seconds: float = 12.0
     registration_open: bool = False
+    # Per-IP rate limiting on the publicly reachable, cost-bearing endpoints.
+    # Disable in tests for deterministic behavior.
+    rate_limit_enabled: bool = True
+    # Conference demo mode: exposes a credential-free demo-session endpoint and
+    # seeds a shared demo user with sample trips on startup. Keep False in prod.
+    demo_mode: bool = False
+    demo_user_email: str = "demo@wellspent.world"
+    demo_user_name: str = "Demo Explorer"
+    demo_user_password: str = "wellspent-demo"  # only used when seeding the user
     cors_origins: str = Field(..., min_length=1)
 
     model_config = {"env_file": ".env", "extra": "ignore"}

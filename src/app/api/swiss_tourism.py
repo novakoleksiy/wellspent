@@ -1,8 +1,9 @@
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.db import CurrentUser, SwissTourism
+from app.core.rate_limit import swiss_limit
 from app.schemas.schemas import (
     AttractionListOut,
     AttractionOut,
@@ -51,7 +52,9 @@ def _split_csv(value: str | None) -> list[str] | None:
 
 
 @router.get("/destinations", response_model=DestinationListOut)
+@swiss_limit
 async def list_destinations(
+    request: Request,
     user: CurrentUser,
     client: SwissTourism,
     query: str | None = None,
@@ -69,7 +72,9 @@ async def list_destinations(
 
 
 @router.get("/destinations/{destination_id}", response_model=DestinationOut)
+@swiss_limit
 async def get_destination(
+    request: Request,
     destination_id: str,
     user: CurrentUser,
     client: SwissTourism,
@@ -84,7 +89,9 @@ async def get_destination(
 
 
 @router.get("/attractions", response_model=AttractionListOut)
+@swiss_limit
 async def list_attractions(
+    request: Request,
     user: CurrentUser,
     client: SwissTourism,
     query: str | None = None,
@@ -119,7 +126,9 @@ async def get_attraction_facets(user: CurrentUser):
 
 
 @router.get("/attractions/{attraction_id}", response_model=AttractionOut)
+@swiss_limit
 async def get_attraction(
+    request: Request,
     attraction_id: str,
     user: CurrentUser,
     client: SwissTourism,
@@ -134,7 +143,9 @@ async def get_attraction(
 
 
 @router.get("/tours", response_model=TourListOut)
+@swiss_limit
 async def list_tours(
+    request: Request,
     user: CurrentUser,
     client: SwissTourism,
     query: str | None = None,
@@ -149,7 +160,9 @@ async def list_tours(
 
 
 @router.get("/tours/{tour_id}", response_model=TourOut)
+@swiss_limit
 async def get_tour(
+    request: Request,
     tour_id: str,
     user: CurrentUser,
     client: SwissTourism,
@@ -164,7 +177,9 @@ async def get_tour(
 
 
 @router.get("/offers", response_model=OfferListOut)
+@swiss_limit
 async def list_offers(
+    request: Request,
     user: CurrentUser,
     client: SwissTourism,
     query: str | None = None,
@@ -179,7 +194,9 @@ async def list_offers(
 
 
 @router.get("/offers/{offer_id}", response_model=OfferOut)
+@swiss_limit
 async def get_offer(
+    request: Request,
     offer_id: str,
     user: CurrentUser,
     client: SwissTourism,

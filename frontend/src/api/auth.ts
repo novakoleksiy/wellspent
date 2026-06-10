@@ -13,6 +13,11 @@ export const login = (email: string, password: string) =>
         body: JSON.stringify({ email, password }),
     });
 
+export const demoSession = () =>
+    request<Token>("/api/demo/session", {
+        method: "POST",
+    });
+
 export const getMe = () => request<UserOut>("/api/users/me");
 
 export const updatePreferences = (prefs: Preferences) =>

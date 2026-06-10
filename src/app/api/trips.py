@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.db import (
     CurrentUser,
@@ -8,6 +8,7 @@ from app.core.db import (
     SwissTourism,
     TripRepo,
 )
+from app.core.rate_limit import recommend_limit
 from app.schemas.schemas import (
     CommunityTripOut,
     Recommendation,
@@ -37,7 +38,9 @@ router = APIRouter(prefix="/trips", tags=["trips"])
 
 
 @router.post("/recommend", response_model=list[Recommendation])
+@recommend_limit
 async def recommend(
+    request: Request,
     body: RecommendRequest,
     user: CurrentUser,
     client: SwissTourism,
@@ -62,7 +65,9 @@ async def recommend(
 
 
 @router.post("/recommend/refresh-item", response_model=Recommendation)
+@recommend_limit
 async def refresh_recommendation_item(
+    request: Request,
     body: RefreshRecommendationItemRequest,
     user: CurrentUser,
     client: SwissTourism,

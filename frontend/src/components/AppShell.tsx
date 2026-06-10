@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import { IS_DEMO } from "../demo";
 import { useAuth } from "../hooks/useAuth";
 
 type AppShellProps = {
@@ -113,16 +114,18 @@ export default function AppShell({
                 >
                   My Profile
                 </NavLink>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    logout();
-                  }}
-                  className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)]"
-                >
-                  Sign out
-                </button>
+                {!IS_DEMO && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      logout();
+                    }}
+                    className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-medium text-[var(--ws-muted)] transition hover:bg-[var(--ws-cream)] hover:text-[var(--ws-ink)]"
+                  >
+                    Sign out
+                  </button>
+                )}
               </div>
             )}
           </div>

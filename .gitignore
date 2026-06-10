@@ -10,6 +10,10 @@ wheels/
 # Virtual environments
 .venv
 
+# Runtime
+
+.plans
+
 
 # DB objectss
 *.db

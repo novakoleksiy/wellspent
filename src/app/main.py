@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from app.adapters.ojp_transport_client import OjpTransportAuthError
@@ -12,7 +14,9 @@ from app.adapters.swiss_tourism_client import (
     SwissTourismAuthError,
 )
 from app.core.config import settings
-from app.core.db import engine
+from app.core.db import SessionLocal, engine
+from app.core.rate_limit import limiter
+from app.demo.seed import seed_demo_data
 from app.models.user import Base
 from app.services.recommendation_facets import refresh_attraction_facets
 
@@ -76,6 +80,11 @@ async def lifespan(app: FastAPI):
             )
         )
     logger.info("Database tables ready.")
+    if settings.demo_mode:
+        logger.info("Demo mode enabled: seeding demo user and trips...")
+        async with SessionLocal() as session:
+            await seed_demo_data(session)
+            await session.commit()
     if settings.my_swiss_tourism_api:
         logger.info("Refreshing Swiss Tourism attraction facets...")
         await refresh_attraction_facets(
@@ -89,6 +98,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Travel Recommender", version="0.1.0", lifespan=lifespan)
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -98,6 +110,7 @@ app.add_middleware(
 )
 
 # Routes
+from app.api.demo import router as demo_router  # noqa: E402
 from app.api.folders import router as folders_router  # noqa: E402
 from app.api.public_settings import router as settings_router  # noqa: E402
 from app.api.swiss_tourism import router as swiss_router  # noqa: E402
@@ -111,6 +124,7 @@ app.include_router(folders_router, prefix="/api")
 app.include_router(swiss_router, prefix="/api")
 app.include_router(waitlist_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(demo_router, prefix="/api")
 
 
 @app.exception_handler(SwissTourismAuthError)

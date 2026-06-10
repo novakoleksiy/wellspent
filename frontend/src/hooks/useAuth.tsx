@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import * as authApi from "../api/auth";
+import { IS_DEMO } from "../demo";
 import type { UserOut } from "../types";
 
 interface AuthContextType {
@@ -17,7 +18,11 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<UserOut | null>(null);
-    const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("token")));
+    // In demo mode we fetch a token on load, so start in loading state even
+    // without a stored token to keep route guards from bouncing to /login.
+    const [loading, setLoading] = useState(
+        () => Boolean(localStorage.getItem("token")) || IS_DEMO,
+    );
 
     const refreshUser = async () => {
         const me = await authApi.getMe();
@@ -26,15 +31,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            return;
-        }
+        let token = localStorage.getItem("token");
 
-        authApi.getMe()
-            .then(setUser)
-            .catch(() => localStorage.removeItem("token"))
-            .finally(() => setLoading(false));
+        const start = async () => {
+            if (!token && IS_DEMO) {
+                const { access_token } = await authApi.demoSession();
+                localStorage.setItem("token", access_token);
+                token = access_token;
+            }
+            if (!token) {
+                return;
+            }
+            try {
+                setUser(await authApi.getMe());
+            } catch {
+                localStorage.removeItem("token");
+            }
+        };
+
+        start().finally(() => setLoading(false));
     }, []);
 
     const login = async (email: string, password: string) => {
