@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     opentransportdata_ojp_url: str = "https://api.opentransportdata.swiss/ojp20"
     opentransportdata_requestor_ref: str = "wellspent_test"
     opentransportdata_user_agent: str = "wellspent"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_planner_temperature: float = 0.9
+    openai_planner_timeout_seconds: float = 12.0
     registration_open: bool = False
     cors_origins: str = Field(..., min_length=1)
 

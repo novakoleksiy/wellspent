@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import math
+import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
 import pytest
 
+from app.ports.itinerary_planner import DayPlan, PlannedStop, PlannerError, PlanRequest
 from app.ports.swiss_tourism import (
     AttractionRecord,
     DestinationRecord,
@@ -18,7 +22,9 @@ from app.ports.swiss_tourism import (
     TourRecord,
 )
 from app.ports.transport import TransportItinerary, TransportLeg, TransportPlace
-from app.services import recommendation_service
+from app.services import recommendation_facets, recommendation_service
+from app.services.recommendation import candidates as recommendation_candidates
+from app.services.recommendation import planning as recommendation_planning
 
 
 @dataclass
@@ -142,7 +148,17 @@ class FakeSwissClient:
         if query in self.failing_offer_queries:
             raise RuntimeError("upstream rate limited")
         offers = self.offers_by_query.get(query or "", [])
-        return PaginatedResult(data=offers[:page_size], meta=_page_meta(len(offers)))
+        start = (page - 1) * page_size
+        total_pages = max(1, math.ceil(len(offers) / page_size))
+        return PaginatedResult(
+            data=offers[start : start + page_size],
+            meta=PageMeta(
+                page_number=page,
+                page_size=page_size,
+                total_elements=len(offers),
+                total_pages=total_pages,
+            ),
+        )
 
     async def get_offer(self, offer_id: str) -> OfferRecord | None:
         for offers in self.offers_by_query.values():
@@ -172,6 +188,27 @@ class FakePublicTransportClient:
             (origin, destination, departure_date, departure_time, travelers)
         )
         return self.route
+
+
+@dataclass
+class FakeItineraryPlanner:
+    """Planner fake returning a fixed plan, a request-derived plan, or an error."""
+
+    plan: DayPlan | None = None
+    build: Callable[[PlanRequest], DayPlan] | None = None
+    error: Exception | None = None
+
+    def __post_init__(self) -> None:
+        self.requests: list[PlanRequest] = []
+
+    async def plan_day(self, request: PlanRequest) -> DayPlan:
+        self.requests.append(request)
+        if self.error is not None:
+            raise self.error
+        if self.build is not None:
+            return self.build(request)
+        assert self.plan is not None
+        return self.plan
 
 
 def _page_meta(total_elements: int) -> PageMeta:
@@ -432,7 +469,7 @@ async def test_recommend_boosts_attractions_with_matching_facets(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -501,7 +538,7 @@ async def test_recommend_uses_broad_attractions_when_facets_are_sparse(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -581,7 +618,7 @@ async def test_recommend_scopes_global_facet_results_to_typed_destination(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -666,7 +703,7 @@ async def test_recommend_prefers_nearby_attractions_over_farther_text_match(
     monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: None,
     )
@@ -730,7 +767,7 @@ async def test_recommend_falls_back_when_facet_attraction_request_fails(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -787,7 +824,7 @@ async def test_recommend_uses_fallback_activity_when_swiss_activity_calls_fail(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -1120,7 +1157,7 @@ async def test_recommend_blends_attractions_from_multiple_facets(
         ("culture", "Culture", 10),
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -1293,7 +1330,7 @@ async def test_recommend_uses_current_season_facet_as_soft_signal(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -1362,7 +1399,7 @@ async def test_recommend_uses_season_signal_when_no_style_facets_match(
         ],
     )
     monkeypatch.setattr(
-        recommendation_service,
+        recommendation_facets,
         "get_attraction_facets_snapshot",
         lambda: snapshot,
     )
@@ -1484,3 +1521,348 @@ async def test_recommend_mixes_offers_with_attractions():
     assert "cost" not in offer_activities[0]
     # Attractions still appear, so the plan is a genuine mix.
     assert any(a["category"] != "offer" for a in activities)
+
+
+@pytest.mark.asyncio
+async def test_collect_offers_paginates_beyond_first_page():
+    dest = _destination(
+        "lucerne",
+        "Lucerne",
+        description="Lakeside town.",
+        geo=(47.05, 8.31),
+    )
+    offers = [
+        _offer(f"offer-{index}", f"Lucerne experience {index}", area_id="lucerne")
+        for index in range(35)
+    ]
+    client = FakeSwissClient(
+        destinations=[dest],
+        attractions_by_destination={},
+        tours_by_query={},
+        offers_by_query={"Lucerne": offers},
+    )
+
+    items = await recommendation_candidates._collect_offer_items(client, dest, [])
+
+    # 35 offers at page size 30 span two pages; both are fetched.
+    assert client.offer_queries == ["Lucerne", "Lucerne"]
+    assert len(items) == 35
+
+
+@pytest.mark.asyncio
+async def test_collect_offers_respects_page_budget():
+    dest = _destination("lucerne", "Lucerne", description="Lakeside town.")
+    offers = [
+        _offer(f"offer-{index}", f"Lucerne experience {index}", area_id="lucerne")
+        for index in range(200)
+    ]
+    client = FakeSwissClient(
+        destinations=[dest],
+        attractions_by_destination={},
+        tours_by_query={},
+        offers_by_query={"Lucerne": offers},
+    )
+
+    items = await recommendation_candidates._collect_offer_items(client, dest, [])
+
+    # 200 offers span 7 pages, but fetching stops at the page budget.
+    budget = recommendation_candidates._MAX_OFFER_FETCH_PAGES
+    assert client.offer_queries == ["Lucerne"] * budget
+    assert len(items) == budget * recommendation_candidates._OFFER_FETCH_PAGE_SIZE
+
+
+@pytest.mark.asyncio
+async def test_candidate_pool_ids_are_stable_and_deduped_by_name():
+    dest = _destination(
+        "lucerne",
+        "Lucerne",
+        description="Lakeside town.",
+        geo=(47.05, 8.31),
+    )
+    client = FakeSwissClient(
+        destinations=[dest],
+        attractions_by_destination={
+            "lucerne": [
+                _attraction(
+                    "chapel-bridge",
+                    "Chapel Bridge",
+                    category="museum",
+                    description="Historic covered bridge.",
+                    geo=(47.0517, 8.3076),
+                ),
+            ]
+        },
+        tours_by_query={},
+        offers_by_query={
+            "Lucerne": [
+                # Mirrors the attraction by name, so it must be deduped away.
+                _offer("bridge-tour", "Chapel  Bridge", area_id="lucerne"),
+                _offer("boat-cruise", "Lake cruise", area_id="lucerne"),
+            ]
+        },
+    )
+
+    items = await recommendation_candidates._collect_destination_items(
+        client, dest, [], []
+    )
+
+    ids = [item.id for item in items]
+    assert "chapel-bridge" in ids
+    assert "offer-boat-cruise" in ids
+    # The name-duplicate offer was dropped, not added under its own id.
+    assert "offer-bridge-tour" not in ids
+    assert len(items) == 2
+    # The pool is sorted by score, best first.
+    assert [item.score for item in items] == sorted(
+        (item.score for item in items), reverse=True
+    )
+
+
+def _lucerne_planner_client() -> FakeSwissClient:
+    return FakeSwissClient(
+        destinations=[
+            _destination(
+                "lucerne",
+                "Lucerne",
+                description="Lakeside town with a historic old town.",
+                geo=(47.05, 8.31),
+            )
+        ],
+        attractions_by_destination={
+            "lucerne": [
+                _attraction(
+                    "chapel-bridge",
+                    "Chapel Bridge",
+                    category="museum",
+                    description="Historic covered bridge in the old town.",
+                    geo=(47.0517, 8.3076),
+                ),
+                _attraction(
+                    "lion-monument",
+                    "Lion Monument",
+                    category="monument",
+                    description="Carved cultural heritage monument.",
+                    geo=(47.0585, 8.3115),
+                ),
+            ]
+        },
+        tours_by_query={},
+    )
+
+
+async def _recommend_lucerne(client: FakeSwissClient, planner=None) -> list[dict]:
+    return await recommendation_service.recommend(
+        client,
+        destination="Lucerne",
+        start_date=date(2026, 6, 3),
+        end_date=date(2026, 6, 4),
+        mood="culture_history",
+        trip_length="2_3_hours",
+        itinerary_planner=planner,
+    )
+
+
+@pytest.mark.asyncio
+async def test_recommend_with_planner_honors_stop_order_and_rehydrates_data():
+    transport = FakePublicTransportClient(route=None)
+    planner = FakeItineraryPlanner(
+        plan=DayPlan(
+            theme="Lions before bridges",
+            description="A custom planner intro.",
+            stops=[
+                PlannedStop(candidate_id="lion-monument", slot_index=0),
+                PlannedStop(candidate_id="chapel-bridge", slot_index=1),
+            ],
+        )
+    )
+
+    recommendations = await recommendation_service.recommend(
+        _lucerne_planner_client(),
+        destination="Lucerne",
+        start_date=date(2026, 6, 3),
+        end_date=date(2026, 6, 4),
+        mood="culture_history",
+        trip_length="2_3_hours",
+        itinerary_planner=planner,
+        public_transport_client=transport,
+    )
+
+    rec = recommendations[0]
+    day = rec["itinerary"]["days"][0]
+    assert [a["title"] for a in day["activities"]] == [
+        "Lion Monument",
+        "Chapel Bridge",
+    ]
+    # Planner copy is used for the theme and the recommendation intro.
+    assert day["theme"] == "Lions before bridges"
+    assert rec["description"] == "A custom planner intro."
+    # Coordinates were rehydrated from the original pool item, not planner output:
+    # the transport route starts at the Lion Monument.
+    assert transport.calls[0][0].latitude == 47.0585
+    assert all("cost" not in activity for activity in day["activities"])
+
+    request = planner.requests[0]
+    assert request.destination_name == "Lucerne"
+    assert request.slot_count == 2
+    assert request.season == "summer"
+    assert request.nonce
+    assert {candidate.source for candidate in request.candidates} == {"attraction"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [PlannerError("upstream model unavailable"), TimeoutError()],
+    ids=["planner-error", "timeout"],
+)
+async def test_recommend_falls_back_when_planner_fails(error):
+    baseline = await _recommend_lucerne(_lucerne_planner_client())
+
+    failing_planner = FakeItineraryPlanner(error=error)
+    recommendations = await _recommend_lucerne(
+        _lucerne_planner_client(), planner=failing_planner
+    )
+
+    assert failing_planner.requests, "planner should have been consulted"
+    assert recommendations == baseline
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda request: DayPlan(
+            theme=None,
+            description=None,
+            stops=[
+                PlannedStop(candidate_id="invented-1", slot_index=0),
+                PlannedStop(candidate_id="invented-2", slot_index=1),
+            ],
+        ),
+        lambda request: DayPlan(
+            theme=None,
+            description=None,
+            stops=[
+                PlannedStop(candidate_id=request.candidates[0].id, slot_index=0),
+                PlannedStop(candidate_id=request.candidates[0].id, slot_index=1),
+            ],
+        ),
+        lambda request: DayPlan(
+            theme=None,
+            description=None,
+            stops=[PlannedStop(candidate_id=request.candidates[0].id, slot_index=0)],
+        ),
+        lambda request: DayPlan(
+            theme=None,
+            description=None,
+            stops=[
+                PlannedStop(candidate_id=request.candidates[0].id, slot_index=0),
+                PlannedStop(candidate_id=request.candidates[1].id, slot_index=2),
+            ],
+        ),
+    ],
+    ids=["unknown-ids", "duplicate-ids", "wrong-count", "bad-slot-indices"],
+)
+async def test_recommend_falls_back_on_invalid_planner_output(build):
+    baseline = await _recommend_lucerne(_lucerne_planner_client())
+
+    recommendations = await _recommend_lucerne(
+        _lucerne_planner_client(), planner=FakeItineraryPlanner(build=build)
+    )
+
+    assert recommendations == baseline
+
+
+@pytest.mark.asyncio
+async def test_recommend_truncates_long_planner_theme_to_schema_limit():
+    long_theme = "Scenic lakeside wanderings between bridges and monuments " * 5
+    planner = FakeItineraryPlanner(
+        build=lambda request: DayPlan(
+            theme=long_theme,
+            description=None,
+            stops=[
+                PlannedStop(candidate_id=candidate.id, slot_index=index)
+                for index, candidate in enumerate(request.candidates[:2])
+            ],
+        )
+    )
+
+    recommendations = await _recommend_lucerne(
+        _lucerne_planner_client(), planner=planner
+    )
+
+    theme = recommendations[0]["itinerary"]["days"][0]["theme"]
+    assert theme == long_theme.strip()[:80]
+
+
+@pytest.mark.asyncio
+async def test_recommend_fills_free_time_when_planner_returns_fewer_stops():
+    client = FakeSwissClient(
+        destinations=[
+            _destination(
+                "lucerne",
+                "Lucerne",
+                description="Lakeside town.",
+                geo=(47.05, 8.31),
+            )
+        ],
+        attractions_by_destination={
+            "lucerne": [
+                _attraction(
+                    "chapel-bridge",
+                    "Chapel Bridge",
+                    category="museum",
+                    description="Historic covered bridge.",
+                    geo=(47.0517, 8.3076),
+                ),
+            ]
+        },
+        tours_by_query={},
+    )
+    planner = FakeItineraryPlanner(
+        build=lambda request: DayPlan(
+            theme=None,
+            description=None,
+            stops=[PlannedStop(candidate_id=request.candidates[0].id, slot_index=0)],
+        )
+    )
+
+    recommendations = await recommendation_service.recommend(
+        client,
+        destination="Lucerne",
+        start_date=date(2026, 6, 3),
+        end_date=date(2026, 6, 4),
+        trip_length="full_day",
+        itinerary_planner=planner,
+    )
+
+    activities = recommendations[0]["itinerary"]["days"][0]["activities"]
+    assert len(activities) == 4
+    assert activities[0]["title"] == "Chapel Bridge"
+    # Remaining slots fall back to free-time leisure entries.
+    assert [activity["category"] for activity in activities[1:]] == ["leisure"] * 3
+
+
+def test_planner_candidate_sampling_is_seeded_and_deterministic(monkeypatch):
+    items = [
+        recommendation_candidates.RecommendationItem(
+            id=f"item-{index}",
+            name=f"Item {index}",
+            category="museum",
+            url="",
+            score=round(1.0 - index * 0.05, 3),
+        )
+        for index in range(15)
+    ]
+
+    monkeypatch.setattr(recommendation_planning, "_rng", random.Random(7))
+    first = recommendation_planning._sample_candidates(items)
+    monkeypatch.setattr(recommendation_planning, "_rng", random.Random(7))
+    second = recommendation_planning._sample_candidates(items)
+
+    assert first == second
+    assert len(first) == recommendation_planning._PLANNER_SAMPLE_SIZE
+    top_k_ids = {
+        f"item-{index}" for index in range(recommendation_planning._PLANNER_TOP_K)
+    }
+    assert {item.id for item in first} <= top_k_ids
