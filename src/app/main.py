@@ -14,9 +14,8 @@ from app.adapters.swiss_tourism_client import (
     SwissTourismAuthError,
 )
 from app.core.config import settings
-from app.core.db import SessionLocal, engine
+from app.core.db import engine
 from app.core.rate_limit import limiter
-from app.demo.seed import seed_demo_data
 from app.models.user import Base
 from app.services.recommendation_facets import refresh_attraction_facets
 
@@ -80,11 +79,11 @@ async def lifespan(app: FastAPI):
             )
         )
     logger.info("Database tables ready.")
-    if settings.demo_mode:
-        logger.info("Demo mode enabled: seeding demo user and trips...")
-        async with SessionLocal() as session:
-            await seed_demo_data(session)
-            await session.commit()
+    # Demo data is seeded out-of-band via `python -m scripts.seed_demo` (run
+    # manually from the Render shell), not on startup — seeding fans out to the
+    # Swiss Tourism API and would otherwise block readiness and risk the deploy
+    # health check on first boot. The /api/demo/session endpoint still gates on
+    # settings.demo_mode; it returns 503 until the seed script has been run.
     if settings.my_swiss_tourism_api:
         logger.info("Refreshing Swiss Tourism attraction facets...")
         await refresh_attraction_facets(

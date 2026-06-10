@@ -3,9 +3,12 @@ cost-bearing endpoints (demo login, LLM-backed recommendations, and the
 external Swiss Tourism calls).
 
 Limits are keyed on the client IP. Behind Render's proxy the real client IP
-arrives in ``X-Forwarded-For``, so we read its first hop and fall back to the
-socket peer. The store is in-memory and resets on restart, which is fine for a
-single-instance deployment.
+arrives in ``X-Forwarded-For``. We must not trust the *leftmost* entry: a client
+can prepend its own ``X-Forwarded-For`` value and the proxy only appends the
+socket IP to the right. So we read the IP ``settings.trusted_proxy_hops`` in from
+the right (the hop our own trusted proxy added) and fall back to the socket peer.
+The store is in-memory and resets on restart, which is fine for a single-instance
+deployment.
 """
 
 from __future__ import annotations
@@ -20,7 +23,13 @@ from app.core.config import settings
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        # Each proxy appends the IP it saw to the right, so values the client
+        # forged sit to the left of the entry our trusted proxy added. Counting
+        # in from the right ignores them.
+        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+        hops = settings.trusted_proxy_hops
+        if len(parts) >= hops > 0:
+            return parts[-hops]
     return get_remote_address(request)
 
 

@@ -26,12 +26,22 @@ class Settings(BaseSettings):
     # Per-IP rate limiting on the publicly reachable, cost-bearing endpoints.
     # Disable in tests for deterministic behavior.
     rate_limit_enabled: bool = True
-    # Conference demo mode: exposes a credential-free demo-session endpoint and
-    # seeds a shared demo user with sample trips on startup. Keep False in prod.
+    # Number of trusted reverse-proxy hops in front of the app (Render's edge =
+    # 1). The client IP for rate limiting is read from this many hops in from the
+    # right of X-Forwarded-For, so client-prepended (spoofed) values are ignored.
+    trusted_proxy_hops: int = 1
+    # Conference demo mode: exposes a credential-free demo-session endpoint for a
+    # shared demo user. Seed the user + trips out-of-band with scripts.seed_demo.
+    # Keep False in prod.
     demo_mode: bool = False
     demo_user_email: str = "demo@wellspent.world"
     demo_user_name: str = "Demo Explorer"
-    demo_user_password: str = "wellspent-demo"  # only used when seeding the user
+    # Optional override for the seeded password. The demo flow never uses it
+    # (the session endpoint mints a JWT without credentials), so leave it blank
+    # and the seed script generates a random strong one — that keeps a known,
+    # weak credential off the prod /login endpoint. Set it only if you want to
+    # log into the demo account manually.
+    demo_user_password: str = ""
     cors_origins: str = Field(..., min_length=1)
 
     model_config = {"env_file": ".env", "extra": "ignore"}

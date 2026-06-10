@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 from datetime import date
 from typing import Any
 
@@ -274,9 +275,13 @@ async def seed_demo_data(session: AsyncSession) -> None:
     if await user_repo.get_by_email(settings.demo_user_email):
         return  # Already seeded — preserve attendee edits.
 
+    # The demo flow logs in via the credential-free session endpoint, so the
+    # password is never used. Generate a random strong one unless an override is
+    # configured, to keep a guessable credential off the prod /login endpoint.
+    password = settings.demo_user_password or secrets.token_urlsafe(32)
     user = await user_repo.create(
         email=settings.demo_user_email,
-        hashed_password=hash_password(settings.demo_user_password),
+        hashed_password=hash_password(password),
         full_name=settings.demo_user_name,
     )
     await user_repo.update_preferences(user.id, _DEMO_PREFERENCES)
