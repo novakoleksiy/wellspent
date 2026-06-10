@@ -5,10 +5,13 @@ Usage (from the repo root):
     uv run --env-file .env python -m scripts.seed_demo          # seed if missing
     uv run --env-file .env python -m scripts.seed_demo --reset  # wipe demo trips & re-seed
 
-The backend normally seeds the demo user automatically on startup when
-DEMO_MODE=true, and never overwrites it afterwards. This script is the escape
-hatch to refresh the sample trips (e.g. between conference days) after attendees
-have edited them. It requires the same DATABASE_URL as the running backend.
+The demo data is NOT seeded automatically — run this script once after deploy
+to provision the shared demo user + sample trips (until then, the
+/api/demo/session endpoint returns 503). `seed_demo_data` is idempotent and
+never overwrites an existing demo user, so re-running without --reset is safe.
+Use --reset to wipe the demo user's trips and re-seed the sample set, e.g.
+between conference days after attendees have edited them. It requires the same
+DATABASE_URL as the running backend.
 """
 
 import argparse

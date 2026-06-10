@@ -23,6 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(
         () => Boolean(localStorage.getItem("token")) || IS_DEMO,
     );
+    // Demo mode only: true while we've failed to obtain a demo token and are
+    // retrying. Surfaces a visible message instead of silently blanking out.
+    const [demoError, setDemoError] = useState(false);
 
     const refreshUser = async () => {
         const me = await authApi.getMe();
@@ -31,15 +34,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     useEffect(() => {
+        let cancelled = false;
         let token = localStorage.getItem("token");
+
+        // In demo mode the token comes from the credential-free session endpoint.
+        // If it isn't ready yet — the machine rebooted before the seed script ran
+        // (503), or a transient network blip — retry with capped backoff rather
+        // than dropping the kiosk on /login, where sign-out is hidden and there's
+        // no way back. This self-heals once the backend is seeded/reachable.
+        const acquireDemoToken = async (): Promise<string | null> => {
+            let delay = 2000;
+            while (!cancelled) {
+                try {
+                    const { access_token } = await authApi.demoSession();
+                    localStorage.setItem("token", access_token);
+                    setDemoError(false);
+                    return access_token;
+                } catch {
+                    setDemoError(true);
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    delay = Math.min(delay * 2, 15000);
+                }
+            }
+            return null;
+        };
 
         const start = async () => {
             if (!token && IS_DEMO) {
-                const { access_token } = await authApi.demoSession();
-                localStorage.setItem("token", access_token);
-                token = access_token;
+                token = await acquireDemoToken();
             }
-            if (!token) {
+            if (!token || cancelled) {
                 return;
             }
             try {
@@ -49,8 +73,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        start().finally(() => setLoading(false));
+        start().finally(() => {
+            if (!cancelled) setLoading(false);
+        });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
+
+    // Kiosk-safe fallback: keep retrying in the background, but show a visible
+    // status instead of a blank screen while the demo token is unavailable.
+    if (IS_DEMO && demoError && !user) {
+        return (
+            <div
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: "100vh",
+                    gap: "0.75rem",
+                    textAlign: "center",
+                    padding: "2rem",
+                }}
+            >
+                <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Starting the demo…</h1>
+                <p style={{ opacity: 0.7, maxWidth: "28rem" }}>
+                    Couldn't reach the demo account yet — retrying automatically. If this
+                    persists, the demo data may still need to be seeded on the server.
+                </p>
+            </div>
+        );
+    }
 
     const login = async (email: string, password: string) => {
         const { access_token } = await authApi.login(email, password);
