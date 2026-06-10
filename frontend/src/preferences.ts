@@ -23,7 +23,7 @@ export const budgetOptions: PreferenceOption[] = [
   {
     value: "mid",
     label: "Balanced",
-    description: "Comfort-first trips with room for a few standout moments.",
+    description: "Comfortable, with room for a few highlights.",
   },
   {
     value: "luxury",
@@ -41,7 +41,7 @@ export const paceOptions: PreferenceOption[] = [
   {
     value: "moderate",
     label: "Moderate",
-    description: "A balanced rhythm with a mix of activity and breathing room.",
+    description: "A mix of activity and downtime.",
   },
   {
     value: "packed",

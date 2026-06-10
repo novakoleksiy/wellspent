@@ -125,7 +125,7 @@ export default function PreferencesForm({
         <section className="ws-surface-flat p-6 shadow-sm sm:p-8">
           <SectionHeader
             title="Travel rhythm"
-            description="Tell us how you like to spend and how full you want your days to feel."
+            description="Set your budget and how full you want each day."
           />
 
           <div className="space-y-6">
@@ -168,7 +168,7 @@ export default function PreferencesForm({
         <section className="ws-surface-flat p-6 shadow-sm sm:p-8">
           <SectionHeader
             title="Style and stay"
-            description="Pick the trip styles and stay types that should shape your recommendations."
+            description="Pick the styles and stays we should suggest."
           />
 
           <div className="space-y-6">
@@ -186,7 +186,7 @@ export default function PreferencesForm({
                 ))}
               </div>
               <p className="mt-3 text-sm text-[var(--ws-muted)]">
-                Select at least one. We use these to rank recommendations.
+                Pick at least one — we use these to rank trips.
               </p>
             </div>
 
@@ -211,8 +211,8 @@ export default function PreferencesForm({
       {sections.includes("notes") && (
         <section className="ws-surface-flat p-6 shadow-sm sm:p-8">
           <SectionHeader
-            title="A little more context"
-            description="Optional notes help capture the kind of trip you are in the mood for."
+            title="Anything else?"
+            description="Optional — tell us what you're in the mood for."
           />
 
           <label className="block text-sm font-medium text-[var(--ws-ink-soft)]" htmlFor="preference-notes">

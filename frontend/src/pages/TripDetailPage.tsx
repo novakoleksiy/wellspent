@@ -26,7 +26,6 @@ function timelineForDay(day: NonNullable<TripOut["itinerary"]>["days"][number]):
         time: activity.time,
         title: activity.title,
         category: activity.category,
-        cost: activity.cost,
         url: activity.url,
         description: activity.description,
         refreshable: false,
@@ -117,7 +116,7 @@ export default function TripDetailPage() {
     return (
         <AppShell
             title={trip.title}
-            description={`Saved itinerary for ${trip.destination}`}
+            description={`Your trip to ${trip.destination}`}
             actions={
                 <div className="flex flex-wrap items-center gap-3">
                     {trip.status !== "completed" && (
@@ -248,9 +247,17 @@ export default function TripDetailPage() {
                                                 )}
                                                 {note && <p className="mt-1 text-sm text-[var(--ws-muted)]">{note}</p>}
                                             </div>
-                                            <div className="text-sm font-medium text-[var(--ws-muted)]">
-                                                {formatMoney(item.cost, trip.itinerary?.currency || "CHF")}
-                                            </div>
+                                            {item.url && (
+                                                <a
+                                                    href={item.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)]"
+                                                >
+                                                    More info
+                                                    <span aria-hidden="true">→</span>
+                                                </a>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -306,7 +313,7 @@ export default function TripDetailPage() {
                             Want a different destination, timing, or pace? Start a new planning run without losing this saved version.
                         </p>
                         <Link
-                            to="/plan"
+                            to="/?plan=1"
                             className="ws-btn-primary mt-5 px-5 py-3 text-sm"
                         >
                             Plan another trip

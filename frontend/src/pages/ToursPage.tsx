@@ -26,9 +26,9 @@ export default function ToursPage() {
     return (
         <AppShell
             title="Tours"
-            description="Ready-made Swiss itineraries you can follow — scenic hikes, bike stages, and more, each planned end to end."
+            description="Ready-made Swiss itineraries — scenic hikes, bike stages, and more, all planned end to end."
             actions={
-                <Link to="/plan" className="ws-btn-primary px-5 py-3 text-sm">
+                <Link to="/?plan=1" className="ws-btn-primary px-5 py-3 text-sm">
                     Plan a trip
                 </Link>
             }

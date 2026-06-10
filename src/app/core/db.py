@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.adapters.ojp_transport_client import HttpxOjpTransportClient
+from app.adapters.openai_itinerary_planner import OpenAIItineraryPlanner
 from app.adapters.sqlalchemy_folder_repo import SqlAlchemyFolderRepo
 from app.adapters.sqlalchemy_trip_repo import SqlAlchemyTripRepo
 from app.adapters.sqlalchemy_user_repo import SqlAlchemyUserRepo
@@ -14,6 +15,7 @@ from app.adapters.sqlalchemy_waitlist_repo import SqlAlchemyWaitlistRepo
 from app.adapters.swiss_tourism_client import HttpxSwissTourismClient
 from app.core.config import settings
 from app.core.security import decode_token
+from app.ports.itinerary_planner import ItineraryPlanner
 from app.ports.repositories import (
     FolderRepository,
     TripRepository,
@@ -100,6 +102,17 @@ def get_public_transport_client() -> PublicTransportClient | None:
     )
 
 
+def get_itinerary_planner() -> ItineraryPlanner | None:
+    if not settings.openai_api_key:
+        return None
+    return OpenAIItineraryPlanner(
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+        temperature=settings.openai_planner_temperature,
+        timeout_seconds=settings.openai_planner_timeout_seconds,
+    )
+
+
 # Type aliases for route signatures
 Db = Annotated[AsyncSession, Depends(get_db)]
 UserRepo = Annotated[UserRepository, Depends(get_user_repo)]
@@ -111,3 +124,5 @@ SwissTourism = Annotated[SwissTourismClient, Depends(get_swiss_tourism_client)]
 PublicTransport = Annotated[
     PublicTransportClient | None, Depends(get_public_transport_client)
 ]
+# Named "Planner" because "ItineraryPlanner" is the port Protocol imported above.
+Planner = Annotated[ItineraryPlanner | None, Depends(get_itinerary_planner)]

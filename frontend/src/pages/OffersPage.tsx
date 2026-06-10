@@ -24,7 +24,7 @@ export default function OffersPage() {
             title="Offers"
             description="Bookable Swiss experiences — day trips, activities, and workshops you can reserve online."
             actions={
-                <Link to="/plan" className="ws-btn-primary px-5 py-3 text-sm">
+                <Link to="/?plan=1" className="ws-btn-primary px-5 py-3 text-sm">
                     Plan a trip
                 </Link>
             }

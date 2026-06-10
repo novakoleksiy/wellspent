@@ -15,7 +15,7 @@ const steps: Array<{
 }> = [
   {
     title: "Set the tone",
-    description: "Choose the pace and comfort level you want recommendations to optimize for.",
+    description: "Choose the pace and comfort level for your trips.",
     sections: ["basics"],
   },
   {
@@ -25,7 +25,7 @@ const steps: Array<{
   },
   {
     title: "Finish your setup",
-    description: "Add any final notes, then we will take you straight into planning.",
+    description: "Add any final notes and you're ready to plan.",
     sections: ["notes"],
   },
 ];
@@ -108,7 +108,7 @@ export default function OnboardingPage() {
             Let&apos;s tune your <span className="ws-serif-italic text-[var(--ws-yellow)]">travel profile</span> before we plan the first trip.
           </h1>
           <p className="mt-4 max-w-lg text-base leading-7 text-white/75">
-            Your preferences shape every itinerary we generate. This only takes a minute and keeps the recommendations feeling personal from the start.
+            These preferences guide every trip we suggest. It only takes a minute.
           </p>
 
           <div className="mt-10 space-y-4">
@@ -150,11 +150,11 @@ export default function OnboardingPage() {
           </div>
 
           <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-5">
-            <p className="text-sm font-medium text-white/75">What we use right away</p>
+            <p className="text-sm font-medium text-white/75">How we use this</p>
             <ul className="mt-4 space-y-3 text-sm text-white/70">
-              <li>Travel styles influence which itineraries rank highest.</li>
-              <li>Pace helps determine how full each day should feel.</li>
-              <li>Budget tier steers the overall trip estimate.</li>
+              <li>Travel styles decide which trips we suggest first.</li>
+              <li>Pace sets how full each day is.</li>
+              <li>Budget sets the overall cost estimate.</li>
             </ul>
           </div>
         </section>

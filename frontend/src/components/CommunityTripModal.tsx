@@ -31,7 +31,6 @@ function timelineForDay(
     time: activity.time,
     title: activity.title,
     category: activity.category,
-    cost: activity.cost,
     url: activity.url,
     description: activity.description,
     refreshable: false,
@@ -135,8 +134,8 @@ export default function CommunityTripModal({ trip, onClose }: CommunityTripModal
             <div className="mt-6 rounded-[1.5rem] border border-[rgba(46,125,79,0.24)] bg-[var(--ws-green-tint)] px-5 py-5">
               <p className="ws-mono text-[var(--ws-green)]">Added to your trips</p>
               <p className="mt-2 text-sm leading-6 text-[var(--ws-ink-soft)]">
-                {addedTrip.title} is now an active trip in your dashboard. Tweak it, plan around
-                it, or mark it complete once you've travelled.
+                {addedTrip.title} is now in your trips. Edit it, plan around it, or mark it
+                complete once you've been.
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <Link to={`/trips/${addedTrip.id}`} className="ws-btn-primary px-5 py-2.5 text-sm">
@@ -188,9 +187,17 @@ export default function CommunityTripModal({ trip, onClose }: CommunityTripModal
                               )}
                               {note && <p className="mt-1 text-xs text-[var(--ws-muted)]">{note}</p>}
                             </div>
-                            <div className="text-sm font-medium text-[var(--ws-muted)]">
-                              {formatMoney(item.cost, currency)}
-                            </div>
+                            {item.url && (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--ws-orange)] transition hover:text-[var(--ws-ink)]"
+                              >
+                                More info
+                                <span aria-hidden="true">→</span>
+                              </a>
+                            )}
                           </div>
                         );
                       })}

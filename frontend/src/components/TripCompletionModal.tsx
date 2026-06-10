@@ -81,7 +81,7 @@ export default function TripCompletionModal({
               {activeTrip.title} is now in your past trips.
             </h2>
             <p className="mt-3 text-sm leading-6 text-[var(--ws-muted)]">
-              Your rating and notes were saved. You can keep this private or share the itinerary with the community.
+              Your rating and notes are saved. Keep it private or share it with the community.
             </p>
 
             <div className="ws-chip-card mt-6 p-4">

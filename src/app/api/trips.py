@@ -1,6 +1,13 @@
 from fastapi import APIRouter, HTTPException
 
-from app.core.db import CurrentUser, FolderRepo, PublicTransport, SwissTourism, TripRepo
+from app.core.db import (
+    CurrentUser,
+    FolderRepo,
+    Planner,
+    PublicTransport,
+    SwissTourism,
+    TripRepo,
+)
 from app.schemas.schemas import (
     CommunityTripOut,
     Recommendation,
@@ -35,6 +42,7 @@ async def recommend(
     user: CurrentUser,
     client: SwissTourism,
     transport: PublicTransport,
+    planner: Planner,
 ):
     recs = await recommendation_service.recommend(
         client,
@@ -48,6 +56,7 @@ async def recommend(
         group_type=body.group_type,
         budget_tier=body.budget_tier,
         public_transport_client=transport,
+        itinerary_planner=planner,
     )
     return [Recommendation(**r) for r in recs]
 

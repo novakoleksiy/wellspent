@@ -38,7 +38,6 @@ export interface Activity {
     time: string;
     title: string;
     category: string;
-    cost: number;
     url?: string | null;
     image_url?: string | null;
     description?: string | null;
@@ -50,7 +49,6 @@ export interface TimelineItem {
     time: string;
     title: string;
     category: string;
-    cost: number;
     duration_text?: string | null;
     transport_mode?: string | null;
     transport_legs?: TransportLeg[];
