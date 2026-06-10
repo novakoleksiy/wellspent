@@ -63,7 +63,7 @@ export default function ExplorePage() {
             title="Explore"
             description="Trips, tours, and offers from across Switzerland. Filter by type or keep scrolling."
             actions={
-                <Link to="/plan" className="ws-btn-primary px-5 py-3 text-sm">
+                <Link to="/?plan=1" className="ws-btn-primary px-5 py-3 text-sm">
                     Plan a trip
                 </Link>
             }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { listDestinations, listOffers, listTours } from "../api/swissTourism";
 import AppShell from "../components/AppShell";
 import FeaturedSpotlight from "../components/FeaturedSpotlight";
@@ -37,7 +37,39 @@ export default function HomePage() {
   const [destinationSearchError, setDestinationSearchError] = useState("");
   const [destinationFocused, setDestinationFocused] = useState(false);
   const [showRandomPrompt, setShowRandomPrompt] = useState(false);
+  const [showPlanHint, setShowPlanHint] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const destinationInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("plan") === null) {
+      return;
+    }
+
+    const input = destinationInputRef.current;
+    if (input) {
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      input.focus();
+    }
+    // Imperative response to a navigation event (arriving via ?plan=1), not derived state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowPlanHint(true);
+
+    // Clear the flag so refreshing or navigating back doesn't re-focus.
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("plan");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!showPlanHint) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setShowPlanHint(false), 8000);
+    return () => window.clearTimeout(timeoutId);
+  }, [showPlanHint]);
 
   useEffect(() => {
     listTours({ pageSize: 12 })
@@ -119,6 +151,9 @@ export default function HomePage() {
   function handleDestinationChange(value: string) {
     setDestination(value);
     setDestinationSearchError("");
+    if (value.length > 0) {
+      setShowPlanHint(false);
+    }
 
     if (value.trim().length < 2) {
       setDestinationOptions([]);
@@ -154,6 +189,7 @@ export default function HomePage() {
             </label>
             <div className="relative min-w-0 flex-1">
               <input
+                ref={destinationInputRef}
                 id="trip-destination"
                 type="search"
                 value={destination}
@@ -198,6 +234,27 @@ export default function HomePage() {
               Plan
             </button>
           </form>
+
+          {showPlanHint && (
+            <div
+              role="status"
+              className="mt-3 flex items-start gap-3 rounded-2xl border border-[var(--ws-yellow)] bg-[rgba(255,235,105,0.12)] px-4 py-3 text-sm text-white/85"
+            >
+              <span aria-hidden="true" className="mt-0.5 text-base leading-none">💡</span>
+              <p className="flex-1 leading-6">
+                Enter a destination to plan a trip there — or just hit{" "}
+                <span className="font-semibold text-[var(--ws-yellow)]">Plan</span> and we'll pick a random Swiss spot for you.
+              </p>
+              <button
+                type="button"
+                aria-label="Dismiss hint"
+                onClick={() => setShowPlanHint(false)}
+                className="-mr-1 shrink-0 rounded-full px-2 py-0.5 text-base leading-none text-white/55 transition hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </section>
 
         {featured && <FeaturedSpotlight item={featured} />}

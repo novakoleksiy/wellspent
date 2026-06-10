@@ -432,7 +432,7 @@ export default function PlanPage() {
                                         } ${
                                             selected || isPending
                                                 ? "border-[var(--ws-yellow)] bg-[rgba(255,235,105,0.14)] text-white"
-                                                : "border-white/10 bg-white/5 text-white/88 hover:border-white/25 hover:bg-white/10"
+                                                : "border-white/10 bg-white/5 text-white/88 hover:border-[var(--ws-yellow)] hover:bg-[rgba(255,235,105,0.22)] hover:text-white hover:shadow-[0_0_0_1px_var(--ws-yellow)]"
                                         } ${pendingValue !== null && !isPending ? "opacity-50" : ""}`}
                                     >
                                         <div className="flex items-center justify-between gap-4">
@@ -458,11 +458,11 @@ export default function PlanPage() {
                             >
                                 Back
                             </button>
-                            {isLastStep && (
+                            {canGenerate && (
                                 <button
                                     type="button"
                                     onClick={handleSubmit}
-                                    disabled={loading || !canGenerate}
+                                    disabled={loading}
                                     className="ws-btn-accent px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {loading ? "Generating itinerary..." : "Generate itinerary"}

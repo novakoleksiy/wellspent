@@ -639,7 +639,7 @@ export default function TripsPage() {
       title="My Trips"
       actions={
         <Link
-          to="/plan"
+          to="/?plan=1"
           className="ws-btn-primary px-5 py-3 text-sm"
         >
           Plan a trip
@@ -847,7 +847,7 @@ export default function TripsPage() {
               Generate a tailored itinerary, save the one that fits best, and come back to it anytime.
             </p>
             <Link
-              to="/plan"
+              to="/?plan=1"
               className="ws-btn-primary mt-8 px-6 py-3 text-sm"
             >
               Plan your first trip

@@ -313,7 +313,7 @@ export default function TripDetailPage() {
                             Want a different destination, timing, or pace? Start a new planning run without losing this saved version.
                         </p>
                         <Link
-                            to="/plan"
+                            to="/?plan=1"
                             className="ws-btn-primary mt-5 px-5 py-3 text-sm"
                         >
                             Plan another trip
