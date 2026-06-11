@@ -47,19 +47,19 @@ _TRIP_LENGTH_SLOTS: dict[str, list[str]] = {
 # so it depends only on the budget choice and trip length — not on per-item pricing.
 _ESTIMATED_TOTAL_RANGES: dict[str, dict[str, tuple[float, float]]] = {
     "budget": {
-        "2_3_hours": (70.0, 120.0),
-        "half_day": (110.0, 190.0),
-        "full_day": (170.0, 280.0),
+        "2_3_hours": (30.0, 50.0),
+        "half_day": (40.0, 70.0),
+        "full_day": (60.0, 110.0),
     },
     "mid": {
-        "2_3_hours": (130.0, 210.0),
-        "half_day": (210.0, 330.0),
-        "full_day": (320.0, 480.0),
+        "2_3_hours": (60.0, 80.0),
+        "half_day": (70.0, 100.0),
+        "full_day": (90.0, 140.0),
     },
     "luxury": {
-        "2_3_hours": (260.0, 400.0),
-        "half_day": (430.0, 650.0),
-        "full_day": (650.0, 950.0),
+        "2_3_hours": (100.0, 140.0),
+        "half_day": (120.0, 180.0),
+        "full_day": (140.0, 200.0),
     },
 }
 
@@ -72,19 +72,40 @@ _FREE_TIME_LABELS: list[str] = [
 ]
 
 
-def _estimated_total(budget_tier: str, trip_length: str, *seed_parts: object) -> float:
-    """A single trip-total estimate driven only by budget tier and trip length.
+# Share of the per-trip baseline that scales with each traveler (tickets, meals,
+# activities); the remainder is treated as shared overhead (lodging, transport hire)
+# that grows only modestly with group size.
+_VARIABLE_COST_SHARE = 0.7
+# Mild premium added to the shared portion per extra traveler, so groups still trend
+# up without the shared cost being duplicated in full per head.
+_GROUP_OVERHEAD_PREMIUM = 0.15
 
-    Picks a (seeded) value within the matching range so the same itinerary stays
-    stable across refreshes while different destinations vary.
+
+def _estimated_total(
+    budget_tier: str, trip_length: str, travelers: int, *seed_parts: object
+) -> float:
+    """A trip-total estimate from budget tier, trip length, and group size.
+
+    The seeded base value is the solo-traveler cost; it is then scaled with
+    shared-cost dampening so additional travelers add their variable share plus a
+    small overhead premium rather than multiplying the whole total. Stays stable
+    across refreshes (seeded) while different destinations vary.
     """
     by_length = _ESTIMATED_TOTAL_RANGES.get(budget_tier, _ESTIMATED_TOTAL_RANGES["mid"])
     low, high = by_length.get(trip_length, by_length["half_day"])
     seed = "|".join(
         str(part) for part in ("estimate", budget_tier, trip_length, *seed_parts)
     )
-    value = random.Random(seed).uniform(low, high)
-    return float(round(value / 5) * 5)
+    base = random.Random(seed).uniform(low, high)
+
+    headcount = max(1, travelers)
+    variable = base * _VARIABLE_COST_SHARE * headcount
+    fixed = (
+        base
+        * (1 - _VARIABLE_COST_SHARE)
+        * (1 + _GROUP_OVERHEAD_PREMIUM * (headcount - 1))
+    )
+    return float(round((variable + fixed) / 5) * 5)
 
 
 def _interleave_by_category(
@@ -317,6 +338,8 @@ async def build_itinerary_days(
             }
         )
 
-    estimated_total = _estimated_total(budget_tier, trip_length, destination_name)
+    estimated_total = _estimated_total(
+        budget_tier, trip_length, travelers, destination_name
+    )
 
     return days, estimated_total, day_plan.description

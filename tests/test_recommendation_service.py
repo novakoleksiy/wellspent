@@ -442,9 +442,16 @@ async def test_recommend_scores_destinations_and_builds_itinerary(
         for item in (*day["activities"], *day["timeline_items"])
     ]
     assert all("cost" not in item for item in items)
-    # Estimated total is budget/length-based: "budget" + "full_day" range, rounded to 5.
+    # Estimated total scales the "budget" + "full_day" baseline by group size with
+    # shared-cost dampening. Derive the expected band from the live range table and
+    # the scaling formula so this stays correct if the baseline ranges are retuned.
+    travelers = 2
+    low, high = recommendation_planning._ESTIMATED_TOTAL_RANGES["budget"]["full_day"]
+    multiplier = recommendation_planning._VARIABLE_COST_SHARE * travelers + (
+        1 - recommendation_planning._VARIABLE_COST_SHARE
+    ) * (1 + recommendation_planning._GROUP_OVERHEAD_PREMIUM * (travelers - 1))
     estimated_total = recommendations[0]["itinerary"]["estimated_total"]
-    assert 170 <= estimated_total <= 280
+    assert low * multiplier - 5 <= estimated_total <= high * multiplier + 5
     assert estimated_total % 5 == 0
     assert recommendations[0]["highlights"]
 

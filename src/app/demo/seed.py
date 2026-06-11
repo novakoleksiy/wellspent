@@ -176,7 +176,7 @@ async def _generate_trip(spec: dict[str, Any], client, transport) -> dict:
                 transport_mode="public_transport",
                 trip_length=spec["trip_length"],
                 group_type="couple",
-                budget_tier="mid",
+                budget_tier="budget",
                 public_transport_client=transport,
                 itinerary_planner=None,
             )
