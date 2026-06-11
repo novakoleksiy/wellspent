@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -21,7 +22,13 @@ from app.ports.swiss_tourism import (
     TourRecord,
 )
 
+logger = logging.getLogger(__name__)
+
 BASE_URL = "https://opendata.myswitzerland.io/v1"
+
+# Upstream had no client-side timeout, so a slow/hung MySwitzerland response
+# could stall a whole recommendation request. Bound every call.
+_REQUEST_TIMEOUT_SECONDS = 10.0
 
 
 class _TTLCache:
@@ -111,6 +118,72 @@ class HttpxSwissTourismClient:
         if resp.status_code in {401, 403}:
             raise SwissTourismAuthError("Swiss Tourism API authentication failed")
         resp.raise_for_status()
+
+    async def _get(
+        self,
+        path: str,
+        params: dict[str, str],
+        *,
+        allow_404: bool = False,
+    ) -> dict | None:
+        """Issue a GET against the MySwitzerland API with logging and a timeout.
+
+        Returns the parsed JSON body, or ``None`` when ``allow_404`` and the
+        upstream replies 404. Every call is timed; failures (network errors,
+        auth rejections, other non-2xx) are logged with enough context to tell
+        a transient blip from a misconfigured key. The api key is never logged.
+        """
+        url = f"{BASE_URL}{path}"
+        started = time.monotonic()
+        try:
+            async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT_SECONDS) as client:
+                resp = await client.get(url, headers=self._headers(), params=params)
+        except httpx.HTTPError as exc:
+            elapsed_ms = (time.monotonic() - started) * 1000
+            logger.error(
+                "Swiss Tourism GET %s failed after %.0f ms (%s): %s",
+                path,
+                elapsed_ms,
+                type(exc).__name__,
+                exc,
+            )
+            raise
+
+        elapsed_ms = (time.monotonic() - started) * 1000
+        if allow_404 and resp.status_code == 404:
+            logger.info(
+                "Swiss Tourism GET %s -> 404 not found (%.0f ms)", path, elapsed_ms
+            )
+            return None
+        try:
+            self._raise_for_status(resp)
+        except SwissTourismAuthError:
+            logger.error(
+                "Swiss Tourism GET %s -> %s: API key rejected (check MY_SWISS_TOURISM_API)",
+                path,
+                resp.status_code,
+            )
+            raise
+        except httpx.HTTPStatusError:
+            logger.error(
+                "Swiss Tourism GET %s -> HTTP %s (%.0f ms): %s",
+                path,
+                resp.status_code,
+                elapsed_ms,
+                resp.text[:300],
+            )
+            raise
+
+        body = resp.json()
+        item_count = len(body.get("data", []) or []) if isinstance(body, dict) else 0
+        logger.debug(
+            "Swiss Tourism GET %s -> %s (%.0f ms, %d items)",
+            path,
+            resp.status_code,
+            elapsed_ms,
+            item_count,
+        )
+        return body
 
     # ── helpers ──────────────────────────────────────────
 
@@ -230,32 +303,18 @@ class HttpxSwissTourismClient:
         if query:
             params["query"] = query
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/destinations/",
-                headers=self._headers(),
-                params=params,
-            )
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get("/destinations/", params)
         destinations = [self._to_destination(d) for d in body.get("data", [])]
         return PaginatedResult(
             data=destinations, meta=self._parse_page_meta(body.get("meta", {}))
         )
 
     async def get_destination(self, destination_id: str) -> DestinationRecord | None:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/destinations/{destination_id}",
-                headers=self._headers(),
-                params=self._base_params(),
-            )
-            if resp.status_code == 404:
-                return None
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get(
+            f"/destinations/{destination_id}", self._base_params(), allow_404=True
+        )
+        if body is None:
+            return None
         data = body.get("data")
         if not data:
             return None
@@ -315,32 +374,18 @@ class HttpxSwissTourismClient:
         if top is not None:
             params["top"] = str(top).lower()
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/attractions/",
-                headers=self._headers(),
-                params=params,
-            )
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get("/attractions/", params)
         attractions = [self._to_attraction(a) for a in body.get("data", [])]
         return PaginatedResult(
             data=attractions, meta=self._parse_page_meta(body.get("meta", {}))
         )
 
     async def get_attraction(self, attraction_id: str) -> AttractionRecord | None:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/attractions/{attraction_id}",
-                headers=self._headers(),
-                params=self._base_params(),
-            )
-            if resp.status_code == 404:
-                return None
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get(
+            f"/attractions/{attraction_id}", self._base_params(), allow_404=True
+        )
+        if body is None:
+            return None
         data = body.get("data")
         if not data:
             return None
@@ -355,15 +400,8 @@ class HttpxSwissTourismClient:
             "facets.translate": "true",
         }
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/attractions/",
-                headers=self._headers(),
-                params=params,
-            )
-            self._raise_for_status(resp)
-
-        return self._parse_facet_snapshot(resp.json().get("meta", {}))
+        body = await self._get("/attractions/", params)
+        return self._parse_facet_snapshot(body.get("meta", {}))
 
     def _to_attraction(self, item: dict) -> AttractionRecord:
         return AttractionRecord(
@@ -398,15 +436,7 @@ class HttpxSwissTourismClient:
         if query:
             params["query"] = query
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/tours/",
-                headers=self._headers(),
-                params=params,
-            )
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get("/tours/", params)
         tours = [self._to_tour(t) for t in body.get("data", [])]
         result = PaginatedResult(
             data=tours, meta=self._parse_page_meta(body.get("meta", {}))
@@ -421,17 +451,9 @@ class HttpxSwissTourismClient:
         if cached is not None:
             return cached
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/tours/{tour_id}",
-                headers=self._headers(),
-                params=self._base_params(),
-            )
-            if resp.status_code == 404:
-                return None
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get(f"/tours/{tour_id}", self._base_params(), allow_404=True)
+        if body is None:
+            return None
         data = body.get("data")
         if not data:
             return None
@@ -528,15 +550,7 @@ class HttpxSwissTourismClient:
         if query:
             params["query"] = query
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/offers/",
-                headers=self._headers(),
-                params=params,
-            )
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get("/offers/", params)
         offers = [self._to_offer(o) for o in body.get("data", [])]
         result = PaginatedResult(
             data=offers, meta=self._parse_page_meta(body.get("meta", {}))
@@ -551,17 +565,11 @@ class HttpxSwissTourismClient:
         if cached is not None:
             return cached
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{BASE_URL}/offers/{offer_id}",
-                headers=self._headers(),
-                params=self._base_params(),
-            )
-            if resp.status_code == 404:
-                return None
-            self._raise_for_status(resp)
-
-        body = resp.json()
+        body = await self._get(
+            f"/offers/{offer_id}", self._base_params(), allow_404=True
+        )
+        if body is None:
+            return None
         data = body.get("data")
         if not data:
             return None

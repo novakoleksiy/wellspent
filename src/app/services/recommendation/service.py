@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from datetime import date
 from typing import Literal
 
@@ -24,6 +26,8 @@ from app.services.recommendation.timeline import (
     _remove_internal_activity_fields,
 )
 
+logger = logging.getLogger(__name__)
+
 
 async def recommend(
     client: SwissTourismClient,
@@ -44,6 +48,19 @@ async def recommend(
     public_transport_client: PublicTransportClient | None = None,
     itinerary_planner: ItineraryPlanner | None = None,
 ) -> list[dict]:
+    started = time.monotonic()
+    logger.info(
+        "recommend: destination=%r mood=%s group=%s transport=%s length=%s "
+        "planner=%s public_transport=%s",
+        destination or "(surprise)",
+        mood,
+        group_type,
+        transport_mode,
+        trip_length or "half_day",
+        "on" if itinerary_planner is not None else "off",
+        "on" if public_transport_client is not None else "off",
+    )
+
     selected_budget_tier: str = budget_tier or "mid"
     styles = _effective_styles(mood, group_type)
     facet_filters = _facet_filters_for_styles(styles)
@@ -52,13 +69,28 @@ async def recommend(
 
     top_dests = await _pick_destinations(client, destination, styles)
     if not top_dests:
+        logger.warning(
+            "recommend: no destinations found for %r — returning empty result "
+            "(check Swiss Tourism connectivity above)",
+            destination or "(surprise)",
+        )
         return []
+
+    logger.info(
+        "recommend: picked %s (id=%s) in %.0f ms",
+        top_dests[0].name,
+        top_dests[0].id,
+        (time.monotonic() - started) * 1000,
+    )
 
     recommendations: list[dict] = []
 
     for dest in top_dests:
         items = await _collect_destination_items(
             client, dest, styles, facet_filters, season_filter
+        )
+        logger.info(
+            "recommend: collected %d candidate items for %s", len(items), dest.name
         )
         days, estimated_total, plan_description = await build_itinerary_days(
             items,
@@ -104,6 +136,12 @@ async def recommend(
         )
 
     recommendations.sort(key=lambda rec: rec["match_score"], reverse=True)
+    logger.info(
+        "recommend: returning %d recommendation(s) for %r in %.0f ms",
+        len(recommendations),
+        destination or "(surprise)",
+        (time.monotonic() - started) * 1000,
+    )
     return recommendations
 
 

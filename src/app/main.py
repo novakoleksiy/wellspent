@@ -15,10 +15,12 @@ from app.adapters.swiss_tourism_client import (
 )
 from app.core.config import settings
 from app.core.db import engine
+from app.core.logging import configure_logging
 from app.core.rate_limit import limiter
 from app.models.user import Base
 from app.services.recommendation_facets import refresh_attraction_facets
 
+configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 
@@ -79,6 +81,13 @@ async def lifespan(app: FastAPI):
             )
         )
     logger.info("Database tables ready.")
+    logger.info(
+        "Integration config: swiss_tourism=%s public_transport=%s openai_planner=%s (model=%s)",
+        "on" if settings.my_swiss_tourism_api else "OFF",
+        "on" if settings.opentransportdata_api_key else "OFF",
+        "on" if settings.openai_api_key else "OFF (deterministic fallback)",
+        settings.openai_model if settings.openai_api_key else "-",
+    )
     # Demo data is seeded out-of-band via `python -m scripts.seed_demo` (run
     # manually from the Render shell), not on startup — seeding fans out to the
     # Swiss Tourism API and would otherwise block readiness and risk the deploy

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from datetime import date, datetime, timezone
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
@@ -7,6 +9,8 @@ from xml.sax.saxutils import escape
 import httpx
 
 from app.ports.transport import TransportItinerary, TransportLeg, TransportPlace
+
+logger = logging.getLogger(__name__)
 
 OJP_URL = "https://api.opentransportdata.swiss/ojp20"
 SIRI_NS = "http://www.siri.org.uk/siri"
@@ -48,6 +52,57 @@ class HttpxOjpTransportClient:
             raise OjpTransportAuthError("OpenTransportData OJP authentication failed")
         resp.raise_for_status()
 
+    async def _post(self, body: str, *, kind: str) -> str:
+        """POST an OJP request, logging latency and failures. Returns the body text.
+
+        ``kind`` ("trip"/"location") tags the log line. The bearer token is never
+        logged. Network errors and non-2xx responses are surfaced after logging so
+        the caller's graceful-degradation path still applies.
+        """
+        started = time.monotonic()
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout_seconds, follow_redirects=True
+            ) as client:
+                resp = await client.post(
+                    self._url, headers=self._headers(), content=body
+                )
+        except httpx.HTTPError as exc:
+            elapsed_ms = (time.monotonic() - started) * 1000
+            logger.error(
+                "OJP %s request failed after %.0f ms (%s): %s",
+                kind,
+                elapsed_ms,
+                type(exc).__name__,
+                exc,
+            )
+            raise
+
+        elapsed_ms = (time.monotonic() - started) * 1000
+        try:
+            self._raise_for_status(resp)
+        except OjpTransportAuthError:
+            logger.error(
+                "OJP %s request -> %s: token rejected (check OPENTRANSPORTDATA_API_KEY)",
+                kind,
+                resp.status_code,
+            )
+            raise
+        except httpx.HTTPStatusError:
+            logger.error(
+                "OJP %s request -> HTTP %s (%.0f ms): %s",
+                kind,
+                resp.status_code,
+                elapsed_ms,
+                resp.text[:300],
+            )
+            raise
+
+        logger.debug(
+            "OJP %s request -> %s (%.0f ms)", kind, resp.status_code, elapsed_ms
+        )
+        return resp.text
+
     async def plan_route(
         self,
         *,
@@ -65,12 +120,15 @@ class HttpxOjpTransportClient:
             departure_date=departure_date,
             departure_time=departure_time,
         )
-        async with httpx.AsyncClient(
-            timeout=self._timeout_seconds, follow_redirects=True
-        ) as client:
-            resp = await client.post(self._url, headers=self._headers(), content=body)
-            self._raise_for_status(resp)
-        return self._parse_trip_response(resp.text)
+        response_text = await self._post(body, kind="trip")
+        itinerary = self._parse_trip_response(response_text)
+        if itinerary is None:
+            logger.info(
+                "OJP trip request returned no usable itinerary from %s to %s",
+                origin.name,
+                destination.name,
+            )
+        return itinerary
 
     async def resolve_place(self, place: TransportPlace) -> TransportPlace:
         if place.stop_point_ref is not None or (
@@ -79,13 +137,13 @@ class HttpxOjpTransportClient:
             return place
 
         body = self._build_location_request(name=place.name)
-        async with httpx.AsyncClient(
-            timeout=self._timeout_seconds, follow_redirects=True
-        ) as client:
-            resp = await client.post(self._url, headers=self._headers(), content=body)
-            self._raise_for_status(resp)
+        response_text = await self._post(body, kind="location")
 
-        resolved = self._parse_location_response(resp.text, fallback_name=place.name)
+        resolved = self._parse_location_response(
+            response_text, fallback_name=place.name
+        )
+        if resolved is None:
+            logger.info("OJP could not resolve a stop for %r", place.name)
         return resolved or place
 
     def _build_location_request(self, *, name: str) -> str:

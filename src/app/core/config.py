@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     secret_key: str = Field(..., min_length=1)
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    # Log level for the app's own loggers (app.*). DEBUG surfaces per-request
+    # upstream call details (endpoints, params, result counts); INFO keeps the
+    # summary + warnings/errors that explain degraded recommendations.
+    log_level: str = "INFO"
     my_swiss_tourism_api: str = ""
     # Tour data changes rarely, so cache upstream tour responses. Seconds; 0 disables.
     swiss_tours_cache_ttl: int = 86_400  # 1 day

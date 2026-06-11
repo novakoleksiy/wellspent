@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 
 from openai import AsyncOpenAI
 
@@ -128,6 +129,7 @@ class OpenAIItineraryPlanner:
         self._timeout_seconds = timeout_seconds
 
     async def plan_day(self, request: PlanRequest) -> DayPlan:
+        started = time.monotonic()
         try:
             response = await asyncio.wait_for(
                 self._client.chat.completions.create(
@@ -149,11 +151,29 @@ class OpenAIItineraryPlanner:
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("empty completion content")
-            return _parse_day_plan(content)
+            plan = _parse_day_plan(content)
+        except asyncio.TimeoutError as exc:
+            logger.warning(
+                "OpenAI itinerary planner timed out after %.1fs for %s",
+                self._timeout_seconds,
+                request.destination_name,
+            )
+            raise PlannerError("OpenAI itinerary planner timed out") from exc
         except Exception as exc:
             logger.warning(
-                "OpenAI itinerary planner failed for %s",
+                "OpenAI itinerary planner failed for %s (%s)",
                 request.destination_name,
+                type(exc).__name__,
                 exc_info=True,
             )
             raise PlannerError("OpenAI itinerary planner failed") from exc
+
+        elapsed_ms = (time.monotonic() - started) * 1000
+        logger.info(
+            "OpenAI itinerary planner ok for %s in %.0f ms (model=%s, %d stops)",
+            request.destination_name,
+            elapsed_ms,
+            self._model,
+            len(plan.stops),
+        )
+        return plan
