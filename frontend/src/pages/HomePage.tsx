@@ -196,7 +196,7 @@ export default function HomePage() {
                 onChange={(event) => handleDestinationChange(event.target.value)}
                 onFocus={() => setDestinationFocused(true)}
                 onBlur={() => setDestinationFocused(false)}
-                placeholder="Enter a destination idea..."
+                placeholder="Search Swiss destinations — e.g. Lucerne, Zermatt..."
                 autoComplete="off"
                 className="w-full rounded-full border border-white/10 bg-white/8 px-5 py-3 text-sm text-white placeholder:text-white/55 focus:border-[var(--ws-yellow)] focus:outline-none focus:ring-2 focus:ring-[rgba(255,235,105,0.25)]"
               />
@@ -222,7 +222,27 @@ export default function HomePage() {
                         </button>
                     ))
                   ) : (
-                    <p className="px-4 py-3 text-sm text-[var(--ws-muted)]">No matching destinations found.</p>
+                    <div className="px-4 py-3">
+                      <p className="text-sm text-[var(--ws-muted)]">
+                        We couldn't find &ldquo;{destination.trim()}&rdquo; in Switzerland — Wellspent currently plans Swiss trips only.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {nearbyIdeas.map((idea) => (
+                          <button
+                            key={idea.name}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setDestinationFocused(false);
+                              openPlan(idea.name);
+                            }}
+                            className="ws-btn-secondary px-3 py-1.5 text-xs"
+                          >
+                            {idea.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -234,6 +254,11 @@ export default function HomePage() {
               Plan
             </button>
           </form>
+
+          <p className="mt-3 flex items-center gap-2 text-xs text-white/55">
+            <span aria-hidden="true" className="text-sm leading-none">🇨🇭</span>
+            <span className="text-white/85">We currently plan trips within Switzerland only.</span>
+          </p>
 
           {showPlanHint && (
             <div
