@@ -37,6 +37,11 @@ class AttractionRecord:
     geo: GeoCoordinates | None = None
     images: list[SwissImage] = field(default_factory=list)
     url: str = ""
+    # Per-item classification titles surfaced from the broad attractions query, used
+    # for local style/season scoring instead of extra facet-filtered queries. Empty
+    # when the upstream item carries no tags (treated as neutral by the scorer).
+    seasons: list[str] = field(default_factory=list)
+    experiencetype: list[str] = field(default_factory=list)
 
 
 @dataclass

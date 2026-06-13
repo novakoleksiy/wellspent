@@ -256,6 +256,19 @@ async def test_list_attractions(client: HttpxSwissTourismClient):
                 "category": "castle",
                 "photo": "https://img.example.com/chillon.jpg",
                 "url": "https://myswitzerland.com/chillon",
+                "classification": [
+                    {
+                        "name": "seasons",
+                        "values": [
+                            {"name": "spring", "title": "Spring"},
+                            {"name": "summer", "title": "Summer"},
+                        ],
+                    },
+                    {
+                        "name": "experiencetype",
+                        "values": [{"name": "culture", "title": "Culture"}],
+                    },
+                ],
             }
         ],
         "meta": {
@@ -277,6 +290,36 @@ async def test_list_attractions(client: HttpxSwissTourismClient):
             url="https://img.example.com/chillon.jpg", title="Château de Chillon"
         )
     ]
+    # Classification groups are surfaced as per-item title lists for local scoring;
+    # multi-value groups keep every value and absent groups stay empty.
+    assert attr.seasons == ["Spring", "Summer"]
+    assert attr.experiencetype == ["Culture"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_list_attractions_without_classification_yields_empty_tags(
+    client: HttpxSwissTourismClient,
+):
+    payload = {
+        "data": [
+            {
+                "identifier": "chillon",
+                "name": "Château de Chillon",
+                "category": "castle",
+            }
+        ],
+        "meta": {
+            "page": {"number": 1, "size": 10, "totalElements": 1, "totalPages": 1}
+        },
+    }
+    respx.get(f"{BASE_URL}/attractions/").mock(return_value=Response(200, json=payload))
+
+    result = await client.list_attractions()
+
+    attr = result.data[0]
+    assert attr.seasons == []
+    assert attr.experiencetype == []
 
 
 @pytest.mark.asyncio

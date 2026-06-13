@@ -17,8 +17,13 @@ from app.services.recommendation.planning import (  # noqa: F401
 from app.services.recommendation.scoring import (  # noqa: F401
     _DESTINATION_ATTRACTION_RADIUS_M,
     AttractionMatchSignals,
+    _attraction_signals,
+    _demote_off_season,
     _facet_blended_score,
+    _quiz_blended_score,
     _season_for_date,
+    _season_signals,
+    _style_facet_rank,
 )
 from app.services.recommendation.service import (  # noqa: F401
     recommend,

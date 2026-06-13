@@ -16,9 +16,7 @@ from app.services.recommendation.candidates import (
 from app.services.recommendation.planning import build_itinerary_days
 from app.services.recommendation.scoring import (
     _effective_styles,
-    _facet_filters_for_styles,
     _score_text,
-    _season_facet_filter,
 )
 from app.services.recommendation.timeline import (
     _build_day_timeline,
@@ -63,8 +61,6 @@ async def recommend(
 
     selected_budget_tier: str = budget_tier or "mid"
     styles = _effective_styles(mood, group_type)
-    facet_filters = _facet_filters_for_styles(styles)
-    season_filter = _season_facet_filter(start_date)
     selected_trip_length = trip_length or "half_day"
 
     top_dests = await _pick_destinations(client, destination, styles)
@@ -86,9 +82,7 @@ async def recommend(
     recommendations: list[dict] = []
 
     for dest in top_dests:
-        items = await _collect_destination_items(
-            client, dest, styles, facet_filters, season_filter
-        )
+        items = await _collect_destination_items(client, dest, styles, start_date)
         logger.info(
             "recommend: collected %d candidate items for %s", len(items), dest.name
         )
@@ -199,8 +193,6 @@ async def refresh_recommendation_item(
     public_transport_client: PublicTransportClient | None = None,
 ) -> dict:
     styles = _effective_styles(mood, group_type)
-    facet_filters = _facet_filters_for_styles(styles)
-    season_filter = _season_facet_filter(start_date)
     selected_trip_length = trip_length or "half_day"
     top_dests = await _pick_destinations(client, destination, styles)
     if not top_dests:
@@ -216,9 +208,7 @@ async def refresh_recommendation_item(
     target_dest = next(
         (dest for dest in top_dests if dest.name == destination), top_dests[0]
     )
-    items = await _collect_destination_items(
-        client, target_dest, styles, facet_filters, season_filter
-    )
+    items = await _collect_destination_items(client, target_dest, styles, start_date)
 
     current_titles = {
         activity.get("title")

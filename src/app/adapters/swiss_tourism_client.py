@@ -412,6 +412,8 @@ class HttpxSwissTourismClient:
             geo=self._extract_geo(item),
             images=self._extract_images(item),
             url=item.get("url", ""),
+            seasons=self._classification_values(item, "seasons"),
+            experiencetype=self._classification_values(item, "experiencetype"),
         )
 
     # ── tours ────────────────────────────────────────────
@@ -474,6 +476,19 @@ class HttpxSwissTourismClient:
                 if title:
                     return title
         return None
+
+    @staticmethod
+    def _classification_values(item: dict, name: str) -> list[str]:
+        """All value titles for the classification group whose name matches."""
+        titles: list[str] = []
+        for classification in item.get("classification", []) or []:
+            if classification.get("name") != name:
+                continue
+            for value in classification.get("values", []) or []:
+                title = value.get("title") or value.get("name")
+                if title:
+                    titles.append(title)
+        return titles
 
     @staticmethod
     def _extract_waypoints(item: dict) -> list[str]:

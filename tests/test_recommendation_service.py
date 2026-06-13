@@ -4,7 +4,7 @@ import math
 import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import date
 
 import pytest
 
@@ -12,9 +12,6 @@ from app.ports.itinerary_planner import DayPlan, PlannedStop, PlannerError, Plan
 from app.ports.swiss_tourism import (
     AttractionRecord,
     DestinationRecord,
-    FacetRecord,
-    FacetSnapshotRecord,
-    FacetValueRecord,
     GeoCoordinates,
     OfferRecord,
     PageMeta,
@@ -22,7 +19,7 @@ from app.ports.swiss_tourism import (
     TourRecord,
 )
 from app.ports.transport import TransportItinerary, TransportLeg, TransportPlace
-from app.services import recommendation_facets, recommendation_service
+from app.services import recommendation_service
 from app.services.recommendation import candidates as recommendation_candidates
 from app.services.recommendation import planning as recommendation_planning
 
@@ -32,11 +29,6 @@ class FakeSwissClient:
     destinations: list[DestinationRecord]
     attractions_by_destination: dict[str, list[AttractionRecord]]
     tours_by_query: dict[str, list[TourRecord]]
-    facet_attractions_by_filter: dict[str, list[AttractionRecord]] = field(
-        default_factory=dict
-    )
-    facet_filters_by_attraction: dict[str, set[str]] = field(default_factory=dict)
-    failing_facet_filters: set[str] = field(default_factory=set)
     fail_unfiltered_attractions: bool = False
     failing_tour_queries: set[str] = field(default_factory=set)
     offers_by_query: dict[str, list[OfferRecord]] = field(default_factory=dict)
@@ -91,21 +83,9 @@ class FakeSwissClient:
     ) -> PaginatedResult[AttractionRecord]:
         self.attraction_filter_calls.append(facet_filter)
         self.attraction_geo_calls.append((latitude, longitude, radius_m))
-        if facet_filter in self.failing_facet_filters:
+        if self.fail_unfiltered_attractions:
             raise RuntimeError("upstream rate limited")
-        if facet_filter is None and self.fail_unfiltered_attractions:
-            raise RuntimeError("upstream rate limited")
-        if facet_filter and facet_filter in self.facet_attractions_by_filter:
-            attractions = self.facet_attractions_by_filter[facet_filter]
-        else:
-            attractions = self.attractions_by_destination.get(destination_id or "", [])
-        if facet_filter and facet_filter not in self.facet_attractions_by_filter:
-            attractions = [
-                attraction
-                for attraction in attractions
-                if facet_filter
-                in self.facet_filters_by_attraction.get(attraction.id, set())
-            ]
+        attractions = self.attractions_by_destination.get(destination_id or "", [])
         return PaginatedResult(
             data=attractions[:page_size], meta=_page_meta(len(attractions))
         )
@@ -245,6 +225,8 @@ def _attraction(
     category: str,
     description: str,
     geo: tuple[float, float] | None = None,
+    seasons: list[str] | None = None,
+    experiencetype: list[str] | None = None,
 ) -> AttractionRecord:
     return AttractionRecord(
         id=attraction_id,
@@ -253,6 +235,8 @@ def _attraction(
         description=description,
         geo=GeoCoordinates(*geo) if geo else None,
         url=f"https://example.com/attractions/{attraction_id}",
+        seasons=seasons or [],
+        experiencetype=experiencetype or [],
     )
 
 
@@ -457,29 +441,9 @@ async def test_recommend_scores_destinations_and_builds_itinerary(
 
 
 @pytest.mark.asyncio
-async def test_recommend_boosts_attractions_with_matching_facets(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[
-                    FacetValueRecord(name="nature", title="Nature", count=12),
-                    FacetValueRecord(name="museum", title="Museum", count=8),
-                ],
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
+async def test_recommend_boosts_attractions_with_matching_experiencetype():
+    # Each attraction carries its own experiencetype classification, so the nature item
+    # is boosted into the high band for a nature_outdoors trip without any extra query.
     client = FakeSwissClient(
         destinations=[
             _destination(
@@ -495,20 +459,18 @@ async def test_recommend_boosts_attractions_with_matching_facets(
                     "Lake Zurich Promenade",
                     category="viewpoint",
                     description="Relaxed nature and lake scenery.",
+                    experiencetype=["Nature"],
                 ),
                 _attraction(
                     "kunsthaus",
                     "Kunsthaus Zurich",
                     category="museum",
                     description="Major art museum.",
+                    experiencetype=["Museum"],
                 ),
             ]
         },
         tours_by_query={"Zurich": []},
-        facet_filters_by_attraction={
-            "lake-promenade": {"experiencetype:nature"},
-            "kunsthaus": {"experiencetype:museum"},
-        },
     )
 
     recommendations = await recommendation_service.recommend(
@@ -521,34 +483,17 @@ async def test_recommend_boosts_attractions_with_matching_facets(
     )
 
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
-    assert None in client.attraction_filter_calls
-    assert "experiencetype:nature" in client.attraction_filter_calls
+    # Only the broad, unfiltered query is issued — no facet-filtered signal queries.
+    assert client.attraction_filter_calls == [None]
     assert activities[0]["title"] == "Lake Zurich Promenade"
     assert recommendations[0]["highlights"][0] == "Lake Zurich Promenade"
     assert "Kunsthaus Zurich" in recommendations[0]["highlights"]
 
 
 @pytest.mark.asyncio
-async def test_recommend_uses_broad_attractions_when_facets_are_sparse(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[FacetValueRecord(name="nature", title="Nature", count=1)],
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
+async def test_recommend_uses_broad_pool_when_classification_is_sparse():
+    # Only one item carries a classification tag; the rest are untagged (neutral). The
+    # broad query is the pool, so all of them are still available to fill the day.
     client = FakeSwissClient(
         destinations=[
             _destination("zurich", "Zurich", description="City with local culture.")
@@ -560,6 +505,7 @@ async def test_recommend_uses_broad_attractions_when_facets_are_sparse(
                     "Lake Zurich Promenade",
                     category="viewpoint",
                     description="Relaxed nature and lake scenery.",
+                    experiencetype=["Nature"],
                 ),
                 _attraction(
                     "kunsthaus",
@@ -582,9 +528,6 @@ async def test_recommend_uses_broad_attractions_when_facets_are_sparse(
             ]
         },
         tours_by_query={"Zurich": []},
-        facet_filters_by_attraction={
-            "lake-promenade": {"experiencetype:nature"},
-        },
     )
 
     recommendations = await recommendation_service.recommend(
@@ -597,8 +540,7 @@ async def test_recommend_uses_broad_attractions_when_facets_are_sparse(
     )
 
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
-    assert None in client.attraction_filter_calls
-    assert "experiencetype:nature" in client.attraction_filter_calls
+    assert client.attraction_filter_calls == [None]
     assert all(activity["category"] != "leisure" for activity in activities)
     assert {activity["title"] for activity in activities} == {
         "Lake Zurich Promenade",
@@ -609,49 +551,30 @@ async def test_recommend_uses_broad_attractions_when_facets_are_sparse(
 
 
 @pytest.mark.asyncio
-async def test_recommend_scopes_global_facet_results_to_typed_destination(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[FacetValueRecord(name="nature", title="Nature", count=12)],
-            )
-        ],
+async def test_recommend_scopes_broad_pool_to_destination_radius():
+    # The broad query can return items beyond the destination radius; those are scoped
+    # out before scoring so a far-away trail never lands in a city itinerary.
+    zurich_lake = _attraction(
+        "zurich-lake",
+        "Lake Zurich Promenade",
+        category="viewpoint",
+        description="Relaxed lake scenery.",
+        geo=(47.3667, 8.5433),
     )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
+    bern_garden = _attraction(
+        "bern-garden",
+        "Rose Garden Bern",
+        category="park",
+        description="Garden views over the old town.",
+        geo=(46.9480, 7.4590),
     )
-    global_nature_attractions = [
-        _attraction(
-            "zurich-lake",
-            "Lake Zurich Promenade",
-            category="viewpoint",
-            description="Relaxed lake scenery.",
-            geo=(47.3667, 8.5433),
-        ),
-        _attraction(
-            "bern-garden",
-            "Rose Garden Bern",
-            category="park",
-            description="Garden views over the old town.",
-            geo=(46.9480, 7.4590),
-        ),
-        _attraction(
-            "farinet-trail",
-            "Farinet's Trail",
-            category="attraction",
-            description="A trail in Valais.",
-            geo=(46.1719, 7.1908),
-        ),
-    ]
+    farinet_trail = _attraction(
+        "farinet-trail",
+        "Farinet's Trail",
+        category="attraction",
+        description="A trail in Valais.",
+        geo=(46.1719, 7.1908),
+    )
     client = FakeSwissClient(
         destinations=[
             _destination(
@@ -667,11 +590,11 @@ async def test_recommend_scopes_global_facet_results_to_typed_destination(
                 geo=(46.9481, 7.4474),
             ),
         ],
-        attractions_by_destination={"zurich": [], "bern": []},
-        tours_by_query={"Zurich": [], "Bern": []},
-        facet_attractions_by_filter={
-            "experiencetype:nature": global_nature_attractions
+        attractions_by_destination={
+            "zurich": [zurich_lake, farinet_trail],
+            "bern": [bern_garden, farinet_trail],
         },
+        tours_by_query={"Zurich": [], "Bern": []},
     )
 
     zurich_recommendations = await recommendation_service.recommend(
@@ -706,14 +629,7 @@ async def test_recommend_scopes_global_facet_results_to_typed_destination(
 
 
 @pytest.mark.asyncio
-async def test_recommend_prefers_nearby_attractions_over_farther_text_match(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: None,
-    )
+async def test_recommend_prefers_nearby_attractions_over_farther_text_match():
     client = FakeSwissClient(
         destinations=[
             _destination(
@@ -758,83 +674,7 @@ async def test_recommend_prefers_nearby_attractions_over_farther_text_match(
 
 
 @pytest.mark.asyncio
-async def test_recommend_falls_back_when_facet_attraction_request_fails(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[FacetValueRecord(name="nature", title="Nature", count=12)],
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
-    client = FakeSwissClient(
-        destinations=[
-            _destination(
-                "zurich",
-                "Zurich",
-                description="A city with lake views.",
-            )
-        ],
-        attractions_by_destination={
-            "zurich": [
-                _attraction(
-                    "lake-promenade",
-                    "Lake Zurich Promenade",
-                    category="viewpoint",
-                    description="Relaxed nature and lake scenery.",
-                )
-            ]
-        },
-        tours_by_query={"Zurich": []},
-        failing_facet_filters={"experiencetype:nature"},
-    )
-
-    recommendations = await recommendation_service.recommend(
-        client,
-        destination="Zurich",
-        start_date=date(2026, 6, 1),
-        end_date=date(2026, 6, 2),
-        mood="nature_outdoors",
-        trip_length="half_day",
-    )
-
-    activities = recommendations[0]["itinerary"]["days"][0]["activities"]
-    assert client.attraction_filter_calls == [None, "experiencetype:nature"]
-    assert activities[0]["title"] == "Lake Zurich Promenade"
-
-
-@pytest.mark.asyncio
-async def test_recommend_uses_fallback_activity_when_swiss_activity_calls_fail(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[FacetValueRecord(name="nature", title="Nature", count=12)],
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
+async def test_recommend_uses_fallback_activity_when_swiss_activity_calls_fail():
     client = FakeSwissClient(
         destinations=[
             _destination(
@@ -845,7 +685,6 @@ async def test_recommend_uses_fallback_activity_when_swiss_activity_calls_fail(
         ],
         attractions_by_destination={"zurich": []},
         tours_by_query={"Zurich": []},
-        failing_facet_filters={"experiencetype:nature"},
         fail_unfiltered_attractions=True,
         failing_tour_queries={"Zurich"},
     )
@@ -860,7 +699,8 @@ async def test_recommend_uses_fallback_activity_when_swiss_activity_calls_fail(
     )
 
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
-    assert client.attraction_filter_calls == [None, "experiencetype:nature"]
+    # The broad attractions query fails, so only that single call is recorded.
+    assert client.attraction_filter_calls == [None]
     assert activities[0]["title"] == "Explore Zurich"
 
 
@@ -1135,39 +975,10 @@ async def test_recommend_does_not_call_public_transport_for_car_mode():
     assert transport.calls == []
 
 
-def _experiencetype_snapshot(
-    *values: tuple[str, str, int],
-) -> FacetSnapshotRecord:
-    return FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[
-                    FacetValueRecord(name=name, title=title, count=count)
-                    for name, title, count in values
-                ],
-            )
-        ],
-    )
-
-
 @pytest.mark.asyncio
-async def test_recommend_blends_attractions_from_multiple_facets(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = _experiencetype_snapshot(
-        ("nature", "Nature", 12),
-        ("culture", "Culture", 10),
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
+async def test_recommend_blends_attractions_across_experience_types():
+    # Two items match different styles via their own experiencetype tags, so the plan
+    # mixes experience types from the single broad pool — no per-facet queries.
     client = FakeSwissClient(
         destinations=[
             _destination("zurich", "Zurich", description="Lake views and museums.")
@@ -1179,20 +990,18 @@ async def test_recommend_blends_attractions_from_multiple_facets(
                     "Lake Zurich Promenade",
                     category="viewpoint",
                     description="Relaxed nature and lake scenery.",
+                    experiencetype=["Nature"],
                 ),
                 _attraction(
                     "kunsthaus",
                     "Kunsthaus Zurich",
                     category="museum",
                     description="Major art museum and cultural collection.",
+                    experiencetype=["Culture"],
                 ),
             ]
         },
         tours_by_query={"Zurich": []},
-        facet_filters_by_attraction={
-            "lake-promenade": {"experiencetype:nature"},
-            "kunsthaus": {"experiencetype:culture"},
-        },
     )
 
     recommendations = await recommendation_service.recommend(
@@ -1205,11 +1014,7 @@ async def test_recommend_blends_attractions_from_multiple_facets(
         trip_length="half_day",
     )
 
-    # Both distinct facet filters are queried and both source an attraction, so the
-    # itinerary mixes experience types instead of clustering on one facet.
-    assert None in client.attraction_filter_calls
-    assert "experiencetype:nature" in client.attraction_filter_calls
-    assert "experiencetype:culture" in client.attraction_filter_calls
+    assert client.attraction_filter_calls == [None]
     titles = {
         activity["title"]
         for day in recommendations[0]["itinerary"]["days"]
@@ -1313,58 +1118,32 @@ def test_season_for_date_maps_months_to_meteorological_seasons():
 
 
 @pytest.mark.asyncio
-async def test_recommend_uses_current_season_facet_as_soft_signal(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="experiencetype",
-                title="Experience Type",
-                values=[FacetValueRecord(name="nature", title="Nature", count=8)],
-            ),
-            FacetRecord(
-                name="seasons",
-                title="Seasons",
-                values=[
-                    FacetValueRecord(name="summer", title="Summer", count=20),
-                    FacetValueRecord(name="winter", title="Winter", count=14),
-                ],
-            ),
-        ],
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
+async def test_recommend_boosts_in_season_attraction():
+    # A summer-tagged item is boosted in-season above an untagged neutral one.
     client = FakeSwissClient(
         destinations=[
             _destination("zurich", "Zurich", description="Lake views and nature.")
         ],
-        attractions_by_destination={"zurich": []},
-        tours_by_query={"Zurich": []},
-        facet_attractions_by_filter={
-            "experiencetype:nature": [
+        attractions_by_destination={
+            "zurich": [
                 _attraction(
                     "lake-promenade",
                     "Lake Zurich Promenade",
                     category="viewpoint",
-                    description="Relaxed summer lake scenery.",
-                )
-            ],
-            "seasons:summer": [
+                    description="Relaxed lake scenery.",
+                    seasons=["Summer"],
+                    experiencetype=["Nature"],
+                ),
                 _attraction(
-                    "lake-promenade",
-                    "Lake Zurich Promenade",
+                    "indoor-hall",
+                    "Indoor Exhibition Hall",
                     category="viewpoint",
-                    description="Relaxed summer lake scenery.",
-                )
-            ],
+                    description="Relaxed lake scenery.",
+                    experiencetype=["Nature"],
+                ),
+            ]
         },
+        tours_by_query={"Zurich": []},
     )
 
     recommendations = await recommendation_service.recommend(
@@ -1376,56 +1155,32 @@ async def test_recommend_uses_current_season_facet_as_soft_signal(
         trip_length="half_day",
     )
 
-    # The broad destination query stays unfiltered; style and season facets are soft
-    # signal queries that can supplement or boost candidates.
-    assert None in client.attraction_filter_calls
-    assert "experiencetype:nature" in client.attraction_filter_calls
-    assert "seasons:summer" in client.attraction_filter_calls
-    titles = {
-        activity["title"]
-        for day in recommendations[0]["itinerary"]["days"]
-        for activity in day["activities"]
-    }
-    assert "Lake Zurich Promenade" in titles
+    assert client.attraction_filter_calls == [None]
+    activities = recommendations[0]["itinerary"]["days"][0]["activities"]
+    # Identical text/facet match; the summer tag is the only differentiator in June.
+    assert activities[0]["title"] == "Lake Zurich Promenade"
 
 
 @pytest.mark.asyncio
-async def test_recommend_uses_season_signal_when_no_style_facets_match(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    snapshot = FacetSnapshotRecord(
-        object_type="attractions",
-        language="en",
-        fetched_at=datetime(2026, 6, 1, tzinfo=UTC),
-        facets=[
-            FacetRecord(
-                name="seasons",
-                title="Seasons",
-                values=[FacetValueRecord(name="summer", title="Summer", count=20)],
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        recommendation_facets,
-        "get_attraction_facets_snapshot",
-        lambda: snapshot,
-    )
+async def test_recommend_surfaces_season_only_tagged_attraction():
+    # An item with only a season tag (no experiencetype) still comes from the broad
+    # pool and lands in the plan — local scoring never needs a season query.
     client = FakeSwissClient(
         destinations=[
             _destination("zurich", "Zurich", description="Lake views and nature.")
         ],
-        attractions_by_destination={"zurich": []},
-        tours_by_query={"Zurich": []},
-        facet_attractions_by_filter={
-            "seasons:summer": [
+        attractions_by_destination={
+            "zurich": [
                 _attraction(
                     "lake-promenade",
                     "Lake Zurich Promenade",
                     category="viewpoint",
                     description="Relaxed summer lake scenery.",
+                    seasons=["Summer"],
                 )
             ]
         },
+        tours_by_query={"Zurich": []},
     )
 
     recommendations = await recommendation_service.recommend(
@@ -1437,14 +1192,155 @@ async def test_recommend_uses_season_signal_when_no_style_facets_match(
         trip_length="half_day",
     )
 
-    # No style facet matched, so season is used as a soft signal beside the broad query.
-    assert client.attraction_filter_calls == [None, "seasons:summer"]
+    assert client.attraction_filter_calls == [None]
     titles = {
         activity["title"]
         for day in recommendations[0]["itinerary"]["days"]
         for activity in day["activities"]
     }
     assert "Lake Zurich Promenade" in titles
+
+
+@pytest.mark.asyncio
+async def test_recommend_demotes_off_season_attraction_from_local_tags():
+    # The hard case: a winter ski run that ALSO matches the style (experiencetype) and
+    # is right next to the resort. From its own seasons tag alone it must still be
+    # demoted below an in-season lakeside walk — proving the off-season cut clears the
+    # facet score band and survives the proximity blend, with no facet queries needed.
+    ski_run = _attraction(
+        "ski-run",
+        "Alpine Ski Run",
+        category="trail",
+        description="A thrilling ski and snow mountain slope for skiing in winter.",
+        geo=(46.501, 9.841),
+        seasons=["Winter"],
+        experiencetype=["Mountains"],
+    )
+    lakeside = _attraction(
+        "lakeside",
+        "Lakeside Promenade",
+        category="viewpoint",
+        description="A relaxed lake and garden scenic walk.",
+        geo=(46.490, 9.832),
+        seasons=["Summer"],
+    )
+    # Tagged both summer and winter: a genuine year-round attraction that must NOT be
+    # demoted despite carrying a winter tag, because it also carries the trip's season.
+    year_round = _attraction(
+        "spa",
+        "Engadin Thermal Spa",
+        category="spa",
+        description="A relaxing wellness spa open all year round.",
+        geo=(46.495, 9.838),
+        seasons=["Summer", "Winter"],
+    )
+    client = FakeSwissClient(
+        destinations=[
+            _destination(
+                "stmoritz",
+                "St. Moritz",
+                description="Alpine resort town.",
+                geo=(46.497, 9.838),
+            )
+        ],
+        attractions_by_destination={"stmoritz": [ski_run, lakeside, year_round]},
+        tours_by_query={"St. Moritz": []},
+    )
+
+    recommendations = await recommendation_service.recommend(
+        client,
+        destination="St. Moritz",
+        start_date=date(2026, 6, 13),
+        end_date=date(2026, 6, 14),
+        mood="nature_outdoors",
+        trip_length="full_day",
+    )
+
+    assert client.attraction_filter_calls == [None]
+    activities = recommendations[0]["itinerary"]["days"][0]["activities"]
+    real_titles = [a["title"] for a in activities if a["category"] != "leisure"]
+    # In-season lakeside and the year-round spa both outrank the off-season ski run,
+    # even though the ski run matched the style and sits closest to the resort.
+    assert "Lakeside Promenade" in real_titles
+    assert real_titles.index("Alpine Ski Run") == max(
+        real_titles.index("Alpine Ski Run"),
+        real_titles.index("Lakeside Promenade"),
+        real_titles.index("Engadin Thermal Spa"),
+    )
+
+
+def test_season_signals_flag_trip_and_opposite_seasons():
+    # Summer trip: a winter-tagged item is off-season, a summer item is in-season.
+    assert recommendation_service._season_signals(["Winter"], date(2026, 7, 1)) == (
+        False,
+        True,
+    )
+    assert recommendation_service._season_signals(["Summer"], date(2026, 7, 1)) == (
+        True,
+        False,
+    )
+    # A year-round item carries both; an untagged item is neutral on both.
+    assert recommendation_service._season_signals(
+        ["Summer", "Winter"], date(2026, 7, 1)
+    ) == (True, True)
+    assert recommendation_service._season_signals([], date(2026, 7, 1)) == (
+        False,
+        False,
+    )
+    # Spring and autumn oppose each other symmetrically.
+    assert recommendation_service._season_signals(["Autumn"], date(2026, 4, 1)) == (
+        False,
+        True,
+    )
+    assert recommendation_service._season_signals(["Spring"], date(2026, 10, 1)) == (
+        False,
+        True,
+    )
+
+
+def test_quiz_blended_score_boosts_in_season_only():
+    from app.services.recommendation.scoring import AttractionMatchSignals
+
+    neutral = recommendation_service._quiz_blended_score(0.5, AttractionMatchSignals())
+    in_season = recommendation_service._quiz_blended_score(
+        0.5, AttractionMatchSignals(season_match=True)
+    )
+    # The in-season boost is additive; the off-season cut is NOT applied here (it runs
+    # after the proximity blend), so a bare season_mismatch leaves the score untouched.
+    off_season = recommendation_service._quiz_blended_score(
+        0.5, AttractionMatchSignals(season_mismatch=True)
+    )
+    assert in_season > neutral
+    assert off_season == neutral
+
+
+def test_demote_off_season_halves_only_unmatched_off_season():
+    from app.services.recommendation.scoring import AttractionMatchSignals
+
+    # Off-season content is halved.
+    assert (
+        recommendation_service._demote_off_season(
+            0.9, AttractionMatchSignals(season_mismatch=True)
+        )
+        == 0.45
+    )
+    # A current-season tag overrides the demotion (year-round attractions).
+    assert (
+        recommendation_service._demote_off_season(
+            0.9, AttractionMatchSignals(season_match=True, season_mismatch=True)
+        )
+        == 0.9
+    )
+    # Neutral and in-season-only scores are untouched.
+    assert recommendation_service._demote_off_season(0.9, AttractionMatchSignals()) == (
+        0.9
+    )
+    assert (
+        recommendation_service._demote_off_season(
+            0.9, AttractionMatchSignals(season_match=True)
+        )
+        == 0.9
+    )
 
 
 def test_facet_blended_score_orders_by_rank_and_preserves_text_tiebreak():
@@ -1610,7 +1506,7 @@ async def test_candidate_pool_ids_are_stable_and_deduped_by_name():
     )
 
     items = await recommendation_candidates._collect_destination_items(
-        client, dest, [], []
+        client, dest, [], date(2026, 6, 3)
     )
 
     ids = [item.id for item in items]

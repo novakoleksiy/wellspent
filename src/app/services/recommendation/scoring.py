@@ -5,13 +5,6 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
-from app.ports.swiss_tourism import (
-    FacetRecord,
-    FacetSnapshotRecord,
-    FacetValueRecord,
-)
-from app.services import recommendation_facets
-
 _STYLE_KEYWORDS: dict[str, list[str]] = {
     "adventure": [
         "hiking",
@@ -187,6 +180,16 @@ _METEOROLOGICAL_SEASONS: dict[int, str] = {
     11: "autumn",
 }
 
+# The opposing season whose attractions should be demoted when off-season. Summer
+# and winter are the strong case (ski content surfacing in July, lake content in
+# January); spring/autumn oppose each other symmetrically.
+_OPPOSITE_SEASON: dict[str, str] = {
+    "summer": "winter",
+    "winter": "summer",
+    "spring": "autumn",
+    "autumn": "spring",
+}
+
 _MAX_ATTRACTION_FACET_FILTERS = 3
 _DESTINATION_ATTRACTION_RADIUS_M = 30_000
 _ATTRACTION_TEXT_SCORE_WEIGHT = 0.55
@@ -199,6 +202,7 @@ _DESCRIPTION_MAX_CHARS = 220
 class AttractionMatchSignals:
     facet_rank: int | None = None
     season_match: bool = False
+    season_mismatch: bool = False
 
 
 def _clean_description(text: str | None) -> str | None:
@@ -263,95 +267,56 @@ def _matches_term(text: str, tokens: set[str], term: str) -> bool:
     return any(token == normalized or token.startswith(normalized) for token in tokens)
 
 
-def _facet_value_match_score(
-    facet: FacetRecord,
-    value: FacetValueRecord,
-    styles: list[str],
-) -> int:
-    value_text = f"{value.name} {value.title or ''}".lower()
-    full_text = f"{facet.name} {facet.title or ''} {value_text}".lower()
-    value_tokens = _tokens(value_text)
-    full_tokens = _tokens(full_text)
-    score = 0
-
-    for index, style in enumerate(styles):
-        weight = max(len(styles) - index, 1)
-        terms = _STYLE_FACET_TERMS.get(style, [style.replace("_", " ")])
-        for term in terms:
-            if _matches_term(value_text, value_tokens, term):
-                score += weight * 2
-            elif _matches_term(full_text, full_tokens, term):
-                score += weight
-
-    return score
-
-
 def _season_for_date(value: date) -> str:
     return _METEOROLOGICAL_SEASONS[value.month]
 
 
-def _season_facet_filter(value: date) -> str | None:
-    """Resolve the ``seasons`` facet filter for the trip's season, if available.
+def _style_facet_rank(experiencetype: list[str], styles: list[str]) -> int | None:
+    """Rank of the highest-priority style matched by the item's experience types.
 
-    Returns a ``"<facet>:<value>"`` filter only when the live facet snapshot actually
-    exposes a season facet with a matching value, so we never guess a facet/value name
-    the API doesn't recognise. Returns None otherwise (no season constraint applied).
+    Styles are listed best-first, so the lowest matching index is the strongest match.
+    Returned as a 0-based rank that feeds ``_facet_blended_score``'s high score band;
+    ``None`` means no style matched (the item is scored on text + proximity only).
     """
-    snapshot = recommendation_facets.get_attraction_facets_snapshot()
-    if snapshot is None:
+    if not experiencetype or not styles:
         return None
-
-    season = _season_for_date(value)
-    for facet in snapshot.facets:
-        if "season" not in f"{facet.name} {facet.title or ''}".lower():
-            continue
-        for facet_value in facet.values:
-            label = f"{facet_value.name} {facet_value.title or ''}".lower()
-            if season in label:
-                return f"{facet.name}:{facet_value.name}"
+    text = " ".join(experiencetype).lower()
+    tokens = _tokens(text)
+    for rank, style in enumerate(styles):
+        terms = _STYLE_FACET_TERMS.get(style, [style.replace("_", " ")])
+        if any(_matches_term(text, tokens, term) for term in terms):
+            return rank
     return None
 
 
-def _ranked_filters_for_style(snapshot: FacetSnapshotRecord, style: str) -> list[str]:
-    candidates: list[tuple[int, int, str]] = []
-    for facet in snapshot.facets:
-        for value in facet.values:
-            if value.count <= 0:
-                continue
-            score = _facet_value_match_score(facet, value, [style])
-            if score <= 0:
-                continue
-            candidates.append((score, value.count, f"{facet.name}:{value.name}"))
+def _season_signals(seasons: list[str], trip_date: date) -> tuple[bool, bool]:
+    """Whether the item is tagged with the trip's season and/or its opposite.
 
-    candidates.sort(key=lambda candidate: (candidate[0], candidate[1]), reverse=True)
-    return [facet_filter for _, _, facet_filter in candidates]
+    Returns ``(season_match, season_mismatch)``. An untagged item is neutral on both.
+    A year-round item tagged with both seasons reports both True, and the demotion in
+    ``_demote_off_season`` lets the in-season match override the off-season penalty.
+    """
+    if not seasons:
+        return False, False
+    labels = {season.lower() for season in seasons}
+    trip_season = _season_for_date(trip_date)
+    opposite = _OPPOSITE_SEASON.get(trip_season)
+    return trip_season in labels, opposite is not None and opposite in labels
 
 
-def _facet_filters_for_styles(styles: list[str]) -> list[str]:
-    snapshot = recommendation_facets.get_attraction_facets_snapshot()
-    if snapshot is None or not styles:
-        return []
-
-    # Rank facet values per individual style, then round-robin across styles so the
-    # chosen filters span different experience types (nature + culture + food) instead
-    # of clustering on one. Filters earlier in the list are the higher-priority picks.
-    ranked_by_style = [_ranked_filters_for_style(snapshot, style) for style in styles]
-
-    filters: list[str] = []
-    seen: set[str] = set()
-    max_depth = max((len(ranked) for ranked in ranked_by_style), default=0)
-    for depth in range(max_depth):
-        for ranked in ranked_by_style:
-            if depth >= len(ranked):
-                continue
-            facet_filter = ranked[depth]
-            if facet_filter in seen:
-                continue
-            seen.add(facet_filter)
-            filters.append(facet_filter)
-            if len(filters) >= _MAX_ATTRACTION_FACET_FILTERS:
-                return filters
-    return filters
+def _attraction_signals(
+    experiencetype: list[str],
+    seasons: list[str],
+    styles: list[str],
+    trip_date: date,
+) -> AttractionMatchSignals:
+    """Derive ranking signals from an item's own classification tags."""
+    season_match, season_mismatch = _season_signals(seasons, trip_date)
+    return AttractionMatchSignals(
+        facet_rank=_style_facet_rank(experiencetype, styles),
+        season_match=season_match,
+        season_mismatch=season_mismatch,
+    )
 
 
 def _distance_meters(
@@ -387,11 +352,32 @@ def _proximity_blended_score(base_score: float, distance_m: float | None) -> flo
     )
 
 
+# Out-of-season content (e.g. ski runs in July) is demoted multiplicatively. Halving
+# is deliberately heavy: a facet-matched, nearby off-season attraction can score ~0.95,
+# and only a cut this large reliably drops it below mediocre in-season alternatives.
+# The demotion is applied *after* the proximity blend (see `_demote_off_season`) so it
+# clears the facet score floor and isn't diluted by a close distance.
+_OFF_SEASON_PENALTY_FACTOR = 0.5
+
+
 def _quiz_blended_score(text_score: float, signals: AttractionMatchSignals) -> float:
     score = _facet_blended_score(text_score, signals.facet_rank)
     if signals.season_match:
         score = min(1.0, score + 0.04)
     return round(score, 3)
+
+
+def _demote_off_season(score: float, signals: AttractionMatchSignals) -> float:
+    """Scale down out-of-season attractions, applied after the proximity blend.
+
+    A current-season tag overrides the demotion, so year-round attractions tagged with
+    both the trip's season and its opposite are never demoted. Relative order among
+    off-season items is preserved, so they still degrade gracefully into the plan when
+    nothing in-season is available rather than vanishing entirely.
+    """
+    if signals.season_mismatch and not signals.season_match:
+        return round(score * _OFF_SEASON_PENALTY_FACTOR, 3)
+    return score
 
 
 def _facet_blended_score(text_score: float, facet_rank: int | None) -> float:

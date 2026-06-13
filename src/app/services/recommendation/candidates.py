@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 from dataclasses import dataclass
+from datetime import date
 
 from app.ports.swiss_tourism import (
     AttractionRecord,
@@ -13,8 +14,9 @@ from app.ports.swiss_tourism import (
 )
 from app.services.recommendation.scoring import (
     _DESTINATION_ATTRACTION_RADIUS_M,
-    AttractionMatchSignals,
+    _attraction_signals,
     _clean_description,
+    _demote_off_season,
     _distance_meters,
     _proximity_blended_score,
     _quiz_blended_score,
@@ -162,12 +164,11 @@ async def _collect_destination_items(
     client: SwissTourismClient,
     dest: DestinationRecord,
     styles: list[str],
-    facet_filters: list[str],
-    season_filter: str | None = None,
+    trip_date: date,
 ) -> list[RecommendationItem]:
     # Attractions and offers are independent upstream calls — fetch them together.
-    (attraction_records, signals_by_id), offer_items = await asyncio.gather(
-        _list_matching_attractions(client, dest, facet_filters, season_filter),
+    attraction_records, offer_items = await asyncio.gather(
+        _fetch_attraction_pool(client, dest),
         _collect_offer_items(client, dest, styles),
     )
 
@@ -175,10 +176,14 @@ async def _collect_destination_items(
     fallback_image_url = dest.images[0].url if dest.images else None
     for attr in attraction_records:
         distance_m = _attraction_distance_m(dest, attr)
-        signals = signals_by_id.get(attr.id, AttractionMatchSignals())
+        signals = _attraction_signals(
+            attr.experiencetype, attr.seasons, styles, trip_date
+        )
         text_score = _score_text(attr.name, attr.description, attr.category, styles)
         base_score = _quiz_blended_score(text_score, signals)
-        score = _proximity_blended_score(base_score, distance_m)
+        score = _demote_off_season(
+            _proximity_blended_score(base_score, distance_m), signals
+        )
         items.append(
             RecommendationItem(
                 id=attr.id,
@@ -263,6 +268,9 @@ async def _collect_offer_items(
         )
         return []
 
+    # Offers come from a separate endpoint with no season facet, so they are scored on
+    # text + proximity only and are intentionally exempt from the off-season demotion
+    # that applies to attractions. They are not the source of the out-of-season bug.
     offers = _scope_offers_to_destination(dest, fetched)
     fallback_image_url = dest.images[0].url if dest.images else None
     items: list[RecommendationItem] = []
@@ -294,18 +302,15 @@ async def _collect_offer_items(
     return items
 
 
-async def _list_matching_attractions(
+async def _fetch_attraction_pool(
     client: SwissTourismClient,
     dest: DestinationRecord,
-    facet_filters: list[str],
-    season_filter: str | None = None,
-) -> tuple[list[AttractionRecord], dict[str, AttractionMatchSignals]]:
-    """Fetch broad destination candidates and use facets only as ranking signals.
+) -> list[AttractionRecord]:
+    """Fetch the destination's attraction candidates from the broad query.
 
-    The unfiltered destination query is the primary candidate pool, so sparse or
-    overly narrow style/season facets do not starve the itinerary. Facet-filtered
-    queries are still issued as soft signals: matching attractions get score boosts,
-    and facet-only hits can supplement the pool when the broad query misses them.
+    The single unfiltered, geo-scoped query is the candidate pool. Each item carries
+    its own ``seasons``/``experiencetype`` classification, so style and season scoring
+    happens locally at scoring time — no extra facet-filtered queries are issued.
     """
     geo_filters = (
         {
@@ -317,24 +322,18 @@ async def _list_matching_attractions(
         else {}
     )
 
-    async def _fetch_page(
-        facet_filter: str | None,
-        *,
-        page: int = 1,
-        page_size: int = _ATTRACTION_FETCH_PAGE_SIZE,
-    ) -> tuple[list[AttractionRecord], int]:
+    async def _fetch_page(page: int) -> tuple[list[AttractionRecord], int]:
         try:
             result = await client.list_attractions(
                 destination_id=dest.id,
-                facet_filter=facet_filter,
                 **geo_filters,
                 page=page,
-                page_size=page_size,
+                page_size=_ATTRACTION_FETCH_PAGE_SIZE,
             )
         except Exception:
             logger.warning(
-                "Failed to fetch Swiss Tourism attractions with facet filter %s",
-                facet_filter,
+                "Failed to fetch Swiss Tourism attractions for %s",
+                dest.name,
                 exc_info=True,
             )
             return [], 0
@@ -342,63 +341,20 @@ async def _list_matching_attractions(
             dest, result.data
         ), result.meta.total_pages
 
-    async def _fetch_broad_candidates() -> list[AttractionRecord]:
-        candidates: list[AttractionRecord] = []
-        for page in range(1, _MAX_ATTRACTION_FETCH_PAGES + 1):
-            attractions, total_pages = await _fetch_page(None, page=page)
-            candidates.extend(attractions)
-            if total_pages <= page:
-                break
-        return candidates
-
-    def _add_attractions(
-        by_id: dict[str, AttractionRecord], attractions: list[AttractionRecord]
-    ) -> None:
-        for attraction in attractions:
-            if not attraction.id or attraction.id in by_id:
-                continue
-            by_id[attraction.id] = attraction
-
     candidates_by_id: dict[str, AttractionRecord] = {}
-    signals_by_id: dict[str, AttractionMatchSignals] = {}
-    broad_candidates = await _fetch_broad_candidates()
-    _add_attractions(candidates_by_id, broad_candidates)
-
-    signal_filters = [*facet_filters]
-    if season_filter:
-        signal_filters.append(season_filter)
-
-    if signal_filters:
-        signal_results = await asyncio.gather(
-            *[
-                _fetch_page(facet_filter, page_size=20)
-                for facet_filter in signal_filters
-            ]
-        )
-        for rank, (attractions, _) in enumerate(signal_results):
-            facet_filter = signal_filters[rank]
-            _add_attractions(candidates_by_id, attractions)
-            for attraction in attractions:
-                if not attraction.id:
-                    continue
-                signals = signals_by_id.setdefault(
-                    attraction.id, AttractionMatchSignals()
-                )
-                if facet_filter == season_filter:
-                    signals.season_match = True
-                    continue
-                if signals.facet_rank is None or rank < signals.facet_rank:
-                    signals.facet_rank = rank
+    for page in range(1, _MAX_ATTRACTION_FETCH_PAGES + 1):
+        attractions, total_pages = await _fetch_page(page)
+        for attraction in attractions:
+            if not attraction.id or attraction.id in candidates_by_id:
+                continue
+            candidates_by_id[attraction.id] = attraction
+        if total_pages <= page:
+            break
 
     logger.debug(
-        "Attraction candidates for %s: broad=%s total=%s facet_signals=%s season_signals=%s",
-        dest.id,
-        len(broad_candidates),
-        len(candidates_by_id),
-        sum(1 for signals in signals_by_id.values() if signals.facet_rank is not None),
-        sum(1 for signals in signals_by_id.values() if signals.season_match),
+        "Attraction candidates for %s: pool=%s", dest.id, len(candidates_by_id)
     )
-    return list(candidates_by_id.values()), signals_by_id
+    return list(candidates_by_id.values())
 
 
 async def _pick_destinations(
