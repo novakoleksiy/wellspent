@@ -271,6 +271,19 @@ def _season_for_date(value: date) -> str:
     return _METEOROLOGICAL_SEASONS[value.month]
 
 
+def _season_pool_filter(trip_date: date) -> str:
+    """Facet filter selecting attractions tagged with the trip's season.
+
+    Used as a *pool builder*, not just a ranking signal: the unfiltered destination
+    query returns only a small curated slice (sometimes empty), whereas this faceted
+    query traverses the full classification index and surfaces the in-season items the
+    broad query never returns. The ``seasons`` facet name and lowercase season values
+    are stable in the live API, so the filter is constructed directly without consulting
+    the facet snapshot.
+    """
+    return f"seasons:{_season_for_date(trip_date)}"
+
+
 def _style_facet_rank(experiencetype: list[str], styles: list[str]) -> int | None:
     """Rank of the highest-priority style matched by the item's experience types.
 

@@ -86,6 +86,15 @@ class FakeSwissClient:
         if self.fail_unfiltered_attractions:
             raise RuntimeError("upstream rate limited")
         attractions = self.attractions_by_destination.get(destination_id or "", [])
+        # Simulate the live API's season facet: a "seasons:<x>" filter returns only the
+        # attractions tagged with that season (the broad, unfiltered query returns all).
+        if facet_filter and facet_filter.startswith("seasons:"):
+            season = facet_filter.split(":", 1)[1].lower()
+            attractions = [
+                attraction
+                for attraction in attractions
+                if season in {value.lower() for value in attraction.seasons}
+            ]
         return PaginatedResult(
             data=attractions[:page_size], meta=_page_meta(len(attractions))
         )
@@ -484,7 +493,7 @@ async def test_recommend_boosts_attractions_with_matching_experiencetype():
 
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
     # Only the broad, unfiltered query is issued — no facet-filtered signal queries.
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     assert activities[0]["title"] == "Lake Zurich Promenade"
     assert recommendations[0]["highlights"][0] == "Lake Zurich Promenade"
     assert "Kunsthaus Zurich" in recommendations[0]["highlights"]
@@ -540,7 +549,7 @@ async def test_recommend_uses_broad_pool_when_classification_is_sparse():
     )
 
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     assert all(activity["category"] != "leisure" for activity in activities)
     assert {activity["title"] for activity in activities} == {
         "Lake Zurich Promenade",
@@ -700,7 +709,7 @@ async def test_recommend_uses_fallback_activity_when_swiss_activity_calls_fail()
 
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
     # The broad attractions query fails, so only that single call is recorded.
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     assert activities[0]["title"] == "Explore Zurich"
 
 
@@ -1014,7 +1023,7 @@ async def test_recommend_blends_attractions_across_experience_types():
         trip_length="half_day",
     )
 
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     titles = {
         activity["title"]
         for day in recommendations[0]["itinerary"]["days"]
@@ -1155,7 +1164,7 @@ async def test_recommend_boosts_in_season_attraction():
         trip_length="half_day",
     )
 
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
     # Identical text/facet match; the summer tag is the only differentiator in June.
     assert activities[0]["title"] == "Lake Zurich Promenade"
@@ -1192,7 +1201,7 @@ async def test_recommend_surfaces_season_only_tagged_attraction():
         trip_length="half_day",
     )
 
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     titles = {
         activity["title"]
         for day in recommendations[0]["itinerary"]["days"]
@@ -1256,7 +1265,7 @@ async def test_recommend_demotes_off_season_attraction_from_local_tags():
         trip_length="full_day",
     )
 
-    assert client.attraction_filter_calls == [None]
+    assert client.attraction_filter_calls == [None, "seasons:summer"]
     activities = recommendations[0]["itinerary"]["days"][0]["activities"]
     real_titles = [a["title"] for a in activities if a["category"] != "leisure"]
     # In-season lakeside and the year-round spa both outrank the off-season ski run,

@@ -21,6 +21,7 @@ from app.services.recommendation.scoring import (
     _proximity_blended_score,
     _quiz_blended_score,
     _score_text,
+    _season_pool_filter,
     _tokens,
 )
 
@@ -167,8 +168,8 @@ async def _collect_destination_items(
     trip_date: date,
 ) -> list[RecommendationItem]:
     # Attractions and offers are independent upstream calls — fetch them together.
-    attraction_records, offer_items = await asyncio.gather(
-        _fetch_attraction_pool(client, dest),
+    (attraction_records, season_matched_ids), offer_items = await asyncio.gather(
+        _fetch_attraction_pool(client, dest, trip_date),
         _collect_offer_items(client, dest, styles),
     )
 
@@ -179,6 +180,11 @@ async def _collect_destination_items(
         signals = _attraction_signals(
             attr.experiencetype, attr.seasons, styles, trip_date
         )
+        # The season facet query is authoritative for in-season membership, so it sets
+        # season_match even when the item's own seasons tag is absent. A current-season
+        # match also overrides the off-season demotion in _demote_off_season.
+        if attr.id in season_matched_ids:
+            signals.season_match = True
         text_score = _score_text(attr.name, attr.description, attr.category, styles)
         base_score = _quiz_blended_score(text_score, signals)
         score = _demote_off_season(
@@ -305,12 +311,17 @@ async def _collect_offer_items(
 async def _fetch_attraction_pool(
     client: SwissTourismClient,
     dest: DestinationRecord,
-) -> list[AttractionRecord]:
-    """Fetch the destination's attraction candidates from the broad query.
+    trip_date: date,
+) -> tuple[list[AttractionRecord], set[str]]:
+    """Fetch the destination's attraction candidates and the in-season subset.
 
-    The single unfiltered, geo-scoped query is the candidate pool. Each item carries
-    its own ``seasons``/``experiencetype`` classification, so style and season scoring
-    happens locally at scoring time — no extra facet-filtered queries are issued.
+    Two queries: the broad unfiltered query, plus a ``seasons:<trip-season>`` facet
+    query as a *pool builder*. The unfiltered query returns only a small curated slice
+    (sometimes empty), so the season facet — which traverses the full classification
+    index — is what keeps the pool from collapsing and surfaces in-season items the
+    broad query never returns. Returns ``(pool, season_matched_ids)``; membership in the
+    season query authoritatively sets ``season_match`` at scoring time, including for
+    items whose own ``seasons`` tag is absent.
     """
     geo_filters = (
         {
@@ -322,18 +333,22 @@ async def _fetch_attraction_pool(
         else {}
     )
 
-    async def _fetch_page(page: int) -> tuple[list[AttractionRecord], int]:
+    async def _fetch_page(
+        page: int, facet_filter: str | None = None
+    ) -> tuple[list[AttractionRecord], int]:
         try:
             result = await client.list_attractions(
                 destination_id=dest.id,
+                facet_filter=facet_filter,
                 **geo_filters,
                 page=page,
                 page_size=_ATTRACTION_FETCH_PAGE_SIZE,
             )
         except Exception:
             logger.warning(
-                "Failed to fetch Swiss Tourism attractions for %s",
+                "Failed to fetch Swiss Tourism attractions for %s (facet=%s)",
                 dest.name,
+                facet_filter,
                 exc_info=True,
             )
             return [], 0
@@ -341,20 +356,39 @@ async def _fetch_attraction_pool(
             dest, result.data
         ), result.meta.total_pages
 
+    async def _fetch_broad() -> list[AttractionRecord]:
+        collected: list[AttractionRecord] = []
+        for page in range(1, _MAX_ATTRACTION_FETCH_PAGES + 1):
+            attractions, total_pages = await _fetch_page(page)
+            collected.extend(attractions)
+            if total_pages <= page:
+                break
+        return collected
+
+    season_filter = _season_pool_filter(trip_date)
+    broad, (season_attractions, _) = await asyncio.gather(
+        _fetch_broad(),
+        _fetch_page(1, season_filter),
+    )
+
     candidates_by_id: dict[str, AttractionRecord] = {}
-    for page in range(1, _MAX_ATTRACTION_FETCH_PAGES + 1):
-        attractions, total_pages = await _fetch_page(page)
-        for attraction in attractions:
-            if not attraction.id or attraction.id in candidates_by_id:
-                continue
-            candidates_by_id[attraction.id] = attraction
-        if total_pages <= page:
-            break
+    season_matched_ids: set[str] = set()
+    for attraction in [*broad, *season_attractions]:
+        if not attraction.id:
+            continue
+        candidates_by_id.setdefault(attraction.id, attraction)
+    for attraction in season_attractions:
+        if attraction.id:
+            season_matched_ids.add(attraction.id)
 
     logger.debug(
-        "Attraction candidates for %s: pool=%s", dest.id, len(candidates_by_id)
+        "Attraction candidates for %s: pool=%s (broad=%s season=%s)",
+        dest.id,
+        len(candidates_by_id),
+        len(broad),
+        len(season_attractions),
     )
-    return list(candidates_by_id.values())
+    return list(candidates_by_id.values()), season_matched_ids
 
 
 async def _pick_destinations(
