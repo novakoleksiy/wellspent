@@ -190,6 +190,44 @@ _OPPOSITE_SEASON: dict[str, str] = {
     "autumn": "spring",
 }
 
+# Keywords that mark an item as food/markets-related, used to enforce the food-slot
+# quota on "Food & Markets" trips. Deliberately broader than the foodie style
+# keywords: the genuine food content lives in offer names ("Zürich Food Tour",
+# "Zermatt Tapas Tour", "Culinary hike"), which the attraction experiencetype facet
+# never tags as food, so quota membership is decided on free text instead.
+_FOOD_KEYWORDS: tuple[str, ...] = (
+    "food",
+    "restaurant",
+    "wine",
+    "cheese",
+    "culinary",
+    "gourmet",
+    "gastronom",
+    "market",
+    "chocolate",
+    "fondue",
+    "raclette",
+    "brewery",
+    "tasting",
+    "degustation",
+    "vineyard",
+    "winery",
+    "dining",
+    "cuisine",
+    "bakery",
+    "tapas",
+    "apéro",
+    "aperitif",
+    "distillery",
+)
+
+
+def _text_is_food(*texts: str | None) -> bool:
+    """Whether any of the given text fragments names a food/markets experience."""
+    blob = " ".join(text for text in texts if text).lower()
+    return any(keyword in blob for keyword in _FOOD_KEYWORDS)
+
+
 _MAX_ATTRACTION_FACET_FILTERS = 3
 _DESTINATION_ATTRACTION_RADIUS_M = 30_000
 _ATTRACTION_TEXT_SCORE_WEIGHT = 0.55

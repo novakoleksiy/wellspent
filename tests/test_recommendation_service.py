@@ -1778,3 +1778,95 @@ def test_planner_candidate_sampling_is_seeded_and_deterministic(monkeypatch):
         f"item-{index}" for index in range(recommendation_planning._PLANNER_TOP_K)
     }
     assert {item.id for item in first} <= top_k_ids
+
+
+def _item(
+    item_id: str, name: str, score: float, *, category: str = "museum"
+) -> recommendation_candidates.RecommendationItem:
+    return recommendation_candidates.RecommendationItem(
+        id=item_id, name=name, category=category, url="", score=score
+    )
+
+
+def test_food_slot_target_reserves_half_but_never_all_slots():
+    target = recommendation_planning._food_slot_target
+    # At least half (rounded up so odd counts clear 50%), never every slot.
+    assert target(2) == 1
+    assert target(3) == 2
+    assert target(4) == 2
+    assert target(1) == 1
+
+
+def test_apply_food_quota_swaps_in_pool_food_when_plan_has_none():
+    # Planner picked four high-scoring non-food attractions; the food offers — the
+    # real food content — scored lower and never made the selection.
+    sequence = [
+        _item("attr-1", "Old Town Walk", 0.92),
+        _item("attr-2", "Art Museum", 0.90),
+        _item("attr-3", "Lake Panorama", 0.88),
+        _item("attr-4", "Clock Tower", 0.86),
+    ]
+    food_offers = [
+        _item("offer-food-1", "Zürich Food Tour", 0.55, category="offer"),
+        _item("offer-food-2", "Guided Cheese Tasting", 0.50, category="offer"),
+    ]
+    pool = sequence + food_offers
+
+    arranged = recommendation_planning._apply_food_quota(sequence, pool)
+
+    food = [item for item in arranged if recommendation_planning._is_food_item(item)]
+    # Half of four slots are now food, and the strongest food items were chosen.
+    assert len(arranged) == 4
+    assert len(food) == 2
+    assert {item.id for item in food} == {"offer-food-1", "offer-food-2"}
+    # The weakest non-food stops were the ones dropped.
+    assert {
+        item.id for item in arranged if not recommendation_planning._is_food_item(item)
+    } == {
+        "attr-1",
+        "attr-2",
+    }
+
+
+def test_apply_food_quota_spaces_food_so_it_never_bunches():
+    sequence = [
+        _item("offer-1", "Food Market Tour", 0.6, category="offer"),
+        _item("offer-2", "Wine Tasting", 0.55, category="offer"),
+        _item("attr-1", "Castle", 0.9),
+        _item("attr-2", "Museum", 0.85),
+    ]
+    arranged = recommendation_planning._apply_food_quota(sequence, sequence)
+
+    is_food = [recommendation_planning._is_food_item(item) for item in arranged]
+    # No two food stops are adjacent.
+    assert not any(is_food[i] and is_food[i + 1] for i in range(len(is_food) - 1))
+
+
+def test_apply_food_quota_falls_back_when_pool_lacks_food():
+    # Destination with no food coverage: keep the normal plan, don't pad.
+    sequence = [
+        _item("attr-1", "Glacier Paradise", 0.95),
+        _item("attr-2", "Mountain Railway", 0.90),
+        _item("attr-3", "Alpine Trail", 0.85),
+    ]
+    arranged = recommendation_planning._apply_food_quota(sequence, sequence)
+
+    assert {item.id for item in arranged} == {"attr-1", "attr-2", "attr-3"}
+    assert not any(recommendation_planning._is_food_item(item) for item in arranged)
+
+
+def test_apply_food_quota_trims_excess_food_to_keep_non_food_variety():
+    # Planner over-picked food; one slot is handed back to a non-food stop.
+    sequence = [
+        _item("offer-1", "Food Tour", 0.7, category="offer"),
+        _item("offer-2", "Cheese Tasting", 0.65, category="offer"),
+        _item("offer-3", "Wine Cellar Visit", 0.6, category="offer"),
+        _item("attr-1", "Old Town", 0.5),
+    ]
+    pool = sequence + [_item("attr-2", "City Museum", 0.55)]
+
+    arranged = recommendation_planning._apply_food_quota(sequence, pool)
+
+    food = [item for item in arranged if recommendation_planning._is_food_item(item)]
+    assert len(food) == 2  # ceil(4/2), down from three
+    assert any(not recommendation_planning._is_food_item(item) for item in arranged)

@@ -14,7 +14,7 @@ from app.ports.itinerary_planner import (
     PlanRequest,
 )
 from app.services.recommendation.candidates import RecommendationItem
-from app.services.recommendation.scoring import _season_for_date
+from app.services.recommendation.scoring import _season_for_date, _text_is_food
 from app.services.recommendation.timeline import _build_day_timeline
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,123 @@ _PLANNER_SAMPLE_SIZE = 8
 
 # Day themes render into ItineraryDay.theme, which caps at 80 characters.
 _MAX_THEME_CHARS = 80
+
+# Quiz moods that trigger the food-slot quota. Only "Food & Markets" asks for a
+# food-led day; the other moods keep the unconstrained selection.
+_FOOD_MOODS: frozenset[str] = frozenset({"food_markets"})
+
+
+def _is_food_item(item: RecommendationItem) -> bool:
+    return _text_is_food(item.name, item.description, item.category)
+
+
+def _food_slot_target(slot_count: int) -> int:
+    """How many of ``slot_count`` stops to reserve for food on a Food & Markets trip.
+
+    At least half, rounded up so odd counts still clear the 50% bar, but never every
+    slot: one slot is always left for non-food variety so a food day doesn't read as
+    several food stops back to back.
+    """
+    if slot_count <= 1:
+        return slot_count
+    half = -(-slot_count // 2)  # ceil(slot_count / 2)
+    return min(half, slot_count - 1)
+
+
+def _interleave_food(items: list[RecommendationItem]) -> list[RecommendationItem]:
+    """Alternate food and non-food stops, each group ordered by score.
+
+    Starting from the larger group and alternating keeps food stops from bunching
+    (no "four food stops in a row") while still leading each group with its strongest
+    options.
+    """
+    food = sorted(
+        (item for item in items if _is_food_item(item)),
+        key=lambda item: item.score,
+        reverse=True,
+    )
+    other = sorted(
+        (item for item in items if not _is_food_item(item)),
+        key=lambda item: item.score,
+        reverse=True,
+    )
+    arranged: list[RecommendationItem] = []
+    take_food = len(food) >= len(other)
+    while food or other:
+        if take_food and food:
+            arranged.append(food.pop(0))
+        elif not take_food and other:
+            arranged.append(other.pop(0))
+        elif food:
+            arranged.append(food.pop(0))
+        else:
+            arranged.append(other.pop(0))
+        take_food = not take_food
+    return arranged
+
+
+def _apply_food_quota(
+    sequence: list[RecommendationItem],
+    pool: list[RecommendationItem],
+) -> list[RecommendationItem]:
+    """Reshape a chosen stop sequence so ~half its slots are food, then space them.
+
+    Brings the food count to ``_food_slot_target`` by swapping the weakest non-food
+    stops for the strongest unused food items in the pool (and trimming the other way
+    if the planner over-picked food, so non-food variety is preserved). When the pool
+    simply lacks enough food — a destination with thin food coverage — it fills as
+    many food stops as exist and leaves the rest to the normal selection rather than
+    padding. Finally it interleaves food and non-food so the stops don't bunch.
+    """
+    food_pool = [item for item in pool if _is_food_item(item)]
+    if not food_pool:
+        return sequence
+
+    chosen = list(sequence)
+    target = min(_food_slot_target(len(chosen)), len(food_pool))
+    chosen_ids = {item.id for item in chosen}
+
+    def food_count() -> int:
+        return sum(1 for item in chosen if _is_food_item(item))
+
+    if food_count() < target:
+        spare_food = sorted(
+            (item for item in food_pool if item.id not in chosen_ids),
+            key=lambda item: item.score,
+            reverse=True,
+        )
+        weak_non_food = sorted(
+            (index for index, item in enumerate(chosen) if not _is_food_item(item)),
+            key=lambda index: chosen[index].score,
+        )
+        for index in weak_non_food:
+            if food_count() >= target or not spare_food:
+                break
+            replacement = spare_food.pop(0)
+            chosen[index] = replacement
+            chosen_ids.add(replacement.id)
+    elif food_count() > target:
+        spare_non_food = sorted(
+            (
+                item
+                for item in pool
+                if not _is_food_item(item) and item.id not in chosen_ids
+            ),
+            key=lambda item: item.score,
+            reverse=True,
+        )
+        weak_food = sorted(
+            (index for index, item in enumerate(chosen) if _is_food_item(item)),
+            key=lambda index: chosen[index].score,
+        )
+        for index in weak_food:
+            if food_count() <= target or not spare_non_food:
+                break
+            replacement = spare_non_food.pop(0)
+            chosen[index] = replacement
+            chosen_ids.add(replacement.id)
+
+    return _interleave_food(chosen)
 
 
 def _make_nonce() -> str:
@@ -151,9 +268,36 @@ def _day_theme(activities: list[dict]) -> str | None:
     return dominant.replace("_", " ").capitalize()
 
 
-def _sample_candidates(items: list[RecommendationItem]) -> list[RecommendationItem]:
-    top = sorted(items, key=lambda item: item.score, reverse=True)[:_PLANNER_TOP_K]
-    return _rng.sample(top, min(_PLANNER_SAMPLE_SIZE, len(top)))
+def _sample_candidates(
+    items: list[RecommendationItem], food_floor: int = 0
+) -> list[RecommendationItem]:
+    ranked = sorted(items, key=lambda item: item.score, reverse=True)
+    top = ranked[:_PLANNER_TOP_K]
+    sample = _rng.sample(top, min(_PLANNER_SAMPLE_SIZE, len(top)))
+    if food_floor <= 0:
+        return sample
+
+    # Food offers score below the facet-banded attractions, so the score-ranked top-K
+    # often holds little food. Pull in the best food items the sample is missing —
+    # evicting the weakest non-food picks — so the planner's theme/intro copy matches
+    # the food-led stops the quota will enforce downstream.
+    needed = food_floor - sum(1 for item in sample if _is_food_item(item))
+    if needed <= 0:
+        return sample
+    sample_ids = {item.id for item in sample}
+    spare_food = [
+        item for item in ranked if _is_food_item(item) and item.id not in sample_ids
+    ][:needed]
+    if not spare_food:
+        return sample
+    evict_ids = {
+        item.id
+        for item in sorted(
+            (item for item in sample if not _is_food_item(item)),
+            key=lambda item: item.score,
+        )[: len(spare_food)]
+    }
+    return [item for item in sample if item.id not in evict_ids] + spare_food
 
 
 def _to_candidate_item(item: RecommendationItem) -> CandidateItem:
@@ -223,7 +367,8 @@ async def _plan_day(
     if planner is None:
         return _fallback_day_plan(items, slot_count)
 
-    sampled = _sample_candidates(items)
+    food_floor = _food_slot_target(slot_count) if mood in _FOOD_MOODS else 0
+    sampled = _sample_candidates(items, food_floor)
     expected_stops = min(slot_count, len(sampled))
     request = PlanRequest(
         destination_name=destination_name,
@@ -285,6 +430,13 @@ async def build_itinerary_days(
     )
     item_by_id = {item.id: item for item in items}
     sequence = [item_by_id[stop.candidate_id] for stop in day_plan.stops]
+
+    # On a Food & Markets trip, guarantee at least half the stops are food-related.
+    # Applied here (not inside the planner) so it holds for both the LLM and the
+    # deterministic fallback, and can pull food from the whole pool — not just the
+    # planner's sample, where lower-scoring food offers are usually crowded out.
+    if mood in _FOOD_MOODS:
+        sequence = _apply_food_quota(sequence, items)
 
     days: list[dict] = []
     idx = 0
