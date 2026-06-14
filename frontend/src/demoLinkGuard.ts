@@ -3,7 +3,7 @@
 // MySwitzerland, booking providers, maps, mailto:/tel:, etc. Rather than thread
 // a "demo" prop through every component, we install one capture-phase click
 // listener that swallows any click which would leave the SPA and shows a brief
-// toast instead. Install only when IS_DEMO is true.
+// toast instead. Install only when DEMO_LINK_GUARD is true.
 
 function isExternalNavigation(anchor: HTMLAnchorElement): boolean {
   // Opens a new tab/window — always leaves the kiosk view.

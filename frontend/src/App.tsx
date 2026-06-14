@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
-import { IS_DEMO } from "./demo";
+import { DEMO_LINK_GUARD } from "./demo";
 import { installDemoLinkGuard } from "./demoLinkGuard";
 import TripsPage from "./pages/DashboardPage";
 import ExplorePage from "./pages/ExplorePage";
@@ -71,7 +71,7 @@ function HomeRedirect() {
 export default function App() {
   // Kiosk demo: stop attendees accidentally leaving the app via external links.
   useEffect(() => {
-    if (!IS_DEMO) return;
+    if (!DEMO_LINK_GUARD) return;
     return installDemoLinkGuard();
   }, []);
 
